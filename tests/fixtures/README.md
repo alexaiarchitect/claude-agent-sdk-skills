@@ -1,0 +1,105 @@
+# Test fixtures
+
+**Original work.** Every fixture here was written for this plugin. The domain —
+a small library's book reservations — was invented for it, and so were the
+catalog, the three tools, the system prompt's rules and every case, grader,
+mock, persona and fault. Nothing is copied from the Claude Agent SDK, the
+cookbooks, `claude plugin eval`'s own tests, or any other project. Two files are
+*derived* from measurements taken on this machine; the provenance paragraph at
+the bottom says exactly how, and those measurements are of the SDK's output
+shape, not of anyone's content.
+
+The domain is deliberately small and deterministic:
+
+- three tools — `lookup_book`, `reserve_book`, `cancel_reservation`, reached by
+  the model as `mcp__library__<tool>`;
+- three titles — *Dune* (2 copies, free), *Emma* (1 copy, held by `member-7`),
+  *Ulysses* (0 copies);
+- four rules — look up before reserving, one copy per member per title, cancel
+  only when the holder asks, and answer in one short paragraph.
+
+That is enough to produce a genuine happy path, a genuine refusal, a genuine
+adversarial request (cancel someone else's copy) and a genuine regression
+(an unknown title), without any fixture needing a network, a clock or a model.
+
+## What is here
+
+| Path | What it is for |
+|---|---|
+| `agents/good/` | The convention this plugin scaffolds: `agent.py:build_options()`, an in-process MCP server, `.env.example`. Its `evals/` is the worked example — five cases, one per category, and it must validate with **zero** findings. |
+| `agents/good/evals/eval_config.json` | The CONTRACTS §3 document, with `agent: agent:build_options` and the isolation defaults. |
+| `agents/good/evals/<case>/` | `reserve-available` (happy), `refuse-double-booking` (edge), `no-cancel-unasked` (adversarial), `two-turn-memory` (memory), `unknown-title` (regression). Every grader file carries prose saying what it proves **and what it does not**. |
+| `agents/good/evals/mocks/library/` | The three tools as canned mocks, one file per tool. |
+| `agents/good/evals/personas/impatient.json` | The persona for simulated-user runs, with its violation rubrics. |
+| `agents/drift/`, `agents/no_evals/` | One defect per review rule; an agent with no evals. Not this lane's. |
+| `agents/inline_main/`, `agents/entry_env/`, `agents/external_mcp/`, `agents/subagents/`, `agents/hooks_bad/` | One review situation each: options built only inside `main()` (AGT003); a custom entry point named by `AGENT_ENTRY`; stdio and http `mcp_servers` with one `mcp__` prefix that has no server (MCP001); `AgentDefinition`s with and without turn caps (SUB0xx); hook callbacks with every HOK defect. Each `agent.py` docstring says what it demonstrates and "do not fix this file". |
+| `agents/deploy_ready/` | Dockerfile, compose, OTEL env, an API-key gateway pattern and `setting_sources=[]`; comes back clean from all three linters, so each deploy test plants exactly one defect in a copy. |
+| `agents/trap/` | A document-vault agent whose `release_document` mock succeeds for a sealed document while the system prompt forbids the call: separates "the agent refused" from "the backend refused". One adversarial case; its README says do not make the mock refuse. |
+| `agents/stale_runner/` | The `good` agent with a runner copy stamped `0.0.1` and a config declaring `0.0.1`: `DEP001` and `CFG050`; `install_runner.py` refuses without `--upgrade`. Its README says do not upgrade this fixture. |
+| `agents/ci_ready/` | Convention agent with two cases, a runner stub, `tests/test_evals.py` and two workflows: one generated and clean, one deliberately broken (`CI010`, `CI020`, `CI022`, `CI030`, `CI040`, `CI050`). Maturity L3 without shipped results, because `evals/results/` is gitignored. |
+| `bin/fake_sdk.py` | A fake "Python that has the SDK", so no test ever needs the real one. |
+| `cases/` | One case directory per failure mode, each the smallest thing that triggers exactly one finding: `valid` (clean), `broken_frontmatter` (EVC001), `bad_grader_type` (EVC010), `unknown_override` (EVC003), `not_overridable` (EVC004), `simulated_with_trajectory` (EVC040), `no_graders` (EVC060), `adversarial_lenient` (EVC041). |
+| `eval_configs/` | `pr.json` and `nightly.json` (clean), `judge_retiring.json` (CFG010), `no_isolation.json` (CFG041 + CFG042), `bad.json` (thirteen ids at once, on purpose), `invalid_json.json` (CFG002). |
+| `traces/*.trace.jsonl` | One run each, schema `agent-sdk-skills.trace/1`: `happy`, `loop`, `oscillation`, `stall`, `unknown_tool`, `budget_exceeded`, `max_turns`, `import_failed`, `structured_output`, `rate_limited`. Each produces exactly the failure signature its name claims. |
+| `sessions/one_turn.jsonl` | A real Claude Code session file, scrubbed. The shape `load_session` must survive. |
+| `results/series_5run/` | Three cases × five runs, with a judge grader that flips between runs — enough to tell pass@k from pass^k, and to show an `INFORMATIONAL` budget grader. |
+| `results/failure_only/` | Every run FAILED: consistent failure, not flakiness. |
+| `results/not_evaluated/` | A `rejected` rate limit. Every run `NOT_EVALUATED`, exit 3, never a fake FAIL. |
+| `results/import_failed/` | The runner never reached the agent: exit 2, reported apart from regressions. |
+| `mocks/library/` | The three good mocks. `mocks/broken/` carries one file per SIM id. |
+| `personas/impatient.json`, `faults/slow-lookup.json` | A persona and a hook fault-injection config. |
+| `frontmatter/` | Three sample headers (case, grader, mock) with their expected parse as JSON, so a second implementation of the frontmatter reader can be tested against the reference rather than against its author's memory. |
+
+`agents/good/evals/runner/` is deliberately absent. The runner copy is installed
+into a project by `install_runner.py`, and a fixture that shipped one would
+freeze a copy that goes stale. Discovery reporting `DEP003` on this fixture is
+therefore correct.
+
+## Provenance of the two measured-derived fixtures
+
+Everything above is written by hand except the *shape* of these two, which had
+to be measured because guessing it is how a loader ends up confidently wrong.
+
+**`traces/*.trace.jsonl`** are shaped from three live SDK runs recorded on
+2026-09-30 and kept in `.dev/measured/run1.jsonl`, `run2.jsonl` and `run3.jsonl`
+(the raw `Message` objects, one per line). What is carried over from those runs
+is the *structure and the numbers*: the `usage` keys and their measured values
+(`input_tokens`, `output_tokens`, `cache_creation_input_tokens`,
+`cache_read_input_tokens`, with `cache_creation` as a nested dict of ephemeral
+TTL buckets), the `model_usage` block — including the `claude-haiku-4-5-20251001`
+entry the CLI bills for its own internal work, which nobody asked for — the
+`RateLimitEvent` payload verbatim (`allowed_warning`, 7-day window at 83 %,
+`surpassedThreshold` 0.75 and the `unifiedWindows` sub-object), the `init`
+fields (`apiKeySource: "none"`, `claude_code_version: "2.1.285"`), and the
+synthetic `StructuredOutput` tool call that `output_format` results arrive as.
+The prompts, tool names, arguments and reply text are this plugin's own library
+domain, substituted in. `rate_limited.trace.jsonl` is the one exception and is
+labelled as such in its own generator: a `status: "rejected"` rate limit was
+never observed, so that file is a **stub** built from the measured
+`allowed_warning` shape with the status and utilization changed.
+
+**`sessions/one_turn.jsonl`** is derived from a real `claude -p` session
+(`.dev/measured/session.jsonl`, 25 lines for a single "reply ready" turn). All
+25 lines are kept, all seven line types are kept (`user`, `assistant`,
+`attachment` ×13, `ai-title`, `queue-operation`, `atis-latch`, `last-prompt`),
+and the whole `uuid`/`parentUuid` graph is kept intact — including the fact that
+the assistant line's parent is an *attachment*, not the user line, which is the
+detail a session loader has to handle and the reason the fixture exists.
+
+Scrubbed before committing: the home directory path and the real working
+directory (both the plain and the `~/.claude/projects/` encoded forms) became
+`/home/evaluator/work/library-agent`; every email address became
+`evaluator@example.invalid`; `orgId` and `orgName` became placeholders; and
+every session id, prompt id, request id, message id and uuid was replaced with a
+deterministic placeholder, remapped consistently so the parent graph still
+resolves. Two oversized payloads — the host's own skill listing and its prompt
+snapshot, tens of kilobytes of machine-specific configuration — were replaced
+with a marker string that records their original length. No line was removed and
+no key was renamed.
+
+One shape in that file is **not** measured and nothing here claims it: the
+session-side tool-result key (`toolUseResult`). The measured session had no tool
+call, and scanning other sessions for one was correctly refused by the PII
+classifier. `load_session` reads the key if it is present and never requires it;
+the only fixture exercising it is built by hand in `tests/lib/test_trace.py` and
+is labelled there.

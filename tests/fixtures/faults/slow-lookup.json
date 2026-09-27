@@ -1,0 +1,22 @@
+{
+  "seed": 20260930,
+  "faults": [
+    {
+      "id": "library-lookup-book-slow",
+      "event": "PreToolUse",
+      "tool": "mcp__library__lookup_book",
+      "action": "latency",
+      "probability": 1.0,
+      "latency_ms": 1500
+    },
+    {
+      "id": "library-reserve-book-error",
+      "event": "PostToolUse",
+      "tool": "mcp__library__reserve_book",
+      "action": "error_output",
+      "probability": 0.5,
+      "reason": "reservation service timed out",
+      "updated_tool_output": "reservation service timed out; try again"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "agent-sdk",
+  "description": "Create, review, debug and manage Claude Agent SDK (Python) agents, and create, run, review and analyze their evaluations. Deterministic stdlib validators plus interactive, options-first skills: an eval runner that lives in your project, plugin-eval-style cases and graders, LLM-as-judge through the SDK, pass@k, simulated users, mocked MCP tools, fault injection and CI gates. Subscription-first: runs and judges spend your Claude plan tokens unless an API key is set.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Alex",
+    "email": "alex@alexaiarchitect.com"
+  },
+  "homepage": "https://github.com/alexaiarchitect/claude-agent-sdk-skills",
+  "repository": "https://github.com/alexaiarchitect/claude-agent-sdk-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "claude-agent-sdk",
+    "agents",
+    "evals",
+    "evaluation",
+    "llm-as-judge",
+    "pass-at-k",
+    "mcp",
+    "hooks"
+  ],
+  "experimental": {
+    "evals": "plugin-evals"
+  }
+}

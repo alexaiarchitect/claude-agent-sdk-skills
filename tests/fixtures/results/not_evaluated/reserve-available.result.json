@@ -1,0 +1,82 @@
+{
+  "schema": "agent-sdk-skills.result/1",
+  "case": "reserve-available",
+  "category": "happy",
+  "config": {
+    "tier": "pr",
+    "model": "claude-sonnet-5-5",
+    "judge": {
+      "model": "claude-sonnet-5-5",
+      "samples": 3
+    },
+    "isolation": {
+      "setting_sources": [],
+      "strict_mcp_config": true
+    },
+    "cost_basis": "subscription",
+    "sdk_version": "0.2.162",
+    "cli_version": "2.1.285"
+  },
+  "runs": [
+    {
+      "run": 1,
+      "trace": "reserve-available.1.trace.jsonl",
+      "status": "NOT_EVALUATED",
+      "graders": [
+        {
+          "name": "follows_the_path",
+          "type": "trajectory",
+          "status": "NOT_EVALUATED",
+          "score": 0.0,
+          "reason": "the run was stopped by a usage limit before any tool call"
+        },
+        {
+          "name": "cheap_enough",
+          "type": "budget",
+          "status": "NOT_EVALUATED",
+          "score": 0.0,
+          "reason": "no result event to read a ceiling against"
+        }
+      ],
+      "result": {
+        "subtype": "error_during_execution",
+        "terminal_reason": "api_error",
+        "num_turns": 0,
+        "duration_ms": 402,
+        "total_cost_usd": 0.0,
+        "cost_delta_usd": 0.0,
+        "api_error_status": 429,
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0
+        }
+      },
+      "rate_limit": {
+        "status": "rejected",
+        "kind": "usage_limit",
+        "utilization": 1.0,
+        "resets_at": 1790773800,
+        "windows": {
+          "five_hour": {
+            "utilization": 1.0,
+            "resets_at": 1790773800
+          },
+          "seven_day": {
+            "utilization": 0.98,
+            "resets_at": 1790784000
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "failed": 0,
+    "not_evaluated": 1,
+    "informational": 0,
+    "pass_rate": 0.0,
+    "cost_usd": 0.0
+  }
+}

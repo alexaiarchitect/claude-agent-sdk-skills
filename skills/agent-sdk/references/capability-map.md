@@ -1,0 +1,75 @@
+# Capability map
+
+Thirteen skills. The router (`/agent-sdk:agent-sdk`) picks one; each does its
+own discovery, so any of them can also be invoked directly.
+
+## Agent side
+
+| Skill | Use it to | Reads | Writes | Cost |
+|---|---|---|---|---|
+| `/agent-sdk:agent-create` | make an app eval-ready: `evals/`, config, runner copy, `.env.example`, pytest gate; hand off to `/agent-sdk-dev:new-sdk-app` for a bare app | your answers, the existing app | evals scaffolding, never the app itself | free |
+| `/agent-sdk:agent-review` | review agent code: entry point, options, model policy, secrets, legacy SDK names | agent source (statically, never imported) | nothing, unless you approve fixes | free |
+| `/agent-sdk:agent-debug` | triage a looping, stalling or flaky agent from a trace or a Claude Code session file | `*.trace.jsonl`, `~/.claude/projects/*/*.jsonl`, results | an imported trace, optionally | free (a fresh run is `run`) |
+| `/agent-sdk:agent-harness` | design and lint hooks, permissions, MCP servers, subagents, `setting_sources` | agent source, `.claude/`, `.mcp.json` | hook or agent files on approval | free |
+| `/agent-sdk:agent-deploy` | check hosting readiness: credentials, isolation, limits, telemetry | agent source, settings | Dockerfile or settings on approval | free |
+
+## Evaluation side
+
+| Skill | Use it to | Reads | Writes | Cost |
+|---|---|---|---|---|
+| `/agent-sdk:eval-create` | write cases by category, turn a trace into a trajectory grader, manage cases | agent tools and prompt, existing cases, traces | `evals/<case>/` | free |
+| `/agent-sdk:eval-criteria` | pick graders and budgets, write rubrics, set judge and tiers | agent tools, existing config | `evals/eval_config.json`, grader files | free to write |
+| `/agent-sdk:eval-review` | validate cases and config, cross-check tool names, measure coverage | eval files plus agent source | nothing | free |
+| `/agent-sdk:eval-run` | run a tier honestly through the project's runner copy; repeat for pass@k | cases, config, runner | `evals/results/<timestamp>/` | run / judge |
+| `/agent-sdk:eval-analyze` | explain results: quadrant, first divergence, reliability, efficiency | result and trace files | nothing | free |
+| `/agent-sdk:eval-simulation` | simulated users with personas, mocked MCP tools, hook fault injection | agent tools, existing cases | mocks, personas, faults | free to write; simulated users cost `judge` |
+| `/agent-sdk:eval-ci` | a plain workflow step that gates on the runner's exit code; maturity | repo layout, config, workflows | `.github/workflows/`, `tests/test_evals.py` | free to write |
+
+## Cost tiers
+
+- **free** — deterministic. No SDK session, no judge call. Static review,
+  validation, coverage, replaying a saved trace through the free graders.
+- **run** — executes the agent. One SDK session per case per run; subagents
+  add turns. Paid by whatever credential the subprocess inherits: an API key
+  bills the API, a subscription login or token draws on the plan's usage
+  limits (and `total_cost_usd` is then an estimate), a provider switch bills
+  that cloud.
+- **judge** — adds LLM-as-judge calls: one per `llm` grader per sample, made
+  through the SDK with the configured judge model, so the same credential
+  pays for them.
+
+The `pr` tier in a generated config uses free graders only, so a per-change
+gate never needs a judge. The `nightly` tier adds judges and repeated runs.
+
+## A normal sequence
+
+Building something new:
+
+```
+/agent-sdk-dev:new-sdk-app (optional) → /agent-sdk:agent-create → /agent-sdk:eval-create → /agent-sdk:eval-criteria → /agent-sdk:eval-run → /agent-sdk:eval-ci
+```
+
+Taking over something that exists:
+
+```
+/agent-sdk:agent-sdk → /agent-sdk:agent-review → /agent-sdk:agent-harness → /agent-sdk:eval-review → /agent-sdk:eval-create (close gaps) → /agent-sdk:eval-run
+```
+
+Something is failing:
+
+```
+/agent-sdk:eval-analyze → /agent-sdk:agent-debug → fix → /agent-sdk:eval-create (regression case) → /agent-sdk:eval-run --runs 5
+```
+
+## Where the deterministic work happens
+
+Every skill's judgement is backed by a script under `skills/<skill>/scripts/`.
+They are standard library only and never import `claude_agent_sdk`, so they run
+on a project whose environment is broken — which is often exactly when you need
+them. The code that does need the SDK is the runner package this plugin copies
+into the project (`evals/runner/agent_sdk_evals/`); scripts invoke it through a
+resolved interpreter and say which one they used.
+
+---
+
+Sources: this plugin.

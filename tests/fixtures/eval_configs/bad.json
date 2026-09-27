@@ -1,0 +1,13 @@
+{
+  "schema": "agent-sdk-skills.eval-config/9",
+  "runner_version": "0.0.1",
+  "agent": "agent:build_options",
+  "model": "claude-3-5-sonnet-20241022",
+  "judge": { "model": "claude-opus-4-20250514", "samples": 0 },
+  "tiers": {
+    "pr": { "graders": ["free", "judge"], "runs": 1, "threshold": 1.4 },
+    "weekly": { "graders": ["regex"], "runs": 0 }
+  },
+  "isolation": { "setting_sources": ["user", "project"], "strict_mcp_config": false },
+  "concurrency": 8
+}

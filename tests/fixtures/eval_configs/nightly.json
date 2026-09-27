@@ -1,0 +1,49 @@
+{
+  "schema": "agent-sdk-skills.eval-config/1",
+  "runner_version": "0.1.0",
+  "agent": "agent:build_options",
+  "model": "${CLAUDE_MODEL:-claude-sonnet-5-5}",
+  "credential": "auto",
+  "concurrency": 1,
+  "on_usage_limit": "not_evaluated",
+  "isolation": {
+    "setting_sources": [],
+    "strict_mcp_config": true
+  },
+  "judge": {
+    "model": "claude-sonnet-5-5",
+    "samples": 3,
+    "vote": "majority",
+    "effort": "low"
+  },
+  "tiers": {
+    "pr": {
+      "graders": [
+        "free"
+      ],
+      "runs": 1,
+      "threshold": 1.0
+    },
+    "nightly": {
+      "graders": [
+        "free",
+        "judge"
+      ],
+      "runs": 3,
+      "threshold": 0.8,
+      "pass_k": 3
+    }
+  },
+  "budget": {
+    "max_cost_usd_per_run": 1.0,
+    "max_cost_usd_total": 25.0,
+    "on_not_evaluated": "warn"
+  },
+  "results_dir": "evals/results",
+  "trace": {
+    "include_thinking": false,
+    "redact_env": [
+      "ANTHROPIC_API_KEY"
+    ]
+  }
+}

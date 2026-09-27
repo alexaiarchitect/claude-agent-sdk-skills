@@ -1,0 +1,14 @@
+[project]
+name = "agent-sdk-skills"
+version = "0.1.0"
+description = "Claude Code plugin: skills for Claude Agent SDK agents and evaluations"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning"]

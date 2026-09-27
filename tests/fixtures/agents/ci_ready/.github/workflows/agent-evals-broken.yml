@@ -1,0 +1,28 @@
+# A workflow with one of every mistake this plugin checks for. Do not fix this
+# file: `tests/skills/test_eval_ci_scripts.py` asserts the finding ids it
+# produces (CI010, CI020, CI022, CI030, CI040, CI050).
+name: Agent evals (legacy)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Evals
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: sk-oat-this-is-a-literal-not-a-secret-reference
+          CLAUDE_MODEL: claude-sonnet-5-5
+        run: |
+          python -m agent_sdk_evals run evals --concurrency 4 --json

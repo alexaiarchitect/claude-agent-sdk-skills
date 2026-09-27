@@ -1,0 +1,15 @@
+{
+  "name": "alexaiarchitect-agent-sdk",
+  "description": "Claude Code skills for building and evaluating Claude Agent SDK agents.",
+  "owner": {
+    "name": "Alex",
+    "email": "alex@alexaiarchitect.com"
+  },
+  "plugins": [
+    {
+      "name": "agent-sdk",
+      "source": "./",
+      "description": "Skills for building and evaluating Claude Agent SDK (Python) agents."
+    }
+  ]
+}

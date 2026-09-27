@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.*
+# ...but shipped templates that generate a .env.example must ship
+!skills/*/assets/templates/**/.env.example.tmpl
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editors, OS
+.idea/
+.vscode/
+.DS_Store
+
+# Working notes and measurements, not shipped with the plugin
+.dev/
+
+# Written by the eval runner inside fixture projects
+tests/fixtures/agents/*/evals/results/
+
+# Written by `claude plugin eval`
+plugin-evals/results/

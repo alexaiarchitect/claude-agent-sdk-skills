@@ -1,0 +1,14 @@
+services:
+  reservations-agent:
+    build: .
+    environment:
+      # The gateway holds the credential; the container never sees a key.
+      ANTHROPIC_BASE_URL: http://claude-gateway.internal:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector.internal:4318
+    volumes:
+      - work:/work
+    read_only: true
+    tmpfs:
+      - /tmp
+volumes:
+  work:

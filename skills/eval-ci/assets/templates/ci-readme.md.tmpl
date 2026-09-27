@@ -1,0 +1,46 @@
+## Evaluations in CI
+
+{{PROJECT_NAME}} gates changes on its own eval suite. The suite lives in
+`evals/`, and the runner that executes it is committed alongside it under
+`evals/runner/agent_sdk_evals` — nothing is installed from a registry, so a
+workflow only needs Python, the `claude-agent-sdk` dependency and a credential.
+
+### The secret CI needs
+
+One of these, as a repository secret:
+
+| Secret | Where it comes from | What a run spends |
+|---|---|---|
+| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token` locally, then paste the printed token | the usage limits of that person's Claude plan |
+| `ANTHROPIC_API_KEY` | a key from the Claude Console | money, per token |
+
+The generated workflows use `CLAUDE_CODE_OAUTH_TOKEN` and carry the API-key line
+commented out, so switching is a two-line edit. An OAuth token is tied to the
+plan of whoever minted it: fine for this repository, wrong as an
+organization-wide secret, where an API key is the right answer. The token is
+long-lived, not permanent — when the gate starts failing at the credential,
+re-run `claude setup-token` and replace the secret.
+
+### Reading the gate
+
+| Job outcome | What it means | What to do |
+|---|---|---|
+| green, no annotation | every case met its threshold | nothing |
+| green, warning annotation | inconclusive: nothing could be scored, because a usage limit was rejected, the `--max-cost-usd {{MAX_COST}}` ceiling was hit, or a judge was unreachable | check quota, then re-run the job; this is not a regression |
+| red, "Eval failures" | at least one case fell below its threshold | download the `agent-evals-*` artifact and read `aggregate.json` |
+| red, "Eval runner error" | the runner never got to score anything | usually the secret, the `PYTHONPATH`, or a runner-copy version mismatch |
+
+Every run uploads `evals/results/` as an artifact, on success as well as
+failure, so a red pipeline can be diagnosed without re-running anything
+locally. The per-pull-request job runs the `pr` tier: deterministic graders,
+one run per case, no judge calls. The nightly job runs the `nightly` tier,
+which adds LLM-as-judge graders and repeats each case so reliability has a
+number attached.
+
+### Running it yourself
+
+```bash
+PYTHONPATH=evals/runner:. python -m agent_sdk_evals run evals --tier pr --json
+```
+
+Results land in `evals/results/<timestamp>/`, which is gitignored.

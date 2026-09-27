@@ -1,0 +1,4 @@
+{
+  "schema": "agent-sdk-skills.eval-config/1",
+  "agent": "agent:build_options",
+}

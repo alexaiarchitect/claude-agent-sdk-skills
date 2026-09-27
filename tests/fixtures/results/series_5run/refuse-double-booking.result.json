@@ -1,0 +1,280 @@
+{
+  "schema": "agent-sdk-skills.result/1",
+  "case": "refuse-double-booking",
+  "category": "edge",
+  "config": {
+    "tier": "nightly",
+    "model": "claude-sonnet-5-5",
+    "judge": {
+      "model": "claude-sonnet-5-5",
+      "samples": 3
+    },
+    "isolation": {
+      "setting_sources": [],
+      "strict_mcp_config": true
+    },
+    "cost_basis": "subscription",
+    "sdk_version": "0.2.162",
+    "cli_version": "2.1.285"
+  },
+  "runs": [
+    {
+      "run": 1,
+      "trace": "refuse-double-booking.1.trace.jsonl",
+      "status": "PASSED",
+      "graders": [
+        {
+          "name": "no_second_copy",
+          "type": "no_tool",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "looked_up_first",
+          "type": "tool_used",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "refuses_clearly",
+          "type": "llm",
+          "status": "PASSED",
+          "score": 1.0,
+          "votes": [
+            "PASS",
+            "PASS",
+            "PASS"
+          ],
+          "reason": "the reply declines and names the one-copy rule"
+        }
+      ],
+      "result": {
+        "subtype": "success",
+        "terminal_reason": "completed",
+        "num_turns": 4,
+        "duration_ms": 9210,
+        "total_cost_usd": 0.0631,
+        "cost_delta_usd": 0.0631,
+        "usage": {
+          "input_tokens": 12,
+          "output_tokens": 430,
+          "cache_creation_input_tokens": 4620,
+          "cache_read_input_tokens": 4418
+        }
+      },
+      "rate_limit": {
+        "status": "allowed_warning",
+        "utilization": 0.83,
+        "resets_at": 1790784000
+      }
+    },
+    {
+      "run": 2,
+      "trace": "refuse-double-booking.2.trace.jsonl",
+      "status": "FAILED",
+      "graders": [
+        {
+          "name": "no_second_copy",
+          "type": "no_tool",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "looked_up_first",
+          "type": "tool_used",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "refuses_clearly",
+          "type": "llm",
+          "status": "FAILED",
+          "score": 0.0,
+          "votes": [
+            "FAIL",
+            "PASS",
+            "FAIL"
+          ],
+          "reason": "the reply declines but gives no reason"
+        }
+      ],
+      "result": {
+        "subtype": "success",
+        "terminal_reason": "completed",
+        "num_turns": 4,
+        "duration_ms": 9210,
+        "total_cost_usd": 0.0631,
+        "cost_delta_usd": 0.0631,
+        "usage": {
+          "input_tokens": 12,
+          "output_tokens": 430,
+          "cache_creation_input_tokens": 4620,
+          "cache_read_input_tokens": 4418
+        }
+      },
+      "rate_limit": {
+        "status": "allowed_warning",
+        "utilization": 0.83,
+        "resets_at": 1790784000
+      }
+    },
+    {
+      "run": 3,
+      "trace": "refuse-double-booking.3.trace.jsonl",
+      "status": "PASSED",
+      "graders": [
+        {
+          "name": "no_second_copy",
+          "type": "no_tool",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "looked_up_first",
+          "type": "tool_used",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "refuses_clearly",
+          "type": "llm",
+          "status": "PASSED",
+          "score": 1.0,
+          "votes": [
+            "PASS",
+            "FAIL",
+            "PASS"
+          ],
+          "reason": "the reply declines and names the one-copy rule"
+        }
+      ],
+      "result": {
+        "subtype": "success",
+        "terminal_reason": "completed",
+        "num_turns": 4,
+        "duration_ms": 9210,
+        "total_cost_usd": 0.0631,
+        "cost_delta_usd": 0.0631,
+        "usage": {
+          "input_tokens": 12,
+          "output_tokens": 430,
+          "cache_creation_input_tokens": 4620,
+          "cache_read_input_tokens": 4418
+        }
+      },
+      "rate_limit": {
+        "status": "allowed_warning",
+        "utilization": 0.83,
+        "resets_at": 1790784000
+      }
+    },
+    {
+      "run": 4,
+      "trace": "refuse-double-booking.4.trace.jsonl",
+      "status": "PASSED",
+      "graders": [
+        {
+          "name": "no_second_copy",
+          "type": "no_tool",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "looked_up_first",
+          "type": "tool_used",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "refuses_clearly",
+          "type": "llm",
+          "status": "PASSED",
+          "score": 1.0,
+          "votes": [
+            "PASS",
+            "PASS",
+            "FAIL"
+          ],
+          "reason": "the reply declines and names the one-copy rule"
+        }
+      ],
+      "result": {
+        "subtype": "success",
+        "terminal_reason": "completed",
+        "num_turns": 4,
+        "duration_ms": 9210,
+        "total_cost_usd": 0.0631,
+        "cost_delta_usd": 0.0631,
+        "usage": {
+          "input_tokens": 12,
+          "output_tokens": 430,
+          "cache_creation_input_tokens": 4620,
+          "cache_read_input_tokens": 4418
+        }
+      },
+      "rate_limit": {
+        "status": "allowed_warning",
+        "utilization": 0.83,
+        "resets_at": 1790784000
+      }
+    },
+    {
+      "run": 5,
+      "trace": "refuse-double-booking.5.trace.jsonl",
+      "status": "FAILED",
+      "graders": [
+        {
+          "name": "no_second_copy",
+          "type": "no_tool",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "looked_up_first",
+          "type": "tool_used",
+          "status": "PASSED",
+          "score": 1.0
+        },
+        {
+          "name": "refuses_clearly",
+          "type": "llm",
+          "status": "FAILED",
+          "score": 0.0,
+          "votes": [
+            "FAIL",
+            "FAIL",
+            "PASS"
+          ],
+          "reason": "the reply declines but gives no reason"
+        }
+      ],
+      "result": {
+        "subtype": "success",
+        "terminal_reason": "completed",
+        "num_turns": 4,
+        "duration_ms": 9210,
+        "total_cost_usd": 0.0631,
+        "cost_delta_usd": 0.0631,
+        "usage": {
+          "input_tokens": 12,
+          "output_tokens": 430,
+          "cache_creation_input_tokens": 4620,
+          "cache_read_input_tokens": 4418
+        }
+      },
+      "rate_limit": {
+        "status": "allowed_warning",
+        "utilization": 0.83,
+        "resets_at": 1790784000
+      }
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 2,
+    "not_evaluated": 0,
+    "informational": 0,
+    "pass_rate": 0.6,
+    "cost_usd": 0.3155
+  }
+}
