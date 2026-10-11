@@ -38,6 +38,24 @@ on it. The reviewer's `OPT020` points at this because an eval or CI run with
 the developer's local settings in the prompt measures something other than the
 agent.
 
+**Omitting `permission_mode` changed meaning too**, and later than the rename.
+It used to be equivalent to passing `"default"` — the docs state the equivalence
+ended before TypeScript Agent SDK v0.3.286 — and from Claude Code **2.1.285** a
+headless session that does not fetch the interactive feature flags (a gateway
+token, a third-party provider, telemetry off) starts in **`auto`** instead, where
+a classifier reviews each shell command and network request and broad allow
+rules such as a bare `Bash` are dropped. A project migrated years ago and never
+revisited is exactly the one that relies on the old equivalence. Pass the mode
+explicitly; `OPT013` flags the omission.
+
+**Two more surfaces worth knowing on an old project.** `fork_session()` is now a
+module-level function that copies a transcript into a new session, distinct from
+the long-standing `fork_session: bool` option that forks on resume — so a
+migration that greps for the name finds two different things. And
+`ClaudeSDKClient.get_context_usage()` returns what `/context` shows, as an
+unbilled off-stream token-counting request, which is a cheaper way to answer
+"why is this session so expensive" than instrumenting the agent.
+
 ## What to do with a flagged project
 
 1. `pip uninstall -y claude-code-sdk && pip install claude-agent-sdk`; update
@@ -52,4 +70,9 @@ agent.
 
 Sources: `https://code.claude.com/docs/en/agent-sdk/migration-guide` (renames,
 system prompt default, settings sources default and the 0.1.59 note);
-`https://code.claude.com/docs/en/agent-sdk/python` (`ClaudeAgentOptions` fields).
+`https://code.claude.com/docs/en/agent-sdk/python` (`ClaudeAgentOptions` fields,
+`fork_session`, `get_context_usage`);
+`https://code.claude.com/docs/en/agent-sdk/permissions` and
+`https://code.claude.com/docs/en/permission-modes` (which mode a session starts
+in). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
+docs.

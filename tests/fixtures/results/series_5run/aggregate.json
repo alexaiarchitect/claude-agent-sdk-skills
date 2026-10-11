@@ -37,9 +37,9 @@
     "duration_ms": 116115
   },
   "exit_code": 1,
-  "runner_version": "0.1.0",
-  "sdk_version": "0.2.162",
-  "cli_version": "2.1.285",
+  "runner_version": "0.1.1",
+  "sdk_version": "0.2.165",
+  "cli_version": "2.1.294",
   "credential": {
     "kind": "subscription",
     "auth_method": "claude.ai",

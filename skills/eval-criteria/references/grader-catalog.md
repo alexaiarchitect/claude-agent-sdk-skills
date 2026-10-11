@@ -38,6 +38,13 @@ Prefer the cheapest grader that can fail for the right reason. A judge call to
 check that a number appears in the reply is a judge call wasted, and its
 verdict is less stable than the regex would have been.
 
+When an `llm` grader really is the right answer, the cheap judge as of
+2026-10-11 is **`claude-haiku-5-5`** ($0.10 / $0.50 per Mtok, 1M context by
+default, needs Claude Code 2.1.293+). Name it on the grader; the suite default
+stays `claude-sonnet-5-5` so verdicts remain comparable. Its price rises per
+token above a 100K-token prompt, so a judge that reads a whole transcript saves
+less than the headline suggests.
+
 ## Semantics that were measured, not designed
 
 These are the ones that surprise people, and each cost a debugging session to
@@ -73,9 +80,23 @@ find:
   `PostToolUseFailure`, `UserPromptSubmit`, `Stop`, `SubagentStop`,
   `PreCompact`, `Notification`, `SubagentStart`, `PermissionRequest`.
   `SessionStart` and `SessionEnd` are not valid.
-* **Result-shaped graders cannot score an imported session.** `budget`,
-  `terminal` and `structured_output` read the `result` event; a session from
-  `claude -p` has none, so they report `NOT_EVALUATED`.
+* **Result-shaped graders cannot score every imported session.** `budget`,
+  `terminal` and `structured_output` read the `result` event. A session from
+  `claude -p` has none, so they report `NOT_EVALUATED`. An SDK-produced session
+  JSONL does carry a `cost-state` line, from which the importer synthesises a
+  `result` event marked `imported_cost: true` — so `budget` can score those,
+  and the flag is how a reader tells a cost the SDK reported from one the runner
+  measured in-process.
+* **A deferred tool ends the turn with `stop_reason: "tool_deferred"`.** A
+  `PreToolUse` hook returning `permissionDecision: "defer"` is not a quieter
+  deny: it stops the turn, and `deferred_tool_use` on the result names the call.
+  Assert it with `terminal` on `stop_reason: tool_deferred`, not with a text
+  match on the reply.
+* **A cost figure has a basis.** Each `model_usage` row carries `costBasis`
+  (`list` | `managed` | `unknown`, Claude Code 2.1.246+) and `thinkingTokens`,
+  neither of them on the 0.2.165 `ModelUsage` TypedDict — read both with
+  `.get()`. Comparing a `list`-basis run with a `managed`-basis one compares two
+  price lists.
 
 ## There is no `session_state` grader
 
@@ -95,4 +116,10 @@ Sources: `lib/agent_sdk_skills/graders.py` (`GRADER_CATALOG`, `catalog_rows`,
 normative table and every measured semantic) and §12.1/§12.7 (`ToolSearch` as
 synthetic, the accepted grader extras);
 https://code.claude.com/docs/en/agent-sdk/python (`ResultMessage`,
-`ToolResultBlock`, `HookEvent`).
+`ToolResultBlock`, `HookEvent`, `costBasis`),
+https://code.claude.com/docs/en/agent-sdk/hooks (`defer` and
+`stop_reason: "tool_deferred"`),
+https://platform.claude.com/docs/en/about-claude/models/overview (Haiku 5.5's
+price). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
+SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

@@ -52,7 +52,35 @@ model a session starts on Claude Code's default for the account type (Opus 5.5
 on the API and on Pro/Max). Pin the model in the agent and in
 `evals/eval_config.json` so a run and its evals agree; the reviewer grades ids
 against the deprecations page: `retired` is an error, `retiring` a warning,
-aliases (`sonnet`, `opus`) are accepted but move.
+aliases (`sonnet`, `opus`) are accepted but move. `haiku` moved recently: on the
+Anthropic API it resolves to **`claude-haiku-5-5`** from Claude Code 2.1.293
+(Bedrock, Vertex, Foundry and Claude Platform on AWS still get Haiku 4.5, which
+is retiring). Haiku 5.5 is `current` in this plugin's policy and is the cheap
+judge option; the judge default stays `claude-sonnet-5-5`.
+
+`permission_mode` deserves the same deliberate treatment as the model. Left
+unset, a headless session that does not fetch the interactive feature flags — a
+gateway token, a third-party provider, telemetry off — can start in **`auto`**
+from Claude Code 2.1.285, where a classifier reviews each call and broad allow
+rules are dropped. Pass `"dontAsk"` for unattended work or `"default"` to keep
+prompting; `lint_agent.py` reports the omission as `OPT013`, and this plugin's
+runner forces `"dontAsk"` when the options leave it unset.
+
+## Mods: a plugin class this plugin does not cover
+
+Claude Code 2.1.292 introduced **mods** — a plugin class written in TypeScript
+that registers handlers (`tool.check` among them) against the session, with its
+own ten-page documentation set under `/docs/en/plugins/mods/`, its own
+`claude plugin test` command for `*.test.ts` files, a manifest `types` field
+pointing at a `.d.ts`, and a `gatingHooks` section in `claude plugin validate
+--json`. **Nothing in this plugin addresses mods**: its skills, linters and
+runner are about the Python Agent SDK and about skill/agent/hook plugins. The one
+place a mod shows up here is the permission model, where a mod's `tool.check`
+answers *after* the rules and the `PreToolUse` hooks and can replace their
+answer — documented as the seventh step in
+`../../agent-harness/references/permission-model.md`. If a project's question is
+really about a mod, say so and send them to the upstream docs rather than
+answering from these skills.
 
 ## Which Python runs the SDK
 
@@ -83,7 +111,12 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/check_env.py <project-dir>
 
 reports the credential and its source, the cost basis, the interpreter and SDK
 version, and the model with its policy grade, and exits 1 with the blockers
-listed when a run would fail.
+listed when a run would fail. It also prints which versions the plugin was
+checked against — `claude-agent-sdk` **0.2.165** with its bundled Claude Code
+**2.1.294** — and raises **`ENV003`** at info level when the installed SDK is
+*newer* than that target. `ENV003` is never an error: 0.2.166+ is expected to
+work, and the note exists so a surprising behaviour can be attributed to the
+version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
 
 ---
 
@@ -92,5 +125,9 @@ provider switches, the third-party note), `https://code.claude.com/docs/en/env-v
 (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`), `https://code.claude.com/docs/en/agent-sdk/configuration`
 (model selection), `https://code.claude.com/docs/en/agent-sdk/cost-tracking`
 (estimates, usage limits), `https://code.claude.com/docs/en/agent-sdk/hosting`
-(auth and secrets), `https://code.claude.com/docs/en/model-config` (default model);
-this plugin's `lib/agent_sdk_skills/env.py`.
+(auth and secrets), `https://code.claude.com/docs/en/model-config` (default
+model, the `haiku` alias from 2.1.293),
+`https://code.claude.com/docs/en/permission-modes` (the headless starting-mode
+table), `https://code.claude.com/docs/en/plugins/mods/overview` (the mod class);
+this plugin's `lib/agent_sdk_skills/env.py`. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

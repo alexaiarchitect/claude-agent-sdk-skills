@@ -27,7 +27,7 @@ branch on them and a test may assert them.
 | Id | Severity | Trigger | Why |
 |---|---|---|---|
 | `AGT010` | warn | a model id written as a literal in the options | dated ids are retired and the agent stops working on a date nobody wrote down. `os.getenv("CLAUDE_MODEL", "...")` is **not** a finding: the default is graded, the pattern is not |
-| `AGT011` | warn | a retirement-eligible id | there is a clock on it. See [model-policy.md](model-policy.md) for whose clock |
+| `AGT011` | warn | a **deprecated** id (a committed retirement date) or a retirement-eligible one | there is a clock on it, and for a deprecated id the message carries the date — `claude-sonnet-4-5-20250929` was deprecated 2026-09-30 and retires **2026-11-30**. See [model-policy.md](model-policy.md) for whose clock |
 | `AGT012` | **error** | a retired id | requests fail outright |
 | `OPT012` | warn | no `model` and no `fallback_model` | the session starts on Claude Code's default. Measured on the build machine: the CLI default (`claude-fable-5-1`) cost about 4x what Sonnet cost for the same trivial prompt, and a model that can change under you makes results incomparable |
 | `SUB002` | warn / **error** | an `AgentDefinition` pins a retiring / retired id | same clock, one level down |
@@ -43,10 +43,11 @@ branch on them and a test may assert them.
 
 | Id | Severity | Trigger | Why |
 |---|---|---|---|
-| `OPT001` | warn | `allowed_tools` set, `disallowed_tools` empty, `tools` not `[]` | **`allowed_tools` only pre-approves.** An unlisted tool stays in Claude's context and its call falls through to `permission_mode`. Removing a tool takes a bare name in `disallowed_tools`, or `tools=[]` |
-| `OPT002` | warn (**error** under `--strict`) | `permission_mode="bypassPermissions"` | approves everything that reaches the permission-mode step. Deny rules still apply; nothing else does |
+| `OPT001` | warn | `allowed_tools` set, `disallowed_tools` empty, `tools` not `[]` | **`allowed_tools` only pre-approves.** An unlisted tool stays in Claude's context and its call falls through to `permission_mode`. Removing a tool takes a bare name in `disallowed_tools`, or `tools=[]`. And no allow rule ever approves a read from a **network path** (a Windows UNC `\\server\share` path, or a macOS/Linux `/net` automount): that read gets its own check, which an allow rule, a `PreToolUse` `"allow"` return and the auto-mode classifier all fail to bypass (2.1.292+). `dontAsk` denies it outright; only `bypassPermissions` and the plan-mode bypass skip the check |
+| `OPT002` | warn (**error** under `--strict`) | `permission_mode="bypassPermissions"` | approves everything that reaches the permission-mode step. Deny rules still apply; nothing else does. It is also one of the two modes that skip the network-path check |
 | `OPT003` | info | allow/deny lists set but `tools` never set | the built-ins are still in context. `tools=[]` is what removes them; MCP tools are unaffected either way |
 | `OPT004` | warn | `"Skill"` in `allowed_tools` | deprecated. The `skills` option configures everything including allowing the Skill tool |
+| `OPT013` | warn | `permission_mode` is not passed at all | the mode becomes whatever the CLI picks. From Claude Code **2.1.285** a headless session that does not fetch the interactive feature flags — a third-party provider, telemetry off, a gateway token — starts in **`auto`**, where a classifier reviews each shell command and network request and a bare allow rule such as `Bash` no longer settles the call. Pass `"default"` or `"dontAsk"` explicitly. This plugin's runner forces `"dontAsk"` when the agent leaves it unset and records `permission_mode_source: "runner-default"`, but the agent also runs outside the runner, so the finding stands |
 | `OPT040` | warn | `agents` defined but neither `Agent` nor `Task` is available | Claude cannot delegate. The CLI reports the tool as `Task`, the docs and SDK call it `Agent`; a check has to accept both |
 | `OPT060` | **error** | `permission_mode` is not one of the six literals | `default`, `acceptEdits`, `plan`, `bypassPermissions`, `dontAsk`, `auto` |
 | `OPT061` | **error** | `effort` is not one of the five literals | `low`, `medium`, `high`, `xhigh`, `max` |
@@ -56,7 +57,7 @@ branch on them and a test may assert them.
 | Id | Severity | Trigger | Why |
 |---|---|---|---|
 | `OPT010` | warn | no `max_turns` | a loop has no ceiling. Note it is not a hard stop on assistant turns: measured, `max_turns=1` produced `num_turns=2`. Assert on `terminal_reason == "max_turns"` or `subtype == "error_max_turns"` |
-| `OPT011` | warn | no `max_budget_usd` | nothing stops a run that goes wrong expensively. The cap counts subagent requests too, refuses to spawn more subagents, and ends the query with `error_max_budget_usd` |
+| `OPT011` | warn | no `max_budget_usd` | nothing stops a run that goes wrong expensively. The cap counts subagent requests too, refuses to spawn more subagents, and ends the query with `error_max_budget_usd`. It is a **soft cap**: the running estimate can pass the value before the query stops, so leave headroom instead of setting the exact figure you can afford |
 
 ## Context and settings (`OPT02x`)
 
@@ -82,7 +83,7 @@ branch on them and a test may assert them.
 | `HOK003` | **error** | the matcher is not a valid regular expression | it can never match |
 | `HOK010` | warn | a `PreToolUse` deny with no `permissionDecisionReason` | the reason is the only thing the model reads; without it the agent is told no and cannot correct |
 | `HOK020` | **error** | an event the Python SDK does not have, e.g. `SessionStart` | the Python `HookEvent` literal has **ten** values. `SessionStart` and `SessionEnd` are TypeScript-only, even though a `SessionStartHookSpecificOutput` type exists in Python |
-| `HOK030` | info | hooks in `.claude/settings.json` while `setting_sources` excludes `project` | they do not load in an SDK run. Usually what an eval wants |
+| `HOK030` | info | hooks in `.claude/settings.json` while `setting_sources` excludes `project` | they do not load in an SDK run. Usually what an eval wants. A settings-file `command` or `http` hook that must not fail open can set `onFailure: "block"` (2.1.295+), which turns a failure to start, a non-0/2 exit, an HTTP error, a timeout or unparseable output into a block — it does nothing on `Stop`, `SubagentStop`, `TaskCompleted`, `TeammateIdle` or background (`async`/`asyncRewake`) command hooks |
 
 ## MCP servers and tools (`MCP0xx`)
 
@@ -119,11 +120,17 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
 `.../agent-sdk/claude-code-features`, `.../agent-sdk/modifying-system-prompts`,
 `.../agent-sdk/structured-outputs`, `.../agent-sdk/agent-loop`,
 `.../agent-sdk/migration-guide`, `.../agent-sdk/python`;
-`claude-agent-sdk` 0.2.162 `types.py:25` (`PermissionMode`), `:37`
+`claude-agent-sdk` 0.2.165 `types.py:25` (`PermissionMode`), `:37`
 (`EffortLevel`), `:284` (`HookEvent`), `:507-581` (`HookJSONOutput`), `:594`
-(`HookCallback`), `:606` (`HookMatcher`), `:1990` (the `Skill` deprecation),
+(`HookCallback`), `:606` (`HookMatcher`), `:1991` (the `Skill` deprecation),
+`:2025` (`permission_mode`, the field `OPT013` reads),
 `:2149` (`debug_stderr`), `:2350` (`max_thinking_tokens`), `:1971-2430` (the 49
 fields); `__init__.py:241` (`SdkMcpTool`);
-<https://platform.claude.com/docs/en/about-claude/model-deprecations>. The 17x
-and 4x cost figures and the `max_turns=1 -> num_turns=2` result were measured by
-this plugin against SDK 0.2.162 with bundled CLI 2.1.285.
+<https://platform.claude.com/docs/en/about-claude/model-deprecations>;
+<https://code.claude.com/docs/en/permission-modes> (the headless starting-mode
+row behind `OPT013`), <https://code.claude.com/docs/en/permissions#network-paths>,
+<https://code.claude.com/docs/en/hooks> (`onFailure`). The 17x and 4x cost
+figures and the `max_turns=1 -> num_turns=2` result were measured by this plugin
+against SDK 0.2.162 with bundled CLI 2.1.285; re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs (`types.py` is byte-identical
+at 0.2.165, so the line numbers above are unchanged).

@@ -61,6 +61,23 @@ ClaudeAgentOptions(
 )
 ```
 
+**Values in `env` — and in a settings file's `env` block — are not
+shell-expanded.** `"$HOME/.cache"`, `"~/state"` and `"${TMPDIR}/x"` are passed
+through as those literal strings, so the subprocess sees a path that does not
+exist. Expand in Python and pass an **absolute** path:
+`env={"CLAUDE_CONFIG_DIR": str(Path.home() / ".cache" / tenant)}`. Boolean
+settings are read more loosely than they used to be (`"true"`, `"1"`, `"yes"`
+and their negatives all parse), but a path is still a path.
+
+**What the subprocess does not inherit.** `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB`
+governs a published list: `ANTHROPIC_API_KEY`, `AWS_SECRET_ACCESS_KEY`,
+`CLAUDE_CONFIG_DIR` (added in 2.1.251) and anything matching the credential
+name/value patterns are removed from commands Claude runs, while `GITHUB_TOKEN`,
+`GH_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`,
+`HTTP_PROXY`/`HTTPS_PROXY` and `GIT_CONFIG_*` are kept. Before 2.1.251 only the
+first two were removed. A hook or a test that needs the key has to be given it
+explicitly.
+
 ## A version trap
 
 In **Python SDK 0.1.59 and earlier**, an empty list was treated the same as
@@ -116,7 +133,10 @@ and its "What settingSources does not control" table,
 <https://code.claude.com/docs/en/agent-sdk/session-storage>,
 <https://code.claude.com/docs/en/agent-sdk/migration-guide>
 (the 0.1.59 empty-list behaviour), <https://code.claude.com/docs/en/memory>;
-`claude-agent-sdk` 0.2.162 `types.py:2297` (`setting_sources`), `:2105`
-(`settings`), `:2018` (`strict_mcp_config`). The 17x cost figure and the list of
-what still loaded under `setting_sources=[]` were measured by this plugin on
-2026-09-30.
+<https://code.claude.com/docs/en/env-vars> (the scrub table, and that `env`
+values are not shell-expanded), <https://code.claude.com/docs/en/settings>;
+`claude-agent-sdk` 0.2.165 `types.py:2297` (`setting_sources`), `:2105`
+(`settings`), `:2018` (`strict_mcp_config`), `:2096` (`cwd`). The 17x cost figure
+and the list of what still loaded under `setting_sources=[]` were measured by
+this plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
+Claude Code 2.1.296 docs.

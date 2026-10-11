@@ -42,7 +42,7 @@ INIT = {
     "__class__": "SystemMessage", "subtype": "init",
     "data": {"type": "system", "subtype": "init", "cwd": "/tmp/run", "tools": [],
              "mcp_servers": [], "model": "claude-sonnet-5-5", "permissionMode": "dontAsk",
-             "apiKeySource": "none", "claude_code_version": "2.1.285"},
+             "apiKeySource": "none", "claude_code_version": "2.1.294"},
 }
 
 
@@ -103,6 +103,30 @@ def test_a_dry_run_starts_nothing(project, monkeypatch):
     for case in payload["cases"]:
         assert case["isolation"] == {"setting_sources": [], "strict_mcp_config": True}
         assert case["model"] == "claude-sonnet-5-5"
+        # The fixture agent sets the mode itself, so the runner left it alone.
+        assert case["permission_mode"] == "dontAsk"
+        assert case["permission_mode_source"] == "agent"
+
+
+@pytest.mark.parametrize("mode,expected_source", [(None, "runner-default"), ("plan", "agent")])
+def test_a_session_records_who_chose_the_permission_mode(tmp_path, monkeypatch, mode,
+                                                         expected_source):
+    """Through the stub: an unset mode becomes `dontAsk`, and the trace says who decided."""
+    from agent_sdk_evals.loader import Case, Config
+    from agent_sdk_evals.session import run_once
+
+    monkeypatch.chdir(tmp_path)
+    sdk.set_script(READY_RUN)
+    options = sdk.ClaudeAgentOptions(model="claude-sonnet-5-5", permission_mode=mode)
+    case = Case(name="c", dir=tmp_path, prompt="say ready")
+    config = Config(evals_dir=tmp_path)
+    outcome = asyncio.run(run_once(case, config, options, run=1, run_id="c.1", sdk=sdk,
+                                   mock_calls=[]))
+    init = [e for e in outcome.capture.events if e["type"] == "init"][0]
+    assert init["permission_mode_source"] == expected_source
+    started = sdk.calls()[0]["options"]
+    assert started.permission_mode == (mode or "dontAsk"), "the mode is never left unset"
+    assert options.permission_mode == mode, "the caller's own options are not mutated"
 
 
 def test_a_dry_run_still_refuses_a_bad_override(project, monkeypatch):
@@ -467,9 +491,9 @@ def test_version_reports_all_three_versions():
     payload, code = cli_module.execute_version(argparse.Namespace(command="version", json=True))
     assert code == EXIT_OK
     assert set(payload) == {"runner_version", "sdk_version", "cli_version", "python"}
-    assert payload["runner_version"] == "0.1.0"
+    assert payload["runner_version"] == "0.1.1"
     assert payload["sdk_version"] == sdk.__version__
-    assert payload["cli_version"] == "2.1.285", "the CLI version is read, never derived"
+    assert payload["cli_version"] == "2.1.294", "the CLI version is read, never derived"
 
 
 def test_list_tools_reads_the_options_without_starting_a_session(project, monkeypatch):

@@ -193,7 +193,9 @@ GRADER_CATALOG: dict[str, GraderSpec] = {
         type="budget", tier=TIER_FREE,
         description="the run stayed under cost, turn, token, cache or duration ceilings",
         not_proven="that the run was correct, and not that a limit *tripped*: "
-                   "`max_turns=1` was measured producing `num_turns=2`. "
+                   "`max_turns=1` was measured producing `num_turns=2`, and "
+                   "`ClaudeAgentOptions.max_budget_usd` is a **soft** cap — the estimate "
+                   "can finish over it, so leave headroom. "
                    "Use `terminal` to assert a limit fired",
         one_of=(BUDGET_CEILINGS,), optional=("informational", "target"),
         targets=("result",), default_target="result",
@@ -331,10 +333,12 @@ SEMANTICS_NOTES: tuple[dict[str, str], ...] = (
         "id": "which-model-ran",
         "applies_to": "budget, llm",
         "rule": "To assert which model ran, read `assistant_text.model`, not "
-                "`model_usage.keys()`.",
-        "why": "Every measured run also billed `claude-haiku-4-5-20251001` for "
-               "CLI-internal work, so `model_usage` names models nobody asked for.",
-        "source": "measured: VERIFIED-FACTS §8.3",
+                "`model_usage.keys()`; to read the cost, loop over every entry.",
+        "why": "Every measured run also billed a model nobody asked for for CLI-internal "
+               "work (`claude-haiku-4-5-20251001` in 2026-09; `claude-haiku-5-5` on CLI "
+               "2.1.294, measured 2026-10-11), so `model_usage` names extra models and the "
+               "first entry is not the total.",
+        "source": "measured: VERIFIED-FACTS §8.3 and the 0.2.165 re-measurement",
     },
 )
 

@@ -119,7 +119,15 @@ async def {func}(input_data, tool_use_id, context):
 
 def _is_allowed(arguments: dict[str, Any]) -> bool:
     """Replace with the real rule. Deny beats defer beats ask beats allow, and a
-    hook that allows does not skip the deny and ask rules below it."""
+    hook that allows does not skip the deny and ask rules below it — nor the
+    separate check on a read from a network path, which no allow can bypass.
+
+    "defer" is not a quieter deny: it ends the turn, and the `ResultMessage`
+    then carries `stop_reason: "tool_deferred"`, so assert on that rather than
+    on the text. A `command` or `http` hook written in settings instead of here
+    can also set `onFailure: "block"` (Claude Code 2.1.295+) so that a crash or
+    a timeout fails the call rather than letting it through.
+    """
     return "/etc/" not in str(arguments.get("file_path", ""))
 '''
 

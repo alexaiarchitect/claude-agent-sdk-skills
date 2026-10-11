@@ -3,6 +3,42 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.1.1 — 2026-10-11
+
+Re-checked against `claude-agent-sdk` 0.2.165 with its bundled CLI 2.1.294;
+minimum supported SDK stays 0.2.140. `types.py` is byte-identical to 0.2.162, so
+the 49 options, the 6 permission modes, the 10 Python hook events, the 5 effort
+levels and the `ResultMessage` fields are unchanged and re-verified against the
+installed wheel rather than against the test stub.
+
+- **`permission_mode` is resolved by the runner.** An agent whose
+  `build_options()` leaves it `None` now gets `permission_mode="dontAsk"`, and
+  the trace `init` event records who decided: `permission_mode_source: "agent"`
+  (the agent's options or a case's `overrides` set a mode) or `"runner-default"`.
+  `--dry-run` prints both. An unset mode is not `default`: from CLI 2.1.285 a
+  headless session without the interactive feature flags can start in `auto`,
+  where a classifier reviews each tool call and a bare allow rule no longer
+  settles it, so a run's permission rules were not knowable before.
+- **The `result` event says what was billed, and on what basis.**
+  `models_billed` lists every model in `model_usage` and `cost_basis_list` is
+  true when none reported a negotiated rate. Measured 2026-10-11: CLI 2.1.294
+  bills its own background work to `claude-haiku-5-5` unasked, so the agent's
+  model is not the whole cost. `costBasis` and `thinkingTokens` are on the wire
+  but not on the 0.2.165 `ModelUsage` TypedDict, so both are read with `.get()`.
+  The `budget` grader's help now says `max_budget_usd` is a soft cap: the
+  estimate can finish over it, and only the next request is refused.
+- **An imported session reports its own cost.** A session JSONL with a
+  `cost-state` line (what `entrypoint: "sdk-py"` sessions write) becomes a
+  synthesised `result` event carrying `total_cost_usd`, `duration_ms` and
+  `model_usage`, marked `imported_cost: true`. `budget` graders can now be
+  decided on imported evidence; `terminal` and `structured_output` abstain on
+  one, because a cost line has no subtype, `terminal_reason` or `num_turns`.
+  A `claude -p` session writes no such line and still yields no result event.
+- Model policy copies added beside the option tuples: `CURRENT_MODELS` (Sonnet 5.5,
+  Opus 5.5, Fable 5.1 and **Haiku 5.5**), `DEPRECATED_MODELS`
+  (`claude-sonnet-4-5-20250929` retires 2026-11-30), `RETIRING_MODELS` and
+  `RETIRED_MODELS`. The default model and judge model are unchanged.
+
 ## 0.1.0 — 2026-09-30
 
 First release. Built against `claude-agent-sdk` 0.2.162 with bundled CLI 2.1.285.

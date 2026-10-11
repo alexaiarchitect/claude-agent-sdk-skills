@@ -40,8 +40,9 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `bin/fake_sdk.py` | A fake "Python that has the SDK", so no test ever needs the real one. |
 | `cases/` | One case directory per failure mode, each the smallest thing that triggers exactly one finding: `valid` (clean), `broken_frontmatter` (EVC001), `bad_grader_type` (EVC010), `unknown_override` (EVC003), `not_overridable` (EVC004), `simulated_with_trajectory` (EVC040), `no_graders` (EVC060), `adversarial_lenient` (EVC041). |
 | `eval_configs/` | `pr.json` and `nightly.json` (clean), `judge_retiring.json` (CFG010), `no_isolation.json` (CFG041 + CFG042), `bad.json` (thirteen ids at once, on purpose), `invalid_json.json` (CFG002). |
-| `traces/*.trace.jsonl` | One run each, schema `agent-sdk-skills.trace/1`: `happy`, `loop`, `oscillation`, `stall`, `unknown_tool`, `budget_exceeded`, `max_turns`, `import_failed`, `structured_output`, `rate_limited`. Each produces exactly the failure signature its name claims. |
-| `sessions/one_turn.jsonl` | A real Claude Code session file, scrubbed. The shape `load_session` must survive. |
+| `traces/*.trace.jsonl` | One run each, schema `agent-sdk-skills.trace/1`: `happy`, `loop`, `oscillation`, `stall`, `unknown_tool`, `budget_exceeded`, `max_turns`, `import_failed`, `structured_output`, `rate_limited`. Each produces exactly the failure signature its name claims. `two_models` is the odd one out: it is a whole measured run, not a shaped one. |
+| `sessions/one_turn.jsonl` | A real `claude -p` session file, scrubbed. The shape `load_session` must survive, and it has no cost line. |
+| `sessions/sdk_with_tool.jsonl` | A real `entrypoint: "sdk-py"` session with three tool calls, scrubbed. It carries the `cost-state` and `system`/`stop_hook_summary` lines, which is what makes an imported cost testable. |
 | `results/series_5run/` | Three cases × five runs, with a judge grader that flips between runs — enough to tell pass@k from pass^k, and to show an `INFORMATIONAL` budget grader. |
 | `results/failure_only/` | Every run FAILED: consistent failure, not flakiness. |
 | `results/not_evaluated/` | A `rejected` rate limit. Every run `NOT_EVALUATED`, exit 3, never a fake FAIL. |
@@ -70,13 +71,42 @@ TTL buckets), the `model_usage` block — including the `claude-haiku-4-5-202510
 entry the CLI bills for its own internal work, which nobody asked for — the
 `RateLimitEvent` payload verbatim (`allowed_warning`, 7-day window at 83 %,
 `surpassedThreshold` 0.75 and the `unifiedWindows` sub-object), the `init`
-fields (`apiKeySource: "none"`, `claude_code_version: "2.1.285"`), and the
+fields (`apiKeySource: "none"`, and `claude_code_version`, which is re-pinned to
+the bundled CLI at each sync — `2.1.294` today, `2.1.285` when they were
+recorded), and the
 synthetic `StructuredOutput` tool call that `output_format` results arrive as.
 The prompts, tool names, arguments and reply text are this plugin's own library
 domain, substituted in. `rate_limited.trace.jsonl` is the one exception and is
 labelled as such in its own generator: a `status: "rejected"` rate limit was
 never observed, so that file is a **stub** built from the measured
 `allowed_warning` shape with the status and utilization changed.
+
+**`traces/two_models.trace.jsonl`** is different in kind: it is a live run of
+the `lookup-first` case on 2026-10-11 (SDK 0.2.165, bundled CLI 2.1.294, billed
+to an API key), kept whole rather than shaped. The point of it is the `result`
+event, where `model_usage` carries **two** models — `claude-sonnet-5-5` and the
+`claude-haiku-5-5` entry the CLI billed for its own background work without
+being asked — each with the undeclared `costBasis: "list"` and `thinkingTokens`
+keys the wire adds to `ModelUsage`. Scrubbed: the temp working directory became
+`/tmp/eval/run-1`, the session id and every tool-use, message and uuid became
+deterministic placeholders, the timestamps became a flat one-per-second clock,
+and the trailing hook events past the fourth were dropped because they repeat
+two phases per tool and no test reads them. The prompt, the mock tool names and
+the reply text are this plugin's own library domain.
+
+**`sessions/sdk_with_tool.jsonl`** is derived from a real session the runner
+itself produced (`.dev/measured/session_with_tool.jsonl`, 37 lines, three MCP
+tool calls). All 37 lines and all nine line types are kept, including the two
+that `one_turn.jsonl` does not have: the `system` line with
+`subtype: "stop_hook_summary"`, and the **`cost-state`** line holding
+`totalCostUSD`, `totalDuration` and the per-model `modelUsage` block. That line
+is why the fixture exists — it is the only place an imported session reports
+what it spent, and `load_session` reads it into a synthesised `result` event
+marked `imported_cost: true`. Scrubbed the same way as `one_turn.jsonl`: the
+temp and home directory paths became `/home/evaluator/work/library-agent`,
+emails became `evaluator@example.com`, `orgId`/`orgName` were dropped, and every
+id was remapped deterministically so the `uuid`/`parentUuid` graph still
+resolves.
 
 **`sessions/one_turn.jsonl`** is derived from a real `claude -p` session
 (`.dev/measured/session.jsonl`, 25 lines for a single "reply ready" turn). All

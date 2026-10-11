@@ -18,9 +18,12 @@
 #   stage-traces     tests/fixtures/traces   -> ./fixtures/traces
 #   stage-sessions   tests/fixtures/sessions -> ./fixtures/sessions
 #
-# It also writes ./.scaffold/, which the "nothing was clobbered" graders look
-# for: manifest.txt records what ran, protected.sha256 records the checksum of
-# every file a case must not modify.
+# It also writes ./.scaffold/ for a human: manifest.txt records what ran,
+# protected.sha256 records the checksum of every file a case must not modify.
+# No grader reads either one — `file_exists` counts only files Claude created
+# during a run, so a file this script writes is invisible to it. Inspect them
+# yourself with `claude plugin eval --keep-temp`; the "nothing was clobbered"
+# assertion lives in the regex-over-the-trace graders beside each case.
 #
 # Requires `claude plugin eval --scaffold`; scaffold scripts are opt-in.
 set -euo pipefail
@@ -81,6 +84,15 @@ case.write_text(text)
 PY
     ;;
   retiring-judge)
+    # claude-haiku-4-5-20251001 on purpose, and still correct as of 2026-10-11:
+    # its retirement is "not sooner than 2026-10-15", so the plugin grades it
+    # `retiring` and CFG010/CFG011 fire. Do NOT modernise this to Haiku 5.5 —
+    # that id is `current`, the finding would not fire, and the case would pass
+    # for the wrong reason. When Haiku 4.5 finally retires, swap it for whatever
+    # the deprecations page then lists as retiring-eligible, not for a current
+    # id. (claude-sonnet-4-5-20250929 is the obvious successor: deprecated
+    # 2026-09-30, retires 2026-11-30, graded `deprecated` and treated like
+    # `retiring` by every consumer.)
     python3 - <<'PY'
 import json, pathlib
 path = pathlib.Path("evals/eval_config.json")

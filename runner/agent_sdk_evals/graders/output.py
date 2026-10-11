@@ -97,6 +97,12 @@ def _load_schema(grader: Any, evidence: Evidence) -> tuple[Any, str]:
 def grade_structured_output(grader: Any, evidence: Evidence) -> GraderResult:
     if evidence.result is None:
         return not_evaluated(grader, "the run produced no result message, so there is no structured output")
+    if evidence.result.get("imported_cost"):
+        return not_evaluated(
+            grader,
+            "the result was synthesised from an imported session's `cost-state` line, which "
+            "carries the session cost and no structured output",
+        )
     value = evidence.structured_output
     if value is None:
         return verdict(grader, False,

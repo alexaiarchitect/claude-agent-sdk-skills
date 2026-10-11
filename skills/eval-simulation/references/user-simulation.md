@@ -42,6 +42,19 @@ That is why simulated cases belong in their own tier, not in the per-PR gate.
 and the result carries `simulated_user_turns`, so the arithmetic is auditable
 rather than assumed.
 
+Two ways to make that bill smaller without changing the case. The simulator is a
+judge-tier call, so it can run on the **cheap judge**, `claude-haiku-5-5`
+($0.10 / $0.50 per Mtok against Sonnet 5.5's $2 / $10, 1M context by default,
+needs Claude Code 2.1.293+) — a persona's turns are short, which is exactly what
+that model is good at. The suite default stays `claude-sonnet-5-5`, so set the
+cheaper id on the simulator rather than globally, and keep Sonnet for the
+violation rubrics, where the verdict has to be explained. Note the price is a
+*from* price: above a 100K-token prompt it rises, so a long conversation saves
+less than the headline. And the run's cost ceilings are **soft** —
+`max_budget_usd` and `--max-cost-usd` compare against a running estimate that
+can pass the value before the run stops, so a simulated tier needs headroom,
+not an exact figure.
+
 ## Violation rubrics judge the simulator, not the agent
 
 This is the single easiest thing to get backwards. The rubrics in a persona are
@@ -108,4 +121,9 @@ Sources: this plugin's runner —
 `runner/agent_sdk_evals/cli.py` (per-case persona construction);
 `.dev/CONTRACTS.md` §1 (case keys), §9 (judge), §12.7 (`target: simulated_user`);
 `https://code.claude.com/docs/en/agent-sdk/python` (`query`,
-`ClaudeAgentOptions`).
+`ClaudeAgentOptions`);
+`https://platform.claude.com/docs/en/about-claude/models/overview` (Haiku 5.5's
+price and context window),
+`https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom` (the soft
+cap). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
+docs.

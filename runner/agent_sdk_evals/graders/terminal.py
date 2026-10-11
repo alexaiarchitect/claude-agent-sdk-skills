@@ -6,7 +6,10 @@ way to say "the turn ceiling stopped it", because `num_turns` can exceed
 `max_turns` on a successful run.
 
 `terminal_reason` is `null` on older CLIs and on local slash commands, so a
-grader that asks for one and gets nothing abstains instead of failing.
+grader that asks for one and gets nothing abstains instead of failing. The same
+goes for a result synthesised from an imported session's `cost-state` line
+(`imported_cost: true`): it carries the cost and nothing else, so this grader
+abstains on one outright.
 """
 
 from __future__ import annotations
@@ -22,6 +25,13 @@ def grade_terminal(grader: Any, evidence: Evidence) -> GraderResult:
         return not_evaluated(
             grader,
             "no result message: an imported session has no terminal state to assert on",
+        )
+    if result.get("imported_cost"):
+        return not_evaluated(
+            grader,
+            "the result was synthesised from an imported session's `cost-state` line: it "
+            "carries the session cost but no subtype, terminal_reason or num_turns, so a "
+            "`budget` grader can be decided on it and this one cannot",
         )
     problems: list[str] = []
     observed: list[str] = []

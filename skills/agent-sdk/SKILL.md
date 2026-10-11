@@ -53,9 +53,10 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
    every option you are about to offer. Always repeat the credential line: an
    API key bills the API, a subscription draws on usage limits.
 
-3. **Options.** Offer the skills from the report's `Options` section, each
-   with its cost tier (`free` deterministic, `run` executes the agent, `judge`
-   adds judge calls). Exactly one is marked recommended.
+3. **Options.** Offer the skills from the report's `Options` section, each with
+   its cost tier named in the script's own word — `free` (deterministic, reads
+   only), `run` (executes the agent), `judge` (adds judge calls) — not a
+   paraphrase of it. Exactly one is marked recommended.
 
 4. **Confirm.** Ask with `AskUserQuestion`, then invoke the chosen skill with
    the `Skill` tool. Nothing is written and no session starts before that
@@ -102,6 +103,14 @@ results, CI. Read down the columns and the next piece of work names itself.
   there; nothing here depends on it.
 - **`claude plugin eval`** evaluates Claude Code plugins and skills. An agent
   that is a `.claude/agents/*.md` file or a plugin is its job, not this one's.
+  Two facts to pass on: its `--judge-model` default is now "the model Claude
+  Code uses for background tasks", not a fixed id, so pin
+  `--judge-model claude-sonnet-5-5` for a comparable score; and the fixes a
+  suite needs landed in 2.1.289 and 2.1.293, so **Claude Code 2.1.293** is the
+  floor.
+- **Mods** (2.1.292+) are a third plugin class, written in TypeScript, with
+  their own doc set and `claude plugin test`. Nothing here covers them except as
+  the seventh step of the permission model.
 
 ## What to tell the user when they ask what this can do
 
@@ -116,7 +125,10 @@ results, CI. Read down the columns and the next piece of work names itself.
 ## Ground rules
 
 - **Never guess the entry point, the SDK version or the credential.** Run the
-  discovery script.
+  discovery script. It reports which versions this plugin was checked against —
+  `claude-agent-sdk` 0.2.165 with bundled Claude Code 2.1.294 — and raises
+  `ENV003` at info level when the installed SDK is newer; that is a note, never
+  a blocker.
 - **Say what a run spends before running it.** Sessions and judge calls, in
   tokens and count; dollars are estimates on a subscription.
 - **An existing case is a specification.** Never edit one to make a failing run

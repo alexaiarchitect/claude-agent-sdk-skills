@@ -12,7 +12,17 @@ Three measured corrections live here.
   ephemeral TTL buckets and is never treated as a count.
 * **`max_cost_usd` compares the case total**, which is the last
   `total_cost_usd` of the session — that field is a running total, not a
-  per-turn figure.
+  per-turn figure. It is also the grader's own ceiling, not the option's:
+  `ClaudeAgentOptions.max_budget_usd` is a **soft** cap, so a session can finish
+  having passed it and only the *next* request is refused. Leave headroom on
+  both, and assert that the option tripped with a `terminal` grader
+  (`subtype: error_max_budget_usd`).
+* **The cost is spread over more than one model.** Measured 2026-10-11 on CLI
+  2.1.294, `model_usage` carried a second entry for `claude-haiku-5-5`, which
+  the CLI billed for its own background work. The trace `result` event records
+  `models_billed` and `cost_basis_list` so a reader never takes the first entry
+  for the total; `costBasis` and `thinkingTokens` are read with `.get()`
+  because neither is declared on the 0.2.165 `ModelUsage` TypedDict.
 
 `informational: true` reports the numbers and never gates: the honest setting
 while a suite is still learning what its own costs look like.

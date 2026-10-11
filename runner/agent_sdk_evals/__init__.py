@@ -44,6 +44,28 @@ DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_JUDGE_MODEL = "claude-sonnet-5-5"
 MODEL_ENV_VAR = "CLAUDE_MODEL"
 
+#: The plugin's model policy, copied here so a run can grade a model id without
+#: the plugin's library (a test asserts the four copies are equal). `CURRENT` are
+#: generally available; `DEPRECATED` map id -> a committed retirement date;
+#: `RETIRING` are past or within 60 days of a "not sooner than" date; `RETIRED`
+#: are gone. Read 2026-10-11 from platform.claude.com/docs/en/models/overview.
+CURRENT_MODELS = (
+    "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1", "claude-haiku-5-5",
+)
+DEPRECATED_MODELS = {
+    "claude-sonnet-4-5-20250929": "2026-11-30",   # deprecated 2026-09-30
+}
+RETIRING_MODELS = (
+    "claude-haiku-4-5-20251001",    # retirement not sooner than 2026-10-15
+    "claude-opus-4-5-20251101",     # retirement not sooner than 2026-11-24
+)
+RETIRED_MODELS = (
+    "claude-opus-4-1-20250805", "claude-opus-4-20250514", "claude-sonnet-4-20250514",
+    "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022", "claude-3-haiku-20240307",
+    "claude-3-5-sonnet-20241022", "claude-3-5-sonnet-20240620", "claude-3-opus-20240229",
+    "claude-3-sonnet-20240229", "claude-mythos-preview",
+)
+
 #: `ClaudeAgentOptions` field names in declaration order (49 fields). Used to
 #: answer "is this even an option?" before a single token is spent (EVC003).
 OPTION_NAMES = (
@@ -74,6 +96,14 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 
 #: Forced on every run unless a case overrides them. Measured 17x cost
 #: difference with and without (CONTRACTS section 1.2).
+#: One more default is resolved per run but is deliberately *not* a key here,
+#: because it only applies when the agent leaves the field `None`:
+#: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). An unset mode
+#: is not `default` — from CLI 2.1.285 a headless session without the
+#: interactive feature flags can start in `auto`, where a classifier reviews
+#: each tool call and a bare allow rule no longer settles it. The trace `init`
+#: event records which way it went as `permission_mode_source`, either `"agent"`
+#: or `"runner-default"`.
 ISOLATION_DEFAULTS = {"setting_sources": [], "strict_mcp_config": True}
 
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "bypassPermissions", "dontAsk", "auto")
@@ -143,6 +173,7 @@ __all__ = [
     "SCHEMA_TRACE", "SCHEMA_RESULT", "SCHEMA_AGGREGATE", "SCHEMA_EVAL_CONFIG",
     "EXIT_OK", "EXIT_FINDINGS", "EXIT_USAGE", "EXIT_INCONCLUSIVE",
     "DEFAULT_MODEL", "DEFAULT_JUDGE_MODEL", "MODEL_ENV_VAR",
+    "CURRENT_MODELS", "DEPRECATED_MODELS", "RETIRING_MODELS", "RETIRED_MODELS",
     "OPTION_NAMES", "RUNNER_OWNED_OPTIONS", "OVERRIDABLE_OPTIONS", "DEPRECATED_OPTIONS",
     "ISOLATION_DEFAULTS", "PERMISSION_MODES", "SETTING_SOURCES", "EFFORT_LEVELS",
     "PYTHON_HOOK_EVENTS", "HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT",

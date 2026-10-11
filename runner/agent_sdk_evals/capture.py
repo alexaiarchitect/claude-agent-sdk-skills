@@ -125,6 +125,10 @@ class Capture:
     case: str
     session_id: str | None = None
     include_thinking: bool = False
+    #: `"agent"` or `"runner-default"`: who decided `permission_mode` for this
+    #: session (CONTRACTS section 13.1). Recorded on the `init` event, because the
+    #: mode the CLI reports there does not say whether anyone chose it on purpose.
+    permission_mode_source: str | None = None
 
     events: list[dict[str, Any]] = field(default_factory=list)
     results: list[dict[str, Any]] = field(default_factory=list)
@@ -244,6 +248,7 @@ class Capture:
                 tools=list(data.get("tools") or []),
                 mcp_servers=list(data.get("mcp_servers") or []),
                 permission_mode=data.get("permissionMode", data.get("permission_mode")),
+                permission_mode_source=self.permission_mode_source,
                 cwd=data.get("cwd"),
                 cli_version=data.get("claude_code_version"),
                 sdk_version=data.get("sdk_version"),
@@ -346,6 +351,9 @@ class Capture:
         result_text = getattr(message, "result", None)
         api_error_status = getattr(message, "api_error_status", None)
         is_error = bool(getattr(message, "is_error", False))
+        model_usage = getattr(message, "model_usage", None) or {}
+        if not isinstance(model_usage, dict):
+            model_usage = {}
         payload = {
             "subtype": getattr(message, "subtype", None),
             "is_error": is_error,
@@ -358,7 +366,20 @@ class Capture:
             "cost_delta_usd": delta,
             "usage": flatten_usage(usage_raw),
             "usage_raw": usage_raw,
-            "model_usage": getattr(message, "model_usage", None) or {},
+            "model_usage": model_usage,
+            # Every model the session was billed for, not just the agent's:
+            # measured 2026-10-11, CLI 2.1.294 bills its own background work to
+            # `claude-haiku-5-5` without being asked, so a cost read that takes
+            # the first entry is wrong about the total.
+            "models_billed": sorted(model_usage),
+            # True when no model reported a negotiated rate: `costBasis` is
+            # `list | managed | unknown` and is absent from the 0.2.165
+            # `ModelUsage` TypedDict though the wire carries it, so it is read
+            # with `.get()` and absent counts as list pricing.
+            "cost_basis_list": all(
+                (entry or {}).get("costBasis", "list") == "list"
+                for entry in model_usage.values()
+            ),
             "structured_output": getattr(message, "structured_output", None),
             "result_text": result_text,
             "permission_denials": getattr(message, "permission_denials", None) or [],

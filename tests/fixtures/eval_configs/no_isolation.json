@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdk-skills.eval-config/1",
-  "runner_version": "0.1.0",
+  "runner_version": "0.1.1",
   "agent": "agent:build_options",
   "model": "${CLAUDE_MODEL:-claude-sonnet-5-5}",
   "credential": "auto",

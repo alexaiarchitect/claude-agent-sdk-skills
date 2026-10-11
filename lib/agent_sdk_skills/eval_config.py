@@ -56,10 +56,9 @@ from . import (
     ISOLATION_DEFAULTS,
     MODEL_ENV_VAR,
     RETIRED_MODELS,
-    RETIRING_MODELS,
     RUNNER_VERSION,
 )
-from .env import classify_model_id
+from .env import classify_model_id, model_retirement_date
 from .graders import TIERS
 from .report import Finding
 
@@ -376,12 +375,15 @@ def _validate_models(config: LoadedConfig, *, add, env: dict[str, str] | None) -
             fix=f"use {DEFAULT_MODEL}. A retired id is refused by the API, so every run "
                 "would be an error result rather than a failing eval.",
             source=_SRC_MODELS, locator="model")
-    elif grade == "retiring":
-        add("CFG060", "warn", f"`model` resolves to {resolved!r}, which is retiring",
+    elif grade in ("deprecated", "retiring"):
+        when = model_retirement_date(resolved)
+        add("CFG060", "warn",
+            f"`model` resolves to {resolved!r}, which is "
+            + (f"deprecated and retires {when}" if when else "retiring"),
             fix=f"move to {DEFAULT_MODEL} before the retirement date, and re-baseline: a "
                 "model change moves pass rates, so do it deliberately rather than on the "
                 "day the old id stops answering.", source=_SRC_MODELS, locator="model")
-    elif not has_expansion and grade in ("pinned", "alias"):
+    elif not has_expansion and grade in ("pinned", "current", "alias"):
         add("CFG060", "info", f"`model` is hardcoded as {resolved!r}",
             fix=f'prefer "${{{MODEL_ENV_VAR}:-{resolved}}}" so CI and a local run can differ '
                 "without editing the config", source=_SRC_MODELS, locator="model")
@@ -413,8 +415,11 @@ def _validate_judge(config: LoadedConfig, *, add) -> list[Finding]:
                 fix=f"use {DEFAULT_JUDGE_MODEL}. Every judge grader would return an error "
                     "result, which the runner reports as NOT_EVALUATED — so the suite would "
                     "go quiet rather than fail.", source=_SRC_MODELS, locator="judge.model")
-        elif name in RETIRING_MODELS:
-            add("CFG010", "warn", f"judge model {name!r} is retiring",
+        elif classify_model_id(name) in ("deprecated", "retiring"):
+            when = model_retirement_date(name)
+            add("CFG010", "warn",
+                f"judge model {name!r} is "
+                + (f"deprecated and retires {when}" if when else "retiring"),
                 fix=f"move to {DEFAULT_JUDGE_MODEL} and re-run your calibration set: a judge "
                     "change moves verdicts, so the old and new judge should be compared on "
                     "labelled examples before the switch.", source=_SRC_MODELS, locator="judge.model")

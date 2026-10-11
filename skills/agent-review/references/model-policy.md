@@ -3,31 +3,41 @@
 ## What the plugin grades
 
 `lib/agent_sdk_skills/env.py:classify_model_id` puts every id it sees into one
-of six grades. The grade decides the finding, not the string.
+of eight grades. The grade decides the finding, not the string.
 
 | Grade | What it means | Finding |
 |---|---|---|
-| `pinned` | a current id, dated or dateless | `AGT010` if it is a literal in the options |
+| `pinned` | any other `claude-`/`*.anthropic.claude-` id: a dated snapshot, or a model newer than this plugin's lists | `AGT010` if it is a literal in the options |
 | `alias` | `sonnet`, `opus`, `haiku`, `fable`, `best`, `default`, `opusplan` | none; the CLI resolves it at run time |
 | `env` | read from the environment (`os.getenv`, `${VAR}`) | none for the pattern; the **default** is graded on its own |
+| `current` | listed in `CURRENT_MODELS`: Sonnet 5.5, Opus 5.5, Fable 5.1, Haiku 5.5 | `AGT010` if it is a literal, nothing else |
+| `deprecated` | listed in `DEPRECATED_MODELS`: deprecated upstream with a **committed** retirement date | `AGT011` warn with the date in the message (`SUB002` for a subagent) |
 | `retiring` | listed in `RETIRING_MODELS`: past or within about 60 days of its "retirement not sooner than" date | `AGT011` warn (`SUB002` for a subagent) |
 | `retired` | listed in `RETIRED_MODELS`, or a `claude-2`/`claude-3` id | `AGT012` error (`SUB002` error) |
-| `unknown` | anything else: a typo, or a model newer than this plugin | none, but the review says it could not grade it |
+| `unknown` | anything else: a string that is not a Claude id at all — a typo, or another provider's name | none, but the review says it could not grade it |
 
 The lists live in `lib/agent_sdk_skills/__init__.py` and are re-pinned at each
-upstream sync from the deprecations page. As of the 2026-09-30 snapshot:
+upstream sync from the deprecations page. **As of 2026-10-11:**
 
 | Id | Status |
 |---|---|
-| `claude-sonnet-5-5` | current; this plugin's default and judge default |
-| `claude-opus-5-5`, `claude-fable-5-1` | current |
-| `claude-sonnet-4-5-20250929` | retirement not sooner than 2026-09-29 → `retiring` |
+| `claude-sonnet-5-5` | current; this plugin's default and judge default. $2 / $10 per Mtok, 1M context, default effort `high` |
+| `claude-opus-5-5` | current. $4 / $20, 1M, `medium` |
+| `claude-fable-5-1` | current. $10 / $50, 1M, `high` |
+| `claude-haiku-5-5` | current, and the **cheap judge option**. From $0.10 / from $0.50, 1M by default on every plan (no `[1m]` suffix), default effort `medium`, adaptive reasoning that cannot be turned off. The `haiku` alias resolves to it on the Anthropic API from Claude Code **2.1.293** (Bedrock, Vertex, Foundry and Claude Platform on AWS still get Haiku 4.5). "From" is literal: **it costs more per token once a prompt passes 100K tokens** |
+| `claude-sonnet-4-5-20250929` | **deprecated 2026-09-30, retires 2026-11-30**, replacement `claude-sonnet-5-5` → `deprecated` |
 | `claude-haiku-4-5-20251001` | retirement not sooner than 2026-10-15 → `retiring` |
 | `claude-opus-4-5-20251101` | retirement not sooner than 2026-11-24 → `retiring` |
 | every `claude-3-*`, `claude-opus-4-*` (4.0/4.1), `claude-sonnet-4-20250514` | `retired` |
 
-Whose policy is which matters. **Retirement dates are Anthropic's**, published
-on the deprecations page. **The 60-day warning window is this plugin's**, so a
+Haiku 5.5 is named as the cheap judge, not made the default: `DEFAULT_MODEL` and
+`DEFAULT_JUDGE_MODEL` both stay `claude-sonnet-5-5`, so a suite's scores stay
+comparable with the ones already recorded. Pick Haiku 5.5 per grader when the
+rubric is a yes/no check on short output.
+
+Whose policy is which matters. **Deprecations and retirement dates are
+Anthropic's**, published on the deprecations page; a `deprecated` grade therefore
+carries a real date. **The 60-day warning window is this plugin's**, so a
 `retiring` finding is advice with a date attached, not a defect.
 
 ## Why a hardcoded id is a warning and not a style note
@@ -66,15 +76,25 @@ may not even be comparable.
 
 ## The model you asked for is not the only model billed
 
-`ResultMessage.model_usage` on every measured run also carried
-`claude-haiku-4-5-20251001`, about 900 input and 10 output tokens (≈ $0.0009)
-for CLI-internal work. Consequences for a review and for graders:
+`ResultMessage.model_usage` carries a row per model the session billed, and the
+CLI bills its own background work there. On the 2026-09-30 runs (bundled CLI
+2.1.285) the second row was `claude-haiku-4-5-20251001` — a **retiring** id, and
+not something the agent asked for. Re-measured 2026-10-11 on SDK 0.2.165 with
+bundled CLI **2.1.294**, the second row is `claude-haiku-5-5`: 1192 input and 26
+output tokens, `costUSD` $0.0001322, which is exactly $0.10 and $0.50 per Mtok.
+So 2.1.294 already routes background work to Haiku 5.5. Consequences for a
+review and for graders:
 
-- a retiring id appearing in `model_usage` is **not** a finding; only an
-  explicitly configured retiring id is;
+- a retiring or deprecated id appearing in `model_usage` is **not** a finding;
+  only an explicitly configured one is;
 - "which model actually answered" is `AssistantMessage.model`, not
   `model_usage.keys()`;
-- a per-model budget assertion has to allow the internal model.
+- `model_usage` routinely holds **more than one model**, so read it with a loop,
+  never `next(iter(...))`, and a per-model budget assertion has to allow the
+  background model;
+- each row also carries `costBasis` (`list` | `managed` | `unknown`, Claude Code
+  2.1.246+) and `thinkingTokens`, neither of which is on the 0.2.165
+  `ModelUsage` TypedDict — read both with `.get()`.
 
 ## Subagent models
 
@@ -108,8 +128,11 @@ Sources:
 <https://code.claude.com/docs/en/model-config#default-model-setting>,
 <https://code.claude.com/docs/en/agent-sdk/subagents#agentdefinition-configuration>,
 <https://code.claude.com/docs/en/agent-sdk/cost-tracking#break-down-usage-per-model>;
-`claude-agent-sdk` 0.2.162 `types.py:2070` (`model`), `:2076`
-(`fallback_model`), `:2372` (`effort`). The cost table and the `model_usage`
-observation were measured by this plugin on 2026-09-30 against SDK 0.2.162
-(bundled CLI 2.1.285) and system CLI 2.1.274, on a Claude Max subscription with
-no API key set.
+<https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricing>;
+`claude-agent-sdk` 0.2.165 `types.py:2070` (`model`), `:2076`
+(`fallback_model`), `:2372` (`effort`), `:1314` (`ModelUsage`). The cost table
+was measured by this plugin on 2026-09-30 against SDK 0.2.162 (bundled CLI
+2.1.285) and system CLI 2.1.274, on a Claude Max subscription with no API key
+set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165
+(bundled CLI 2.1.294) with `ANTHROPIC_API_KEY` set. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

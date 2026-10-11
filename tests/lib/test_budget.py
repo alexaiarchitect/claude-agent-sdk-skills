@@ -12,9 +12,13 @@ from agent_sdk_skills.budget import (
     STATUS_PASSED,
     budget_findings,
     check_budget,
+    cost_basis_is_list,
     cost_label,
     efficiency_rows,
     efficiency_table,
+    model_thinking_tokens,
+    model_usage_of,
+    models_billed,
     rate_limit_summary,
     rate_limit_verdict,
     total_cost,
@@ -270,3 +274,42 @@ def test_a_cost_figure_without_its_basis_says_so():
     assert "basis unknown" in cost_label(0.1, None)
     assert "billed" in cost_label(0.1, "api_key")
     assert cost_label(None, "subscription") == "cost unknown"
+
+
+# -- more than one model, and the cost basis -------------------------------
+
+def test_a_measured_two_model_run_names_every_model_it_was_billed_for(fixtures):
+    """CLI 2.1.294 billed Haiku 5.5 for its own background work, unasked (2026-10-11)."""
+    result = result_event(load_trace(fixtures / "traces" / "two_models.trace.jsonl"))
+    assert result is not None
+    assert models_billed(result) == ["claude-haiku-5-5", "claude-sonnet-5-5"]
+    usage = model_usage_of(result)
+    assert usage["claude-sonnet-5-5"]["costUSD"] > usage["claude-haiku-5-5"]["costUSD"]
+    # The agent's own model is not the whole cost: the total is over both.
+    assert result.get("total_cost_usd") > usage["claude-sonnet-5-5"]["costUSD"]
+
+
+def test_the_cost_basis_is_read_with_get_so_an_absent_key_counts_as_list(fixtures):
+    result = result_event(load_trace(fixtures / "traces" / "two_models.trace.jsonl"))
+    assert cost_basis_is_list(result) is True
+    assert cost_basis_is_list({"model_usage": {"m": {"costBasis": "managed"}}}) is False
+    assert cost_basis_is_list({"model_usage": {"m": {}}}) is True, "absent means list"
+    assert cost_basis_is_list({"model_usage": {}}) is None, "nothing billed, nothing known"
+    assert cost_basis_is_list(None) is None
+
+
+def test_undeclared_model_usage_keys_never_raise():
+    """`costBasis` and `thinkingTokens` are on the wire but not on the TypedDict."""
+    assert model_usage_of({"model_usage": "not a dict"}) == {}
+    assert model_usage_of({"model_usage": {"m": "not a dict"}}) == {}
+    assert model_thinking_tokens({"model_usage": {"a": {"thinkingTokens": 7},
+                                                  "b": {}}}) == 7
+    assert model_thinking_tokens({}) == 0
+
+
+def test_the_efficiency_rows_carry_the_models_and_the_basis(fixtures):
+    document = json.loads(
+        (fixtures / "results" / "series_5run" / "reserve-available.result.json").read_text()
+    )
+    rows = efficiency_rows([document])
+    assert "models_billed" in rows[0] and "cost_basis_list" in rows[0]

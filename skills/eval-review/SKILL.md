@@ -48,6 +48,12 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
    when the system prompt is built at runtime. Both are "not measured", not
    "clean".
 
+   An `overrides` error (`EVC003`) is not a silent no-op: the runner validates
+   every case's `overrides` against `ClaudeAgentOptions` and refuses the whole
+   run before a single session starts, so the typo costs nothing but it also
+   means nothing runs until it is fixed. Say that, and offer the validator's
+   own `Fix:` rather than applying it.
+
 3. **Options.** Fix in order: load errors, contract errors, silent-pass
    warnings, then everything else. Route the writing: cases to
    `/agent-sdk:eval-create`, graders and config to `/agent-sdk:eval-criteria`.

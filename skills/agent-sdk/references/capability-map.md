@@ -41,6 +41,28 @@ own discovery, so any of them can also be invoked directly.
 The `pr` tier in a generated config uses free graders only, so a per-change
 gate never needs a judge. The `nightly` tier adds judges and repeated runs.
 
+`claude plugin eval` — the command that scores *a plugin*, not an agent — is a
+separate cost tier again, and two things about it changed upstream. Its
+`--judge-model` default is now **"the model Claude Code uses for background
+tasks"**, which is not a fixed id, so pin it with
+`--judge-model claude-sonnet-5-5` whenever a score has to be comparable with an
+earlier one. And the two fixes this plugin's own suite depends on landed in
+Claude Code **2.1.289** and **2.1.293**, so treat **2.1.293** as the floor for
+running `plugin eval`.
+
+## A plugin class these skills do not cover
+
+**Mods** (Claude Code 2.1.292+) are TypeScript plugins that register session
+handlers, with ten documentation pages under `/docs/en/plugins/mods/`, a
+`claude plugin test` command, a manifest `types` field for their `.d.ts`, and a
+`gatingHooks` section in `claude plugin validate --json`. None of the skills
+above reads or writes one. The single place a mod intersects this plugin's
+subject matter is the permission model: a mod's `tool.check` answers after the
+permission rules and the `PreToolUse` hooks and can replace their answer, which
+is the seventh step in
+`../../agent-harness/references/permission-model.md`. A question that is really
+about a mod belongs in the upstream docs, not here.
+
 ## A normal sequence
 
 Building something new:
@@ -72,4 +94,10 @@ resolved interpreter and say which one they used.
 
 ---
 
-Sources: this plugin.
+Sources: this plugin; `https://code.claude.com/docs/en/plugin-evals` and
+`https://code.claude.com/docs/en/plugins/cli-reference` (the `--judge-model`
+default and the 2.1.289/2.1.293 fixes),
+`https://code.claude.com/docs/en/plugins/mods/overview` (the mod class),
+`https://code.claude.com/docs/en/permissions` (a mod's `tool.check`
+precedence). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
+2.1.296 docs.

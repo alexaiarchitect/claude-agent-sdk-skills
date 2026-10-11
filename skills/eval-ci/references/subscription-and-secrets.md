@@ -83,7 +83,19 @@ they reach `rejected` sooner and buy nothing (`CI022`).
 `CLAUDE_CODE_USE_FOUNDRY=1` switch the backend; the credential is then that
 cloud's, usually minted from the job's OIDC token. `lint_workflows.py` accepts
 one of these instead of a Claude credential and does not raise `CI021`, but it
-cannot verify the provider's own wiring.
+cannot verify the provider's own wiring. Export the **provider's own variables**
+into the job as well — the AWS, Google Cloud or Azure credentials the backend
+needs — because a suite inherits them through `env` and `claude plugin eval` now
+says the same for its CI credentials. A missing provider variable surfaces as an
+auth failure inside the first session, not as a configuration error.
+
+A provider switch has a second effect worth knowing in CI: a session on a
+third-party provider, or one holding a gateway token, never receives the
+interactive feature flags, so from Claude Code **2.1.285** it starts in
+**`auto`** permission mode when `permission_mode` is unset — and `auto` drops
+broad allow rules. Set the mode explicitly in the agent's options (`dontAsk` for
+an unattended suite); this plugin's runner forces `"dontAsk"` when the options
+leave it unset, and the lint reports the omission as `OPT013`.
 
 ## The other shape: `claude-code-action`
 
@@ -108,4 +120,8 @@ guidance that an OAuth token is tied to one subscription, federation inputs,
 `id-token: write`); `https://code.claude.com/docs/en/authentication`
 (`claude setup-token`, the one-year token, which plans have it);
 `https://code.claude.com/docs/en/env-vars` (the backend switches);
-`https://code.claude.com/docs/en/agent-sdk/quickstart` (the third-party note).
+`https://code.claude.com/docs/en/agent-sdk/quickstart` (the third-party note);
+`https://code.claude.com/docs/en/permission-modes` (the headless starting-mode
+table); `https://code.claude.com/docs/en/plugin-evals` (cloud-provider
+variables in CI). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
+Code 2.1.296 docs.

@@ -61,6 +61,15 @@ the mismatch is silent. So a case asserting on injected output should also
 assert that the agent *noticed* it, otherwise a rejected substitution looks
 exactly like a passing test.
 
+**`PreToolUse` `defer`.** Not an injectable action in this runner, but worth
+knowing before you reach for `deny`: a hook returning
+`permissionDecision: "defer"` does not refuse the call, it **ends the turn**, and
+the `ResultMessage` carries `stop_reason: "tool_deferred"` with the call named in
+`deferred_tool_use`. If a case needs the agent to carry on without the tool, use
+`deny` with a reason; `defer` tests the harness's handling of a stopped turn,
+and the assertion for it is a `terminal` grader on `stop_reason`, never a text
+match.
+
 **Latency.** `latency_ms` sleeps before the action is applied, for any action;
 `action: latency` sleeps and then allows. On `PreToolUse` this delays the call;
 on `PostToolUse` it delays the result reaching the model. Use it against a
@@ -145,5 +154,8 @@ Sources: this plugin's runner —
 (`read_faults`); `.dev/CONTRACTS.md` §1 (case key `faults`), §3 (the `hook`
 trace event); `https://code.claude.com/docs/en/agent-sdk/hooks` (`HookMatcher`,
 `hookSpecificOutput`, `permissionDecision`, `updatedInput`,
-`updatedToolOutput`); `https://code.claude.com/docs/en/agent-sdk/python`
-(`ClaudeAgentOptions.hooks`, `include_hook_events`).
+`updatedToolOutput` — which is for every tool, while `updatedMCPToolOutput` is
+MCP-only and **not** deprecated; `defer` and `stop_reason: "tool_deferred"`);
+`https://code.claude.com/docs/en/agent-sdk/python`
+(`ClaudeAgentOptions.hooks`, `include_hook_events`). Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

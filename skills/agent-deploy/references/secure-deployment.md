@@ -99,10 +99,26 @@ ClaudeAgentOptions(
 
 Read regardless of any of it: **managed policy settings** from the host (MDM
 plist, registry, managed settings file), **server-managed settings** when the
-session authenticates with a qualifying organisation credential, **`~/.claude.json`**
+session authenticates with a qualifying organisation credential — which now means
+"an eligible login to your organisation or an OAuth token issued for it", so a
+fleet running on API keys (directly or through `apiKeyHelper`) cannot receive
+server-managed settings at all and has to use MDM or managed settings **files**
+instead — **`~/.claude.json`**
 (relocate with `CLAUDE_CONFIG_DIR`), and **builtin plugins and their skills**.
 Measured with `setting_sources=[]`: 18 builtin-plugin skills, 2 builtin plugins
 and one managed MCP server still loaded.
+
+Managed settings are also where a provider allowlist belongs.
+`allowedProviders` (**2.1.285+**) names the inference providers a session may
+use, so a host that must stay on one provider pins it there rather than trusting
+every container's environment; the same file is where
+`permissions.disableAutoMode: "disable"` and
+`permissions.disableBypassPermissionsMode: "disable"` block the two modes a
+deployment usually does not want. Two related facts for a headless fleet:
+`permission_mode` left unset can start a session in **`auto`** from 2.1.285 (see
+`../../agent-harness/references/permission-model.md`), and a read from a network
+path is never approved by an allow rule, so a mounted UNC share is not reachable
+unattended unless it is mapped and passed with `--add-dir`.
 
 And none of it controls **egress**. A container with a shell can connect
 wherever its network policy allows. Apply per-tenant egress rules at the proxy —
@@ -119,6 +135,8 @@ tenant cannot exfiltrate through another tenant's policy.
 - [ ] `max_turns` and `max_budget_usd` set; subagent depth and concurrency capped
 - [ ] egress proxy with a domain allowlist, holding the credentials
 - [ ] authentication at a gateway in front, not in the agent
+- [ ] `permission_mode` passed explicitly (`dontAsk` unattended), never left unset
+- [ ] managed settings pin `allowedProviders` and disable `auto`/`bypassPermissions`
 
 ---
 
@@ -129,7 +147,16 @@ pattern, credentials for other services, filesystem configuration),
 <https://code.claude.com/docs/en/agent-sdk/claude-code-features#what-settingsources-does-not-control>,
 <https://code.claude.com/docs/en/agent-sdk/quickstart> (the third-party policy
 note), <https://code.claude.com/docs/en/sandboxing#security-limitations>;
-`claude-agent-sdk` 0.2.162 `types.py:2297` (`setting_sources`), `:2018`
-(`strict_mcp_config`), `_internal/session_resume.py:352-380` (credential
-handling and `apiKeyHelper`). The list of what still loaded under
-`setting_sources=[]` was measured by this plugin on 2026-09-30.
+<https://code.claude.com/docs/en/model-config> (managed-settings delivery,
+`allowedProviders`), <https://code.claude.com/docs/en/permission-modes> (the
+HIPAA configuration and the mode-disabling settings),
+<https://code.claude.com/docs/en/permissions#network-paths>,
+<https://www.anthropic.com/engineering/how-we-contain-claude> ("How we contain
+Claude across products", 2026-10-12, for the containment model this checklist
+sits inside);
+`claude-agent-sdk` 0.2.165 `types.py:2297` (`setting_sources`), `:2018`
+(`strict_mcp_config`), `:2025` (`permission_mode`),
+`_internal/session_resume.py:352-380` (credential handling and `apiKeyHelper`).
+The list of what still loaded under `setting_sources=[]` was measured by this
+plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
+Claude Code 2.1.296 docs.

@@ -33,13 +33,18 @@ from agent_sdk_skills.layout import ClaudeFiles  # noqa: E402
 from agent_sdk_skills.options_ast import OptionsCall, ProjectFacts  # noqa: E402
 from agent_sdk_skills.report import Finding  # noqa: E402
 
+try:                                     # the library owns the dates; this is a floor
+    from agent_sdk_skills import DEPRECATED_MODELS  # noqa: E402
+except ImportError:                      # pragma: no cover - older library copy
+    DEPRECATED_MODELS = (("claude-sonnet-4-5-20250929", "2026-11-30"),)
+
 # -- sources ---------------------------------------------------------------
 
 DOCS = "https://code.claude.com/docs/en/agent-sdk"
 SRC_HOOKS = f"{DOCS}/hooks#available-hooks"
 SRC_HOOKS_OUTPUT = f"{DOCS}/hooks#outputs"
-SRC_HOOK_TYPES = "claude-agent-sdk 0.2.162 types.py:284 (HookEvent), :507-581 (HookJSONOutput)"
-SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.162 types.py:606 (HookMatcher)"
+SRC_HOOK_TYPES = "claude-agent-sdk 0.2.165 types.py:284 (HookEvent), :507-581 (HookJSONOutput)"
+SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.165 types.py:606 (HookMatcher)"
 SRC_PERMISSIONS = f"{DOCS}/permissions#how-permissions-are-evaluated"
 SRC_PERMISSION_RULES = f"{DOCS}/permissions#allow-and-deny-rules"
 SRC_TOOL_ACCESS = f"{DOCS}/custom-tools#control-tool-access"
@@ -51,12 +56,57 @@ SRC_SUBAGENTS = f"{DOCS}/subagents#agentdefinition-configuration"
 SRC_SUBAGENT_CAPS = f"{DOCS}/subagents#cap-subagent-depth-concurrency-and-spend"
 SRC_SETTINGS = f"{DOCS}/claude-code-features#control-filesystem-settings-with-settingsources"
 SRC_DEPRECATIONS = "https://platform.claude.com/docs/en/about-claude/model-deprecations"
+SRC_PERMISSION_MODES = "https://code.claude.com/docs/en/permission-modes"
+SRC_NETWORK_PATHS = "https://code.claude.com/docs/en/permissions#network-paths"
+SRC_PERMISSION_MODE_FIELD = "claude-agent-sdk 0.2.165 types.py:2025 (permission_mode)"
+#: Hooks that `onFailure: "block"` cannot rescue, so the advice is wrong there.
+ON_FAILURE_EXEMPT_EVENTS = ("Stop", "SubagentStop", "TaskCompleted", "TeammateIdle")
 
 #: `allowed_tools` accepts a tool-name glob only after a literal server prefix.
 _MCP_PREFIX = re.compile(r"^mcp__([A-Za-z0-9_.\-]+)__")
 
 
 # -- helpers ---------------------------------------------------------------
+
+def retirement_date_of(model: str) -> str | None:
+    """The committed retirement date for a deprecated id, if the library has one.
+
+    `DEPRECATED_MODELS` is the library's; its shape is read defensively (a
+    mapping, pairs, or bare ids) so this module keeps working whichever way the
+    dates are carried.
+    """
+    try:
+        items = DEPRECATED_MODELS.items()          # type: ignore[union-attr]
+    except AttributeError:
+        items = DEPRECATED_MODELS                  # type: ignore[assignment]
+    for item in items:
+        if isinstance(item, str):
+            if item == model:
+                return None
+            continue
+        name, *rest = item
+        if name == model:
+            return str(rest[0]) if rest else None
+    return None
+
+
+def model_policy_note(model: str) -> tuple[str, str] | None:
+    """`(severity, sentence)` for a model id that will stop working, else None.
+
+    `deprecated` is graded like `retiring` by every consumer — the difference is
+    that a deprecated id has a committed date, so the date goes in the message.
+    """
+    grade = classify_model_id(model)
+    if grade == "retired":
+        return "error", f"{model} is retired and no longer served"
+    if grade == "deprecated":
+        date = retirement_date_of(model)
+        when = f", retires {date}" if date else ""
+        return "warn", f"{model} is deprecated{when}"
+    if grade == "retiring":
+        return "warn", f"{model} is retirement-eligible"
+    return None
+
 
 def setting_sources_of(facts: ProjectFacts) -> tuple[bool, list[str] | None]:
     """`(explicit, sources)` for the project's primary options call.
@@ -117,7 +167,7 @@ def subagent_tool_allowed(call: OptionsCall | None) -> bool:
 # -- OPT: permissions and tool surface ------------------------------------
 
 def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Finding]:
-    """OPT001-OPT004 and OPT060: what the agent can actually call."""
+    """OPT001-OPT004, OPT013 and OPT060: what the agent can actually call."""
     findings: list[Finding] = []
     primary = facts.primary
     if primary is None:
@@ -136,8 +186,12 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
                     "tool is still available to Claude",
             fix="allowed_tools only pre-approves: an unlisted tool stays in context and "
                 "its call falls through to permission_mode. To remove tools, pass their "
-                "bare names in disallowed_tools, or pass tools=[] to drop the built-ins.",
-            source=f"{SRC_PERMISSION_RULES}; {SRC_TOOL_ACCESS}",
+                "bare names in disallowed_tools, or pass tools=[] to drop the built-ins. "
+                "An allow rule also never approves a read from a network path (a Windows "
+                "UNC \\\\server\\share path or a /net automount): that read gets its own "
+                "check, which an allow rule, a PreToolUse \"allow\" return and the "
+                "auto-mode classifier all fail to bypass (CLI 2.1.292+).",
+            source=f"{SRC_PERMISSION_RULES}; {SRC_TOOL_ACCESS}; {SRC_NETWORK_PATHS}",
         ))
     if tools is None and (allowed or disallowed):
         findings.append(Finding(
@@ -154,11 +208,25 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             message='"Skill" in allowed_tools is deprecated',
             fix="use the `skills` option instead: it configures everything, including "
                 "allowing the Skill tool. Pass exact skill names.",
-            source="claude-agent-sdk 0.2.162 types.py:1990; " + SRC_OPTIONS,
+            source="claude-agent-sdk 0.2.165 types.py:1991; " + SRC_OPTIONS,
         ))
 
     mode = primary.get("permission_mode")
     mode_value = mode.as_str() if mode else None
+    if mode is None:
+        findings.append(Finding(
+            id="OPT013", severity="warn", area="options", path=path, locator=line,
+            message="`permission_mode` is unset, so the mode is whatever the CLI picks. A "
+                    "headless session without the interactive feature flags can start in "
+                    "`auto` on CLI 2.1.285 and later, where a classifier reviews each tool "
+                    "call and a bare allow rule no longer settles it",
+            fix='set permission_mode explicitly ("dontAsk" for unattended runs, "default" '
+                "to keep prompting). A session that does not fetch feature flags — a "
+                "third-party provider, telemetry off, a gateway token — is the one that "
+                "gets `auto`. This plugin's runner forces \"dontAsk\" when the agent "
+                "leaves the mode unset, but the agent also runs outside the runner.",
+            source=f"{SRC_PERMISSION_MODE_FIELD}; {SRC_PERMISSION_MODES}",
+        ))
     if mode_value == "bypassPermissions":
         findings.append(Finding(
             id="OPT002", severity="error" if strict else "warn", area="options",
@@ -175,7 +243,7 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             id="OPT060", severity="error", area="options", path=path, locator=line,
             message=f'permission_mode="{mode_value}" is not one of the six the SDK accepts',
             fix="one of: " + ", ".join(PERMISSION_MODES),
-            source="claude-agent-sdk 0.2.162 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
+            source="claude-agent-sdk 0.2.165 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
         ))
     return findings
 
@@ -223,7 +291,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     message=f"hook callback {name}() is a plain `def`; the SDK awaits it",
                     fix="make it `async def cb(input_data, tool_use_id, context)`. A "
                         "synchronous callback raises as soon as the event fires.",
-                    source="claude-agent-sdk 0.2.162 types.py:594 (HookCallback)",
+                    source="claude-agent-sdk 0.2.165 types.py:594 (HookCallback)",
                 ))
             if callback.param_count != 3 and not any(p.startswith("*") for p in callback.params):
                 findings.append(Finding(
@@ -232,7 +300,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     message=f"hook callback {name}() takes {callback.param_count} "
                             "parameter(s); the SDK always passes three",
                     fix="the signature is (input_data, tool_use_id, context).",
-                    source="claude-agent-sdk 0.2.162 types.py:594 (HookCallback)",
+                    source="claude-agent-sdk 0.2.165 types.py:594 (HookCallback)",
                 ))
             needs_specific = registration.event not in HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT
             if (needs_specific and callback.returns_nonempty_dict
@@ -283,8 +351,13 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     "excludes `project`, so they do not load in an SDK run",
             fix="that is usually what an eval wants (the run stays reproducible); if "
                 "those hooks are part of the agent, register them in the `hooks` option "
-                "instead of the settings file.",
-            source=SRC_SETTINGS,
+                "instead of the settings file. A settings-file `command` or `http` hook "
+                "that must not fail open can also set `onFailure: \"block\"` (Claude Code "
+                "2.1.295+), which turns a failure to start, a non-0/2 exit, an HTTP error, "
+                "a timeout or unparseable output into a block — it has no effect on "
+                + ", ".join(ON_FAILURE_EXEMPT_EVENTS)
+                + " or on background (`async`/`asyncRewake`) command hooks.",
+            source=f"{SRC_SETTINGS}; https://code.claude.com/docs/en/hooks#onfailure",
         ))
     return findings
 
@@ -359,7 +432,7 @@ def mcp_findings(facts: ProjectFacts, *, check_path: bool = True) -> list[Findin
                 locator=f"@tool {tool.tool_name or tool.func_name} line {tool.lineno}",
                 message=f"{tool.tool_name or tool.func_name} is not `async def`",
                 fix="`SdkMcpTool.handler` is awaited; a synchronous handler raises.",
-                source="claude-agent-sdk 0.2.162 __init__.py:241 (SdkMcpTool)",
+                source="claude-agent-sdk 0.2.165 __init__.py:241 (SdkMcpTool)",
             ))
     return findings
 
@@ -391,25 +464,18 @@ def subagent_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) ->
                 source=f"{SRC_SUBAGENTS}; {SRC_SUBAGENT_CAPS}",
             ))
         model = definition.model.as_str() if definition.model else None
-        if model:
-            grade = classify_model_id(model)
-            if grade == "retired":
-                findings.append(Finding(
-                    id="SUB002", severity="error", area="subagents", path=path,
-                    locator=locator,
-                    message=f'"{definition.name}" pins {model}, which is retired',
-                    fix="pick a current id, or 'inherit' to use the main model.",
-                    source=SRC_DEPRECATIONS,
-                ))
-            elif grade == "retiring":
-                findings.append(Finding(
-                    id="SUB002", severity="warn", area="subagents", path=path,
-                    locator=locator,
-                    message=f'"{definition.name}" pins {model}, which is retirement-eligible',
-                    fix="the subagent stops working on a date nobody wrote down. Use an "
-                        "alias, 'inherit', or a current dated id.",
-                    source=SRC_DEPRECATIONS,
-                ))
+        note = model_policy_note(model) if model else None
+        if note is not None:
+            severity, sentence = note
+            findings.append(Finding(
+                id="SUB002", severity=severity, area="subagents", path=path,
+                locator=locator,
+                message=f'"{definition.name}" pins a model that stops working: {sentence}',
+                fix="pick a current id, an alias, or 'inherit' to use the main model. "
+                    "Without a date in the code, the subagent stops working on a date "
+                    "nobody wrote down.",
+                source=SRC_DEPRECATIONS,
+            ))
     if claude is not None and claude.agents and not loads_project_settings(facts):
         findings.append(Finding(
             id="SUB010", severity="info", area="subagents",

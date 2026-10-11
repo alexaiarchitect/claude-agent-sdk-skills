@@ -101,6 +101,15 @@ arguments" and you want the agent to feel the mismatch. When you only want to
 assert afterwards, use a `tool_used` grader with `args_match` instead — `expect`
 changes the run.
 
+Two mocked tools cannot be reached unattended whatever you pre-approve. A tool
+whose server sets `requiresUserInteraction`, and a connector tool an
+organisation has set to `ask`, always land at the ask step — and in `dontAsk`
+they are **denied** rather than prompted, because that mode never prompts. If
+the agent needs such a tool in a suite, the mock has to stand in for it
+entirely; no allow rule will let the real one through. (A read from a network
+path is denied in `dontAsk` for the same reason, so a mock that returns a
+`\\server\share` path is setting the agent up to fail.)
+
 ## `mock_calls`: the only evidence a mock was reached
 
 The SDK records nothing about in-process tools, so the runner's own wrapper
@@ -108,6 +117,25 @@ records every call: `{tool, server, name, input, output_chars, output (2 KB),
 is_error, note}`. Graders with `target: mock_calls` read that list. Without the
 wrapper there would be no way to prove a mock was ever called — `include_hook_events`
 does not cover in-process tools.
+
+## Not this runner: `claude plugin eval`'s mock rules
+
+`claude plugin eval` has its own mock mechanism with a confusingly similar
+`expect:` key, and three of its rules became load errors in the 2.1.289/2.1.293
+window. They do **not** apply to the format above, but a case written for one
+and pasted into the other will fail in a way that reads like a bug:
+
+- `expect:` patterns there follow a documented `/regex/` **dialect**: literals,
+  `.`, `\d`-style escapes, classes `[a-z]`, quantifiers `*` `+` `?` `{m,n}`
+  (over a single character, escape or class only), an optional `^`/`$`, and the
+  flags `i` and `s`. **No groups, no alternation, no backreferences, no
+  lookaround** — an out-of-dialect pattern is a load failure that scores 0 and
+  names the pattern. Use a list of literals where you would have written `a|b`.
+- all `type: agent` mocks in a run **share one call budget** of 4 × the case's
+  `max_turns` (40 at the default 10). Replay-recorded calls count against it,
+  and exceeding it aborts the run with score 0 and "mock call budget exceeded".
+- an `expect:` guard on `_server.md` is a load error unless its `tools:` key
+  names **exactly one** tool.
 
 ## Trap mocks
 
@@ -148,4 +176,9 @@ Sources: this plugin's runner —
 (`{{input.x|fallback}}`);
 `https://code.claude.com/docs/en/agent-sdk/custom-tools` (`tool`,
 `create_sdk_mcp_server`),
-`https://code.claude.com/docs/en/agent-sdk/mcp` (`mcp__<server>__<tool>` naming).
+`https://code.claude.com/docs/en/agent-sdk/mcp` (`mcp__<server>__<tool>` naming);
+`https://code.claude.com/docs/en/plugin-evals` (that product's `/regex/` mock
+dialect, the shared agent-mock call budget, the `_server.md` guard rule),
+`https://code.claude.com/docs/en/permission-modes` (`dontAsk`'s always-denied
+list). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
+docs.

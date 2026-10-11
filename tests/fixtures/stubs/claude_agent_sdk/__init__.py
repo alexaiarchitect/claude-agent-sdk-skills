@@ -6,8 +6,8 @@ whole point of the plugin is that it works before the project's environment does
 `PYTHONPATH=tests/fixtures/stubs:runner`.
 
 Faithfulness is the contract. Every public name, every dataclass field and every
-field *order* here was read from the installed wheel (`claude-agent-sdk` 0.2.162,
-bundled CLI 2.1.285); `ClaudeAgentOptions` carries all 49 fields in declaration
+field *order* here was read from the installed wheel (`claude-agent-sdk` 0.2.165,
+bundled CLI 2.1.294); `ClaudeAgentOptions` carries all 49 fields in declaration
 order, so a test can compare the runner's pinned option list against
 `__dataclass_fields__` exactly as the runner does at run time.
 
@@ -32,8 +32,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Generic, Literal, TypeVar
 
-__version__ = "0.2.162"
-__cli_version__ = "2.1.285"
+__version__ = "0.2.165"
+__cli_version__ = "2.1.294"
 
 T = TypeVar("T")
 

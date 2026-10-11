@@ -42,20 +42,38 @@ utilization, which is the right "how close am I" figure.
 
 - `max_budget_usd` on the options: the SDK ends a session that crosses it with
   `subtype: error_max_budget_usd`; the runner records it, and a `terminal`
-  grader can assert on it.
+  grader can assert on it. It is a **soft** cap — the running estimate can pass
+  the value before the session stops, so leave headroom.
 - `--max-cost-usd` on the run: the runner stops launching further runs and
-  exits 3 with partial results.
+  exits 3 with partial results. Soft in the same way, one level up.
 - `budget.max_cost_usd_total` in the config: the default for `--max-cost-usd`.
 
 ## Reading the cost afterwards
 
 `total_cost_usd` is a session running total, so a multi-turn case's cost is the
 last value, not a sum of turns; the trace records `cost_delta_usd` per turn.
-`model_usage` also lists models the agent never asked for (the CLI's internal
-Haiku calls); the model that answered is `assistant_text.model`.
+`model_usage` also lists models the agent never asked for: measured 2026-10-11
+on SDK 0.2.165 with bundled CLI 2.1.294, the extra row was **`claude-haiku-5-5`**
+(1192 in / 26 out, $0.0001322 — exactly $0.10 and $0.50 per Mtok), where the
+2026-09-30 runs on CLI 2.1.285 had shown Haiku 4.5. Read it per model, never as
+the first entry; the model that answered is `assistant_text.model`. Each row
+also carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
+and `thinkingTokens`, neither of them on the 0.2.165 `ModelUsage` TypedDict, so
+read both with `.get()` and record the basis beside any figure you compare
+between accounts.
+
+One price to date rather than quote: a Sonnet 5.5 **cache read** is $0.10/Mtok
+on the platform price list and in Claude Code **2.1.296**, but the CLI bundled
+with `claude-agent-sdk` 0.2.165 is **2.1.294**, whose estimate still charges
+**$0.20/Mtok** (measured 2026-10-11). A cache-heavy estimate therefore halves
+when the bundled CLI crosses 2.1.296.
 
 ---
 
 Sources: `https://code.claude.com/docs/en/agent-sdk/cost-tracking` (estimates,
 running totals, `max_budget_usd`), `https://code.claude.com/docs/en/agent-sdk/configuration`
-(`setting_sources`, model default); measurements in `.dev/VERIFIED-FACTS.md`.
+(`setting_sources`, model default),
+`https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom`,
+`https://platform.claude.com/docs/en/about-claude/models/overview` (cache-read
+percentages); measurements in `.dev/VERIFIED-FACTS.md`. Re-read 2026-10-11
+against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

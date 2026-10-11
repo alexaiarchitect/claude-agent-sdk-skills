@@ -1,8 +1,8 @@
 # `agent-sdk` — Claude Code skills for Claude Agent SDK agents and evaluations
 
 Thirteen skills for building, reviewing and evaluating agents written with the
-Claude Agent SDK (Python). Checked against `claude-agent-sdk` 0.2.162 with its
-bundled Claude Code 2.1.285.
+Claude Agent SDK (Python). Checked against `claude-agent-sdk` 0.2.165 with its
+bundled Claude Code 2.1.294; documentation read at 2.1.296.
 
 The premise: an agent's system prompt is a promise written in prose, and **eval
 cases are the only form of that promise a machine can check**. The SDK ships no
@@ -58,7 +58,7 @@ Costs are stated up front as a tier: `free` (static checks, validation, replay
 of saved traces), `run` (executes the agent: one SDK session per case per run),
 `judge` (adds LLM-as-judge calls per sample).
 
-## Four things worth knowing before you start
+## Five things worth knowing before you start
 
 **Runs are paid by whatever credential the SDK subprocess inherits.** An
 `ANTHROPIC_API_KEY` bills the API and wins even when you are logged in. With no
@@ -77,6 +77,16 @@ times more. The SDK's default matches the CLI and loads everything.
 **Only a `rejected` rate-limit status stops a suite.** Warnings are recorded;
 a rejection marks the rest `NOT_EVALUATED` and exits 3, never a fake failure.
 `max_turns` is not a hard cap on turns; assert on `terminal_reason`.
+
+**Leaving `permission_mode` unset is a trap, not a default.** It is not the
+same as passing `"default"`: the CLI resolves the mode, and from Claude Code
+2.1.285 a headless session that does not fetch the interactive feature flags —
+a gateway token, a third-party provider, telemetry turned off — starts in
+`auto`, where a classifier reviews each shell command and broad allow rules such
+as a bare `Bash` are dropped. The runner therefore forces `dontAsk` when your
+options leave the mode unset and records that in the trace; `agent-review`
+reports the omission as `OPT013`, because your agent also runs outside the
+runner.
 
 **The runner copy can go stale.** It is copied into your project's
 `evals/runner/` with a `VERSION` and a manifest, so CI needs nothing from the
@@ -126,7 +136,9 @@ Any other entry point is named as `module:function` in the config or
 ```bash
 python3 -m pytest tests -q                                          # the plugin's own tests
 claude plugin validate . --strict
-claude plugin eval . --scaffold --allow-tools Bash Write Edit --runs 1   # skill-level cases under plugin-evals/
+# skill-level cases under plugin-evals/; needs Claude Code 2.1.293+
+claude plugin eval . --scaffold --allow-tools Bash Write Edit --runs 1 \
+  --judge-model claude-sonnet-5-5
 python3 .dev/check_sources.py --tier 1                              # what moved upstream
 ```
 

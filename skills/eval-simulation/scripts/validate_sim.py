@@ -49,7 +49,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "lib"))
 
 from agent_sdk_skills import PYTHON_HOOK_EVENTS  # noqa: E402
-from agent_sdk_skills.env import classify_model_id  # noqa: E402
+from agent_sdk_skills.env import classify_model_id, model_retirement_date  # noqa: E402
 from agent_sdk_skills.evalcase import iter_cases  # noqa: E402
 from agent_sdk_skills.layout import detect_layout  # noqa: E402
 from agent_sdk_skills.mocks import mock_tool_names, mock_summary, validate_mocks  # noqa: E402
@@ -184,8 +184,13 @@ def check_persona(path: Path, report: GapReport) -> dict[str, Any] | None:
                 fix="the simulated user runs on its own model; point it at a current one, "
                     "or drop `model` and inherit the judge tier's",
                 locator="model", source="this plugin's model policy")
-        elif grade in ("retiring", "unknown"):
-            add("SIM006", "warn", f"persona model {model!r} is {grade}",
+        elif grade in ("deprecated", "retiring", "unknown"):
+            # A deprecated id has a committed date, which is the whole reason it
+            # is graded apart from `retiring`: the message can say when the
+            # persona stops working instead of "some time".
+            retires = model_retirement_date(str(model))
+            when = f", retires {retires}" if retires else ""
+            add("SIM006", "warn", f"persona model {model!r} is {grade}{when}",
                 fix="pin a current id, or drop `model` so the persona follows the judge "
                     "model in eval_config.json",
                 locator="model", source="this plugin's model policy")

@@ -24,7 +24,7 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -208,6 +208,8 @@ class Plan:
     runs: dict[str, int]
     warnings: list[str]
     entries: dict[str, str]
+    #: case -> ("agent" | "runner-default"), who decided `permission_mode`.
+    permission_modes: dict[str, str] = field(default_factory=dict)
 
 
 def build_plan(args: argparse.Namespace, sdk: Any) -> Plan:
@@ -237,6 +239,7 @@ def build_plan(args: argparse.Namespace, sdk: Any) -> Plan:
     isolation: dict[str, dict[str, Any]] = {}
     runs: dict[str, int] = {}
     entries: dict[str, str] = {}
+    permission_modes: dict[str, str] = {}
     errors: list[str] = []
     for case in cases:
         check = validate_overrides(case.overrides, live_fields)
@@ -263,7 +266,8 @@ def build_plan(args: argparse.Namespace, sdk: Any) -> Plan:
         overrides["model"] = model
         if case.max_turns is not None:
             overrides.setdefault("max_turns", case.max_turns)
-        built, applied = apply_overrides(base, overrides, config.isolation)
+        built, applied, mode_source = apply_overrides(base, overrides, config.isolation)
+        permission_modes[case.name] = mode_source
         for name, value in ISOLATION_DEFAULTS.items():
             if name in case.overrides and case.overrides[name] != value:
                 warnings.append(
@@ -275,7 +279,8 @@ def build_plan(args: argparse.Namespace, sdk: Any) -> Plan:
         isolation[case.name] = applied
         runs[case.name] = int(args.runs or case.runs or tier.runs or 1)
     return Plan(config=config, tier=tier, cases=cases, options=options, models=models,
-                isolation=isolation, runs=runs, warnings=warnings, entries=entries)
+                isolation=isolation, runs=runs, warnings=warnings, entries=entries,
+                permission_modes=permission_modes)
 
 
 def _newer(left: str, right: str) -> bool:
@@ -382,6 +387,7 @@ async def execute_run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                 case, config, options,
                 run=run_index, run_id=f"{case.name}.{run_index}", sdk=sdk,
                 mock_calls=mock_calls, persona=persona, keep_cwd=bool(args.keep_cwd),
+                permission_mode_source=plan.permission_modes.get(case.name),
             )
             outcome.capture.hook_events_installed |= probe.installed
             probe.drain_into(outcome.capture)
@@ -581,6 +587,8 @@ def dry_run_payload(args: argparse.Namespace, plan: Plan, creds: dict[str, Any],
                 "model": plan.models[case.name],
                 "agent": plan.entries[case.name],
                 "isolation": plan.isolation[case.name],
+                "permission_mode": getattr(plan.options[case.name], "permission_mode", None),
+                "permission_mode_source": plan.permission_modes.get(case.name),
                 "graders": [
                     {"name": g.name, "type": g.type, "tier": g.tier}
                     for g in case.graders_for(list(plan.tier.graders))
@@ -601,8 +609,9 @@ def dry_run_payload(args: argparse.Namespace, plan: Plan, creds: dict[str, Any],
     say(f"  versions:   runner {RUNNER_VERSION}, sdk {versions['sdk_version']}, "
         f"cli {versions['cli_version']}")
     for case in payload["cases"]:
-        say(f"  case {case['case']}: model {case['model']}, {case['runs']} run(s), isolation "
-            f"{json.dumps(case['isolation'])}, graders "
+        say(f"  case {case['case']}: model {case['model']}, {case['runs']} run(s), "
+            f"permission_mode {case['permission_mode']} ({case['permission_mode_source']}), "
+            f"isolation {json.dumps(case['isolation'])}, graders "
             + (", ".join(f"{g['name']}({g['type']})" for g in case["graders"]) or "none"))
     return payload
 

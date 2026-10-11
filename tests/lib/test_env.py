@@ -2,10 +2,11 @@
 
 from pathlib import Path
 
-from agent_sdk_skills import DEFAULT_MODEL
+from agent_sdk_skills import CLI_BUNDLED_WITH_TARGET, DEFAULT_MODEL, SDK_TARGET
 from agent_sdk_skills.env import (
-    CredentialInfo, classify_model_id, detect_credential, read_dotenv, resolve_runner,
-    version_at_least, version_is_supported,
+    CHECKED_AGAINST, CredentialInfo, classify_model_id, detect_credential,
+    model_retirement_date, read_dotenv, resolve_runner, version_at_least,
+    version_is_supported, version_newer_than_target,
 )
 
 
@@ -61,18 +62,38 @@ def test_no_credential_without_asking_the_cli(tmp_path, monkeypatch):
 
 def test_model_policy_grades():
     assert classify_model_id("sonnet") == "alias"
-    assert classify_model_id(DEFAULT_MODEL) == "pinned"
-    assert classify_model_id("claude-sonnet-4-5-20250929") == "retiring"
+    assert classify_model_id(DEFAULT_MODEL) == "current"
+    assert classify_model_id("claude-haiku-5-5") == "current", "Haiku 5.5 joined the current ids"
+    assert classify_model_id("claude-sonnet-5-5-20260401") == "pinned", "a dated snapshot is not in the list"
+    assert classify_model_id("claude-sonnet-4-5-20250929") == "deprecated", "retires 2026-11-30"
+    assert classify_model_id("claude-haiku-4-5-20251001") == "retiring"
+    assert classify_model_id("claude-opus-4-5-20251101") == "retiring"
     assert classify_model_id("claude-3-5-sonnet-20241022") == "retired"
     assert classify_model_id("claude-opus-4-1-20250805") == "retired"
     assert classify_model_id("gpt-5") == "unknown"
     assert classify_model_id(None) == "unknown"
 
 
+def test_only_a_deprecated_id_reports_a_committed_retirement_date():
+    """A `retiring` id has a floor, not a promise, so it reports no date."""
+    assert model_retirement_date("claude-sonnet-4-5-20250929") == "2026-11-30"
+    assert model_retirement_date("claude-haiku-4-5-20251001") is None
+    assert model_retirement_date(DEFAULT_MODEL) is None
+    assert model_retirement_date(None) is None
+
+
+def test_the_checked_against_pins_are_reported_verbatim():
+    assert CHECKED_AGAINST == {"sdk": SDK_TARGET, "cli": CLI_BUNDLED_WITH_TARGET}
+    assert version_newer_than_target("0.2.166") and version_newer_than_target("0.3.0")
+    assert not version_newer_than_target(SDK_TARGET), "equal is not newer"
+    assert not version_newer_than_target("0.2.164")
+    assert not version_newer_than_target(None), "unknown is not newer"
+
+
 def test_version_comparison_is_numeric():
-    assert version_at_least("0.2.162", "0.2.100")
+    assert version_at_least("0.2.165", "0.2.100")
     assert not version_at_least("0.2.99", "0.2.100"), "string comparison would get this wrong"
-    assert version_is_supported("0.2.162") and not version_is_supported(None)
+    assert version_is_supported("0.2.165") and not version_is_supported(None)
 
 
 def test_explicit_interpreter_is_used_first(monkeypatch, fixtures):

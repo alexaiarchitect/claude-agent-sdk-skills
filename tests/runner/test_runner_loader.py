@@ -14,6 +14,7 @@ import pytest
 from agent_sdk_evals import EvalError
 from agent_sdk_evals.loader import (
     Case,
+    PERMISSION_MODE_DEFAULT,
     apply_overrides,
     discover_cases,
     expand_env,
@@ -250,7 +251,7 @@ def test_validation_against_the_pinned_list_alone_still_works():
 def test_the_isolation_defaults_are_forced_onto_whatever_the_agent_built():
     base = sdk.ClaudeAgentOptions(model="m", setting_sources=["user", "project"],
                                  strict_mcp_config=False)
-    built, applied = apply_overrides(base, {}, {"setting_sources": [], "strict_mcp_config": True})
+    built, applied, _ = apply_overrides(base, {}, {"setting_sources": [], "strict_mcp_config": True})
     assert built.setting_sources == [] and built.strict_mcp_config is True
     assert applied == {"setting_sources": [], "strict_mcp_config": True}
     assert base.setting_sources == ["user", "project"], "the agent's own options are not mutated"
@@ -258,16 +259,16 @@ def test_the_isolation_defaults_are_forced_onto_whatever_the_agent_built():
 
 def test_a_case_can_opt_out_of_isolation_and_it_is_recorded():
     base = sdk.ClaudeAgentOptions(model="m")
-    built, applied = apply_overrides(base, {"setting_sources": ["project"]},
-                                    {"setting_sources": [], "strict_mcp_config": True})
+    built, applied, _ = apply_overrides(base, {"setting_sources": ["project"]},
+                                        {"setting_sources": [], "strict_mcp_config": True})
     assert built.setting_sources == ["project"]
     assert applied["setting_sources"] == ["project"], "the trace records what actually applied"
 
 
 def test_case_overrides_reach_the_options():
     base = sdk.ClaudeAgentOptions(model="m", max_turns=6)
-    built, _ = apply_overrides(base, {"max_turns": 2, "effort": "low"},
-                               {"setting_sources": [], "strict_mcp_config": True})
+    built, _, _ = apply_overrides(base, {"max_turns": 2, "effort": "low"},
+                                  {"setting_sources": [], "strict_mcp_config": True})
     assert (built.max_turns, built.effort) == (2, "low")
 
 
@@ -330,3 +331,28 @@ def test_the_mini_project_agent_builds_options(mini_project, monkeypatch):
     assert options.permission_mode == "dontAsk"
     assert set(options.mcp_servers) == {"library"}
     assert "mcp__library__lookup_book" in options.allowed_tools
+
+
+# -- the permission mode the runner resolves --------------------------------
+
+def test_an_unset_permission_mode_becomes_dont_ask_and_says_who_decided():
+    """CONTRACTS section 13.1: unset is not `default`; a headless session can start in `auto`."""
+    base = sdk.ClaudeAgentOptions(model="m")
+    assert base.permission_mode is None
+    built, _, source = apply_overrides(base, {}, {})
+    assert built.permission_mode == PERMISSION_MODE_DEFAULT == "dontAsk"
+    assert source == "runner-default"
+    assert base.permission_mode is None, "the agent's own options are not mutated"
+
+
+def test_a_mode_the_agent_set_is_left_alone():
+    base = sdk.ClaudeAgentOptions(model="m", permission_mode="plan")
+    built, _, source = apply_overrides(base, {}, {})
+    assert built.permission_mode == "plan" and source == "agent"
+
+
+def test_a_case_override_counts_as_chosen_not_as_the_runners_default():
+    base = sdk.ClaudeAgentOptions(model="m")
+    built, _, source = apply_overrides(base, {"permission_mode": "acceptEdits"}, {})
+    assert built.permission_mode == "acceptEdits"
+    assert source == "agent", "the two sources are 'agent' and 'runner-default', nothing else"

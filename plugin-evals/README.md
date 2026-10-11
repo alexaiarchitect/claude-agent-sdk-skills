@@ -7,26 +7,52 @@ the test fixtures carry `evals/` directories of their own, in a different format
 in a session with only this plugin loaded, and grades what the model did.
 
 ```bash
-claude plugin eval . --scaffold --allow-tools Bash Write Edit
-claude plugin eval . --scaffold --allow-tools Bash Write Edit --case routing-ambiguous --runs 1
-claude plugin eval . --scaffold --allow-tools Bash Write Edit --json results.json --threshold 0.8 --max-cost-usd 5
+claude plugin eval . --scaffold --allow-tools Bash Write Edit --judge-model claude-sonnet-5-5
+claude plugin eval . --scaffold --allow-tools Bash Write Edit --judge-model claude-sonnet-5-5 \
+  --case routing-ambiguous --runs 1
+claude plugin eval . --scaffold --allow-tools Bash Write Edit --judge-model claude-sonnet-5-5 \
+  --json results.json --threshold 0.8 --max-cost-usd 5
 ```
 
-**Both flags are required, and neither is a default.**
+**Claude Code 2.1.293 or newer.** Two `plugin eval` fixes these cases depend on
+landed in 2.1.289 and 2.1.293; on an older CLI a case can fail for a reason that
+is not in the plugin.
+
+**Three flags, and none of them is a default.**
 
 - `--scaffold` runs each case's `scaffold_script`. It is opt-in because a
   scaffold script is author-supplied bash that runs as you. Without it, every
-  case that needs a project starts in an empty directory, and the
-  `scaffold-intact` graders fail because the sentinel they look for was never
-  written.
+  case that needs a project starts in an empty directory, so each case that
+  names a fixture fails for want of the project its prompt describes. No
+  grader watches the scaffold's own sentinel: `file_exists` counts only files
+  **Claude** created during the run, so a file a scaffold wrote is invisible to
+  it ([plugin-evals docs](https://code.claude.com/docs/en/plugin-evals)). The
+  sentinel is there for a human reading the sandbox afterwards with
+  `--keep-temp`, not for a grader.
 - `--allow-tools Bash Write Edit` is the operator grant for gated tools. Every
   case runs the plugin's scripts through `Bash`; the authoring cases also write
   files. Without the grant those calls are refused and the cases fail for the
   wrong reason.
+- `--judge-model claude-sonnet-5-5` pins the judge. The default is no longer a
+  named model: it is "the model Claude Code uses for background tasks", which
+  moves with the CLI (on 2.1.294 that is `claude-haiku-5-5`). Unpinned, two runs
+  weeks apart are not comparable, and the rubrics below are written for a judge
+  that can hold a transcript and a script's output side by side.
 
 Every run is a full `claude` child on your own credential; on a subscription
 the cases draw on the same usage limits as your own work, so start with
-`--runs 1` and a `--max-cost-usd` ceiling.
+`--runs 1` and a `--max-cost-usd` ceiling. `--max-cost-usd` is a soft cap: the
+estimate it compares against can pass the value before the run stops, so leave
+headroom.
+
+Two upstream rules to know before editing a case, because both are now **load
+errors** rather than warnings: a mock `expect:` pattern must stay inside the
+documented `/regex/` dialect — literals, `.`, `\d`-style escapes, classes,
+simple quantifiers, optional `^`/`$`, flags `i` and `s`, and **no groups, no
+alternation, no lookaround** (write a list of literals instead of `a|b`) — and
+all `type: agent` mocks in a run share **one call budget of 4 x the case's
+`max_turns`**, 40 at the default, which aborts the run with score 0 when
+exceeded.
 
 ## What each case pins
 
@@ -67,13 +93,34 @@ scaffold.sh [<fixture>|none] [<mutation>] [stage-results] [stage-traces] [stage-
 It also writes `.scaffold/manifest.txt` (what ran) and `.scaffold/protected.sha256`
 (a checksum per file the case must not modify).
 
+## What a tightened rubric asks for
+
+Every `criteria.md` was tightened on 2026-10-11 so a PASS needs evidence **only
+the plugin's scripts produce**: the discovery report's `## Found` and
+`## Missing` blocks, a finding id the linter or validator actually printed
+(`EVC003`, `AGT030`, `DEP001`, `HOK001`, …), the credential line with its
+`cost basis:`, and a `cost:` tier on each option offered. What is asked for is
+the **fact or the id** the script printed, not its wording: a response may put
+a finding in its own words, but the id, the severity and the figures have to be
+the script's. Every `criteria.md` carries `focus: trace`, because an `llm`
+grader's default `focus` is `last_message` and a judge looking only at the
+final answer cannot see the script output these rubrics rest on. `trace` shows
+it the first 12 and the last 12 messages, which covers these cases whole (4-9
+turns). Every `criteria.md` FAIL list ends with the same clause — advice or a verdict given without running
+the plugin's script — so a model that answers correctly from its own knowledge
+of the SDK still fails. That is deliberate: these cases measure whether the
+skills fire and are followed, not whether the model knows the Agent SDK.
+
 ## How the "nothing happened" graders work
 
 Some cases assert that something *did not* happen, which an llm judge cannot
-see from a transcript summary. They use `regex` graders over `target: trace`
-with `match: not_contains`: failing if any command in the execution trace
-starts a session, or any `Edit`/`Write` names a protected file. Each grader
-file says what it proves and what it does not.
+reliably see. They use `regex` graders over `target: trace` with
+`match: not_contains`: failing if any command in the execution trace starts a
+session, or any `Edit`/`Write` names a protected file. Each grader file says
+what it proves and what it does not. A `file_exists` grader cannot stand in for
+one of these: it counts only files **Claude** created during the run, so the
+checksums the scaffold writes to `.scaffold/protected.sha256` are invisible to
+every grader — read them yourself with `--keep-temp`.
 
 ## Grader types in use
 

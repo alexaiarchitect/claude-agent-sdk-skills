@@ -7,6 +7,13 @@ the work of writing a good case, and the column people skip is the last one:
 *what this check does not prove*. A suite of graders that each prove something
 narrow, with nothing covering the gap between them, passes a broken agent.
 
+When an `llm` grader is genuinely the right check, the cheap judge as of
+2026-10-11 is `claude-haiku-5-5` ($0.10 in / $0.50 out per Mtok against Sonnet
+5.5's $2 / $10, needs Claude Code 2.1.293+). Name it on the grader; the suite
+default stays `claude-sonnet-5-5` so verdicts stay comparable, and the price
+rises per token above a 100K-token prompt, so a judge that reads a whole
+transcript saves less than the headline suggests.
+
     grader_info.py [--type T] [--json]
 
 With no `--type`, the whole catalog plus the semantics that were fixed by

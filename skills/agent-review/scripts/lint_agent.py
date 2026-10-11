@@ -9,9 +9,10 @@ Ten dimensions:
 
 1.  entry point — can anything outside the module obtain the options
 2.  legacy names — `claude_code_sdk`, `ClaudeCodeOptions`, deprecated fields
-3.  model policy — hardcoded, retiring, retired, or absent
+3.  model policy — hardcoded, deprecated, retiring, retired, or absent
 4.  credentials — a key literal in source, a missing `.env.example`
-5.  tool surface — what `allowed_tools`, `disallowed_tools` and `tools` really do
+5.  tool surface — what `allowed_tools`, `disallowed_tools` and `tools` really do,
+    and whether `permission_mode` is left for the CLI to pick
 6.  limits — `max_turns`, `max_budget_usd`
 7.  context — `setting_sources`, and what the host machine leaks into a run
 8.  hooks — async, three parameters, the right return shape, a valid matcher
@@ -37,13 +38,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "lib"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _checks import (  # noqa: E402
-    SRC_DEPRECATIONS, SRC_OPTIONS, hook_findings, mcp_findings, permission_findings,
-    setting_sources_of, subagent_findings, subagent_tool_allowed,
+    SRC_DEPRECATIONS, SRC_OPTIONS, hook_findings, mcp_findings, model_policy_note,
+    permission_findings, setting_sources_of, subagent_findings, subagent_tool_allowed,
 )
 from agent_sdk_skills import (  # noqa: E402
     EFFORT_LEVELS, MODEL_ENV_VAR, SUBAGENT_TOOL_NAMES,
 )
-from agent_sdk_skills.env import classify_model_id, version_at_least  # noqa: E402
+from agent_sdk_skills.env import version_at_least  # noqa: E402
 from agent_sdk_skills.layout import detect_layout  # noqa: E402
 from agent_sdk_skills.options_ast import extract_project  # noqa: E402
 from agent_sdk_skills.report import (  # noqa: E402
@@ -189,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
                            fix="use `thinking={\"type\": \"adaptive\"}` (or "
                                "`{\"type\": \"enabled\", \"budget_tokens\": N}`). On newer "
                                "models the old field is read as on/off only.",
-                           source="claude-agent-sdk 0.2.162 types.py:2350")
+                           source="claude-agent-sdk 0.2.165 types.py:2350")
             else:
                 report.add("AGT031", "warn", "options",
                            "`debug_stderr` is deprecated and is no longer read by the "
@@ -197,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
                            path=module.path,
                            fix="pass the `stderr` callback instead: "
                                "`stderr=lambda line: log.debug(line)`.",
-                           source="claude-agent-sdk 0.2.162 types.py:2149")
+                           source="claude-agent-sdk 0.2.165 types.py:2149")
 
     # -- 3. model policy --------------------------------------------------
     option_models = [
@@ -213,20 +214,16 @@ def main(argv: list[str] | None = None) -> int:
                            "gets retired and the agent stops working on a date nobody "
                            "wrote down.",
                        source=SRC_DEPRECATIONS)
-        grade = classify_model_id(ref.value) if ref.value else "unknown"
-        if grade == "retired":
-            report.add("AGT012", "error", "model",
-                       f"{ref.value} is retired and no longer served",
-                       path=ref.path, locator=f"line {ref.lineno}",
-                       fix="pick a current id from the models overview; requests to a "
-                           "retired model fail outright.",
-                       source=SRC_DEPRECATIONS)
-        elif grade == "retiring":
-            report.add("AGT011", "warn", "model",
-                       f"{ref.value} is retirement-eligible",
-                       path=ref.path, locator=f"line {ref.lineno}",
-                       fix="move to a current id before the retirement date, or use an "
-                           "alias and let the CLI resolve it.",
+        note = model_policy_note(ref.value) if ref.value else None
+        if note is not None:
+            severity, sentence = note
+            report.add("AGT012" if severity == "error" else "AGT011", severity, "model",
+                       sentence, path=ref.path, locator=f"line {ref.lineno}",
+                       fix="pick a current id (claude-sonnet-5-5, claude-opus-5-5, "
+                           "claude-haiku-5-5, claude-fable-5-1), or use an alias and let "
+                           "the CLI resolve it. A request to a retired model fails "
+                           "outright; a deprecated one keeps working only until the date "
+                           "in the message.",
                        source=SRC_DEPRECATIONS)
     if primary is not None and not primary.has("model") and not primary.has("fallback_model"):
         report.add("OPT012", "warn", "model",
@@ -276,8 +273,11 @@ def main(argv: list[str] | None = None) -> int:
                        path=primary.path, locator=f"line {primary.lineno}",
                        fix="set max_budget_usd. It counts the call's own spend including "
                            "subagent requests, refuses to spawn more subagents at the cap, "
-                           "and ends the query with subtype error_max_budget_usd.",
-                       source=SRC_AGENT_LOOP)
+                           "and ends the query with subtype error_max_budget_usd. It is a "
+                           "soft cap: the running estimate can pass the value before the "
+                           "query stops, so leave headroom rather than setting it to the "
+                           "exact figure you can afford.",
+                       source=f"{SRC_AGENT_LOOP}; {DOCS}/agent-loop#budget-headroom")
 
     # -- 7. context and settings -----------------------------------------
     if primary is not None:
@@ -362,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
                        f'effort="{effort_value}" is not one of the five levels',
                        path=primary.path, locator=f"line {primary.lineno}",
                        fix="one of: " + ", ".join(EFFORT_LEVELS),
-                       source="claude-agent-sdk 0.2.162 types.py:37 (EffortLevel)")
+                       source="claude-agent-sdk 0.2.165 types.py:37 (EffortLevel)")
     report.extend(subagent_findings(facts, claude))
 
     # -- what was found ---------------------------------------------------

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 
 import pytest
@@ -28,9 +27,6 @@ from agent_sdk_skills.trace import (
     tool_names,
     write_trace,
 )
-
-SDK_VENV = "/tmp/casdk-venv/bin/python"
-
 
 @pytest.fixture
 def traces(fixtures):
@@ -178,7 +174,7 @@ def test_a_summary_reports_what_happened(happy):
     assert summary["has_result"] is True
     assert summary["result"]["terminal_reason"] == "completed"
     assert summary["result"]["cost_basis"] == "subscription"
-    assert summary["init"]["cli_version"] == "2.1.285"
+    assert summary["init"]["cli_version"] == "2.1.294"
     assert summary["init"]["api_key_source"] == "none"
     assert summary["rate_limit"]["status"] == "allowed_warning"
 
@@ -271,6 +267,66 @@ def test_a_session_with_a_tool_call_maps_it_like_a_trace(tmp_path):
     assert tool_errors(events) == []
 
 
+# -- an imported session's own cost (CONTRACTS section 13.2) ---------------
+
+@pytest.fixture
+def sdk_session(fixtures):
+    """A real `entrypoint: "sdk-py"` session, scrubbed: it has a `cost-state` line."""
+    return load_session(fixtures / "sessions" / "sdk_with_tool.jsonl")
+
+
+def test_a_cost_state_line_becomes_a_result_event_marked_imported(sdk_session):
+    result = result_event(sdk_session)
+    assert result is not None, "an SDK-produced session reports its own cost"
+    assert result.get("imported_cost") is True
+    assert result.get("total_cost_usd") == pytest.approx(0.0300306)
+    assert result.get("duration_ms") == 5625, "from totalDuration"
+
+
+def test_the_fields_a_cost_state_line_does_not_carry_stay_null(sdk_session):
+    """Guessing a terminal state from a cost line is how a FAILED verdict gets invented."""
+    result = result_event(sdk_session)
+    assert result.get("subtype") is None
+    assert result.get("terminal_reason") is None
+    assert result.get("num_turns") is None
+
+
+def test_the_per_model_cost_survives_the_import(sdk_session):
+    result = result_event(sdk_session)
+    assert result.get("models_billed") == ["claude-haiku-4-5-20251001", "claude-sonnet-5-5"]
+    assert result.get("cost_basis_list") is True, "a session cost-state line reports no basis"
+    assert set(result.get("model_usage")) == set(result.get("models_billed"))
+
+
+def test_an_imported_session_with_a_cost_is_still_imported(sdk_session):
+    """`is_imported` reads the init's source, not whether a result exists."""
+    assert is_imported(sdk_session)
+    summary = to_summary(sdk_session)
+    assert summary["imported"] is True and summary["has_result"] is True
+    assert summary["result"]["imported_cost"] is True
+
+
+def test_budget_becomes_decidable_while_terminal_does_not(sdk_session):
+    summary = to_summary(sdk_session)
+    assert "budget" not in summary["not_evaluated"], "the cost is now known"
+    assert set(summary["not_evaluated"]) == {"terminal", "structured_output"}
+    assert "cost-state" in summary["not_evaluated_reason"]
+
+
+def test_the_system_and_stop_hook_summary_lines_stay_system_events(sdk_session, fixtures):
+    subtypes = {e.get("subtype") for e in events_of(sdk_session, "system")}
+    assert "system" in subtypes, "the stop_hook_summary line is kept, not dropped"
+    assert {"attachment", "ai-title", "queue-operation", "atis-latch",
+            "last-prompt"} <= subtypes
+    raw = (fixtures / "sessions" / "sdk_with_tool.jsonl").read_text().splitlines()
+    assert len(sdk_session) >= len(raw), "nothing is dropped; blocks can add events"
+
+
+def test_a_session_without_a_cost_state_line_still_has_no_result(session):
+    """`claude -p` writes no cost-state line, so section 5.3 still holds for it."""
+    assert result_event(session) is None
+
+
 def test_a_session_line_that_is_not_json_is_kept_as_a_system_event(tmp_path):
     path = tmp_path / "s.jsonl"
     path.write_text('{"type": "ai-title", "aiTitle": "x"}\nnot json\n')
@@ -299,10 +355,12 @@ def test_a_long_path_is_truncated_and_hashed():
     assert suffix.isalnum(), "a base36 hash of the full path"
 
 
-def test_the_encoding_agrees_with_the_sdks_own_answer():
-    """A reimplemented encoding nobody checks is a way to read the wrong directory."""
-    if not shutil.which(SDK_VENV):
-        pytest.skip("no virtualenv with claude_agent_sdk at " + SDK_VENV)
+def test_the_encoding_agrees_with_the_sdks_own_answer(sdk_python):
+    """A reimplemented encoding nobody checks is a way to read the wrong directory.
+
+    The interpreter comes from the `sdk_python` fixture, which resolves the
+    0.2.165 venv first and the older unversioned path as a fallback.
+    """
     cases = ["/a/b c", "/tmp/my_app.v2", "/", "/Users/x/Café", "/" + "x" * 300]
     probe = (
         "import json,sys,unicodedata\n"
@@ -310,7 +368,7 @@ def test_the_encoding_agrees_with_the_sdks_own_answer():
         "print(json.dumps([_sanitize_path(unicodedata.normalize('NFC', c))"
         " for c in json.loads(sys.argv[1])]))\n"
     )
-    proc = subprocess.run([SDK_VENV, "-c", probe, json.dumps(cases)],
+    proc = subprocess.run([sdk_python, "-c", probe, json.dumps(cases)],
                           capture_output=True, text=True, timeout=60)
     if proc.returncode != 0:
         pytest.skip(f"the SDK probe did not run: {proc.stderr.strip()[:200]}")

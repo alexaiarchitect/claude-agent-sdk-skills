@@ -23,7 +23,7 @@ INIT_DATA = {
     "session_id": "s-1", "tools": ["Read", "StructuredOutput"],
     "mcp_servers": [{"name": "library", "status": "connected"}],
     "model": "claude-sonnet-5-5", "permissionMode": "dontAsk",
-    "apiKeySource": "none", "claude_code_version": "2.1.285",
+    "apiKeySource": "none", "claude_code_version": "2.1.294",
     "agents": ["Explore"], "skills": [], "plugins": [],
 }
 
@@ -69,7 +69,7 @@ def test_init_records_the_cli_version_and_the_api_key_source():
     cap = Capture(run_id="r", case="c")
     cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
     init = events_of(cap, "init")[0]
-    assert init["cli_version"] == "2.1.285", "the measured field is the CLI version, not the SDK's"
+    assert init["cli_version"] == "2.1.294", "the measured field is the CLI version, not the SDK's"
     assert init["api_key_source"] == "none", "the in-band credential proof"
     assert init["permission_mode"] == "dontAsk"
     assert init["occurrence"] == 1
@@ -355,3 +355,59 @@ def test_the_measured_session_keeps_line_types_the_loader_must_not_drop(measured
     assert {"user", "assistant", "attachment"} <= types
     # Two types the first measured session did not have at all.
     assert {"system", "cost-state"} <= types
+
+
+# -- who chose the permission mode, and what the cost was billed to --------
+
+def test_init_records_who_decided_the_permission_mode():
+    """The mode the CLI reports does not say whether anyone chose it (CONTRACTS 13.1)."""
+    cap = Capture(run_id="r", case="c", permission_mode_source="runner-default")
+    cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
+    init = events_of(cap, "init")[0]
+    assert init["permission_mode"] == "dontAsk", "what the CLI reported"
+    assert init["permission_mode_source"] == "runner-default", "who decided it"
+
+
+def test_an_unsourced_capture_still_emits_the_key_as_null():
+    cap = Capture(run_id="r", case="c")
+    cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
+    assert events_of(cap, "init")[0]["permission_mode_source"] is None
+
+
+def test_the_result_names_every_model_billed_and_whether_it_was_list_priced():
+    """Measured 2026-10-11: CLI 2.1.294 bills background work to Haiku 5.5 unasked."""
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(model_usage={
+        "claude-sonnet-5-5": {"inputTokens": 8, "costUSD": 0.0452374,
+                              "thinkingTokens": 0, "costBasis": "list"},
+        "claude-haiku-5-5": {"inputTokens": 1192, "costUSD": 0.0001322,
+                             "thinkingTokens": 0, "costBasis": "list"},
+    }))
+    result = events_of(cap, "result")[0]
+    assert result["models_billed"] == ["claude-haiku-5-5", "claude-sonnet-5-5"]
+    assert result["cost_basis_list"] is True
+
+
+def test_a_managed_rate_on_any_model_clears_the_list_price_flag():
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(model_usage={
+        "claude-sonnet-5-5": {"costBasis": "list"},
+        "claude-haiku-5-5": {"costBasis": "managed"},
+    }))
+    assert events_of(cap, "result")[0]["cost_basis_list"] is False
+
+
+def test_an_absent_cost_basis_counts_as_list_and_never_raises():
+    """`costBasis` is not on the 0.2.165 `ModelUsage` TypedDict, so it is read with `.get()`."""
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(model_usage={"claude-sonnet-5-5": {"inputTokens": 2}}))
+    result = events_of(cap, "result")[0]
+    assert result["cost_basis_list"] is True
+    assert result["models_billed"] == ["claude-sonnet-5-5"]
+
+
+def test_no_model_usage_at_all_is_vacuously_list_priced():
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(model_usage={}))
+    result = events_of(cap, "result")[0]
+    assert result["models_billed"] == [] and result["cost_basis_list"] is True

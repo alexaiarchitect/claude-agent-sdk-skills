@@ -24,8 +24,9 @@ from typing import Any, Sequence
 
 from . import DEFAULT_MODEL, MODEL_ENV_VAR, RUNNER_VERSION
 from .env import (
-    CREDENTIAL_REQUIREMENT, CredentialInfo, RunnerSpec, classify_model_id,
-    detect_credential, resolve_runner, version_is_supported,
+    CHECKED_AGAINST, CREDENTIAL_REQUIREMENT, CredentialInfo, RunnerSpec, classify_model_id,
+    detect_credential, model_retirement_date, resolve_runner, version_is_supported,
+    version_newer_than_target,
 )
 from .layout import LayoutInfo, detect_layout
 from .report import Finding, GapReport, Option
@@ -144,6 +145,12 @@ class Discovery:
                 "runner": describe_runner(self.runner),
                 "sdk_version": self.sdk_version,
                 "sdk_supported": version_is_supported(self.sdk_version) if self.sdk_version else None,
+                # What the rules in this plugin were measured against, so a
+                # reader can tell a verified claim from an extrapolated one.
+                "checked_against": dict(CHECKED_AGAINST),
+                "sdk_newer_than_checked": (
+                    version_newer_than_target(self.sdk_version) if self.sdk_version else None
+                ),
             }
 
         if "claude" in self.focus and lay.claude:
@@ -212,6 +219,16 @@ class Discovery:
                                    f"claude-agent-sdk {self.sdk_version} is older than this plugin's minimum",
                                    path=root, fix="upgrade: pip install -U claude-agent-sdk",
                                    source="this plugin's SDK_MIN_SUPPORTED"))
+            elif version_newer_than_target(self.sdk_version):
+                out.append(Finding("ENV003", "info", "environment",
+                                   f"this plugin was checked against {CHECKED_AGAINST['sdk']} "
+                                   f"(bundled CLI {CHECKED_AGAINST['cli']}); your "
+                                   f"{self.sdk_version} is newer, run the sync checker",
+                                   path=root,
+                                   fix="nothing is known to break; re-read the option names, "
+                                       "literals and line numbers this plugin pins before "
+                                       "trusting a finding that depends on them",
+                                   source="this plugin's SDK_TARGET"))
             if cred.kind == "none":
                 out.append(Finding("ENV010", "error", "credentials",
                                    "no credential found; the SDK subprocess would fail with 'Not logged in'",
@@ -252,9 +269,13 @@ class Discovery:
                 out.append(Finding("AGT012", "error", "model", f"{MODEL_ENV_VAR}={cred.model_env} is retired",
                                    path=root, fix=f"use {DEFAULT_MODEL}",
                                    source="platform.claude.com/docs/en/about-claude/model-deprecations"))
-            elif grade == "retiring":
-                out.append(Finding("AGT011", "warn", "model", f"{MODEL_ENV_VAR}={cred.model_env} is retiring",
-                                   path=root, fix=f"plan the move to {DEFAULT_MODEL}",
+            elif grade in ("deprecated", "retiring"):
+                when = model_retirement_date(cred.model_env)
+                out.append(Finding("AGT011", "warn", "model",
+                                   f"{MODEL_ENV_VAR}={cred.model_env} is "
+                                   + (f"deprecated and retires {when}" if when else "retiring"),
+                                   path=root, fix=f"plan the move to {DEFAULT_MODEL}"
+                                   + (f" before {when}" if when else ""),
                                    source="platform.claude.com/docs/en/about-claude/model-deprecations"))
 
         if "layout" in self.focus:

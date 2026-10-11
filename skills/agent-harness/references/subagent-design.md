@@ -3,13 +3,14 @@
 ## What a subagent is, exactly
 
 A second agent instance with its own context window. The parent sends it **one
-prompt string** through a tool call and receives **one final message** back.
-Nothing else crosses in either direction.
+prompt string** through a tool call and receives the subagent's **final report**
+back — that is the docs' term for it, and it is one message. Nothing else
+crosses in either direction.
 
 That is the whole value: an exploration that would fill the main conversation
 happens somewhere else, and the parent gets a summary instead of forty file
 reads. It is also the whole risk: the parent cannot see what the subagent did,
-so whatever you need to verify has to be in the final message — or in a file, a
+so whatever you need to verify has to be in the final report — or in a file, a
 mock call record, or `structured_output`.
 
 | The subagent receives | The subagent does not receive |
@@ -35,7 +36,13 @@ prompt string.** There is no ambient context to fall back on.
 | `mcpServers` | no | by name, or inline config |
 | `maxTurns` | no | the subagent's own ceiling (`SUB003`). At the limit its output is returned marked partial |
 | `background` | no | force background execution |
-| `effort`, `permissionMode`, `initialPrompt` | no | |
+| `effort`, `permissionMode`, `initialPrompt` | no | a `permissionMode` of `"auto"` is applied only when auto mode is available to that subagent |
+
+The **Agent tool itself** also takes an `effort` input (Claude Code **2.1.292+**),
+so Claude can ask for a cheaper or harder-thinking subagent per call without the
+definition changing. Effort carries over across a model fallback: a subagent
+started at `medium` stays at `medium` on the fallback model even when that model
+defaults to `high`.
 
 In Python the multi-word names keep their **camelCase** spelling
 (`disallowedTools`, `mcpServers`, `maxTurns`) to match the wire format. This
@@ -65,12 +72,21 @@ spawn subagents. One prompt can become a tree.
 | Limit | Set with | Default | At the limit |
 |---|---|---|---|
 | depth | `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` in `env` | 3 layers (`1` stops your subagents from spawning any) | the bottom layer does the work itself |
+| background check-ins | `CLAUDE_CODE_WORKER_CHECKIN_SCHEDULE` in `env` | none | comma-separated whole seconds, `1`–`86400` (e.g. `600,1800,3600`), the last value repeating. Plain digits only, or it reads as unset. It **replaces** `CLAUDE_CODE_AUTO_BACKGROUND_WORKER_CHECKIN_SECONDS`, removed in 2.1.283 |
 | concurrency | `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` in `env` | 20 at once | refuses to spawn, returning `Concurrent subagent limit reached` as the tool result |
 | spend | `max_budget_usd` (a query option) | none | refuses new subagents, stops running background ones, ends the query with `error_max_budget_usd` |
 
 In Python, `env` is **merged** into the inherited environment (in TypeScript it
 replaces it). The parent's `max_turns` does **not** cap a subagent — that is
 what `maxTurns` on the definition is for.
+
+A long-running subagent also has a context window to manage: `autoCompactWindow`
+sets where auto-compaction kicks in, and from Claude Code **2.1.288** a value
+given to `/autocompact` is saved **per model** under `modelSettings` rather than
+as one global top-level setting (2.1.296 is the release the current wording
+describes). Where a model-switching request would normally prompt, **in a
+subagent no prompt is shown** — the flagged request simply re-runs on the
+fallback model.
 
 Opus 5 delegates more readily than earlier models, so these matter most there.
 With the `claude_code` system-prompt preset, Claude Code adds a line telling
@@ -97,6 +113,14 @@ There is no `SubagentStartMessage`. Subagent activity arrives as:
 - `AssistantMessage` / `UserMessage` whose `parent_tool_use_id` is the spawning
   tool-use id.
 
+The **TypeScript** Agent SDK additionally puts `agent_id` on a subagent's
+assistant and user messages from v0.3.292, equal to the `task_id` of that
+subagent's task events, which is the reliable way to attribute interleaved
+parallel subagents. **Python has no such field** on `AssistantMessage` or
+`UserMessage` at 0.2.165 — `parent_tool_use_id` is what a Python reader
+correlates on. (On the SDK's `main`, `agent_id` does appear on the four
+tool-lifecycle *hook inputs*; that is a 0.2.166+ fact and a different surface.)
+
 Before v2.1.210 the parent read the subagent's final message verbatim; since
 then Claude Code scans it for instruction-shaped patterns (control tags, turn
 markers) and neutralises them in place, prepending a `[harness: ...]` line for
@@ -117,7 +141,10 @@ Opus 5, output scanning), <https://code.claude.com/docs/en/sub-agents>
 (filesystem definitions, available tools, concurrent limit),
 <https://code.claude.com/docs/en/agent-sdk/permissions#available-modes>
 (subagent mode inheritance), <https://code.claude.com/docs/en/env-vars>;
-`claude-agent-sdk` 0.2.162 `types.py:2291` (`agents`), `:2207-2217`
+<https://code.claude.com/docs/en/model-config> (effort after a fallback,
+per-model `autoCompactWindow`);
+`claude-agent-sdk` 0.2.165 `types.py:2291` (`agents`), `:2207-2217`
 (`parent_tool_use_id` and subagent text), `:1466` (`HookEventMessage`). The
 `Task` / `Agent` naming difference was measured by this plugin on 2026-09-30
-from the CLI's own `init.tools` list.
+from the CLI's own `init.tools` list. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

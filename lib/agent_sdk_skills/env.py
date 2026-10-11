@@ -34,12 +34,17 @@ from pathlib import Path
 from typing import Any
 
 from . import (
-    ALIAS_MODELS, DEFAULT_MODEL, MODEL_ENV_VAR, RETIRED_MODELS, RETIRING_MODELS,
-    SDK_MIN_SUPPORTED,
+    ALIAS_MODELS, CLI_BUNDLED_WITH_TARGET, CURRENT_MODELS, DEFAULT_MODEL, DEPRECATED_MODELS,
+    MODEL_ENV_VAR, RETIRED_MODELS, RETIRING_MODELS, SDK_MIN_SUPPORTED, SDK_TARGET,
 )
 
 #: Pin used when the runner has to install the SDK on the fly.
 SDK_REQUIREMENT = f"claude-agent-sdk>={SDK_MIN_SUPPORTED}"
+
+#: What this plugin's rules were measured against. Reported verbatim by
+#: `check_env.py` and in `discover`'s environment block, so a reader can tell a
+#: rule that was verified from one that is extrapolated to a newer release.
+CHECKED_AGAINST = {"sdk": SDK_TARGET, "cli": CLI_BUNDLED_WITH_TARGET}
 
 _ENV_LINE = re.compile(r"""^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$""")
 
@@ -280,13 +285,31 @@ CREDENTIAL_REQUIREMENT = (
 )
 
 
+def model_retirement_date(model: str | None) -> str | None:
+    """The committed retirement date of a deprecated id, or `None`.
+
+    Only `DEPRECATED_MODELS` have one; a `retiring` id has a "not sooner than"
+    floor recorded as a comment beside it, which is not a promise and so is not
+    reported as a date.
+    """
+    if not model:
+        return None
+    return DEPRECATED_MODELS.get(model.strip())
+
+
 def classify_model_id(model: str | None) -> str:
     """Grade a model id against this plugin's model policy.
 
     ``alias`` resolved by the CLI (``sonnet``, ``opus``), ``env`` resolved at
-    run time, ``retired`` no longer served, ``retiring`` past or within 60 days
-    of its retirement date, ``pinned`` a current dateless or dated id,
-    ``unknown`` anything else (a typo, or a model newer than this plugin).
+    run time, ``retired`` no longer served, ``deprecated`` still served but with
+    a committed retirement date (``DEPRECATED_MODELS``), ``retiring`` past or
+    within 60 days of a "not sooner than" date, ``current`` one of the generally
+    available ids this plugin was checked against, ``pinned`` any other
+    ``claude-`` id (a dated snapshot or a model newer than this plugin's list),
+    ``unknown`` anything else.
+
+    ``deprecated`` is graded harder than ``retiring``: the date is settled, so
+    every consumer treats the two alike and puts the date in the message.
     """
     if model is None or model == "":
         return "unknown"
@@ -297,8 +320,12 @@ def classify_model_id(model: str | None) -> str:
         return "env"
     if text in RETIRED_MODELS or text.startswith("claude-3") or text.startswith("claude-2"):
         return "retired"
+    if text in DEPRECATED_MODELS:
+        return "deprecated"
     if text in RETIRING_MODELS:
         return "retiring"
+    if text in CURRENT_MODELS:
+        return "current"
     if text.startswith(("claude-", "anthropic.claude-", "us.anthropic.claude-", "eu.anthropic.claude-")):
         return "pinned"
     return "unknown"
@@ -426,7 +453,7 @@ def sdk_version(runner: RunnerSpec) -> str | None:
 
 
 def _version_tuple(version: str) -> tuple[int, ...]:
-    """`"0.2.162rc1"` -> `(0, 2, 162)`. Non-numeric tails are dropped."""
+    """`"0.2.165rc1"` -> `(0, 2, 165)`. Non-numeric tails are dropped."""
     parts: list[int] = []
     for chunk in version.strip().lstrip("v").split("."):
         digits = ""
@@ -451,6 +478,18 @@ def version_at_least(version: str | None, minimum: str = SDK_MIN_SUPPORTED) -> b
 
 def version_is_supported(version: str | None) -> bool:
     return version_at_least(version, SDK_MIN_SUPPORTED)
+
+
+def version_newer_than_target(version: str | None, target: str = SDK_TARGET) -> bool:
+    """True when the resolved SDK is strictly newer than the checked-against pin.
+
+    Newer is never an error: 0.2.166+ is expected to work. It is worth saying
+    out loud, because every option name, literal and line number this plugin
+    carries was read from `SDK_TARGET` and nothing newer has been measured.
+    """
+    if not version:
+        return False
+    return _version_tuple(version) > _version_tuple(target)
 
 
 def default_model(credential: CredentialInfo | None = None) -> str:

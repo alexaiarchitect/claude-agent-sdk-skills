@@ -44,6 +44,20 @@ table. Two consequences:
   estimate; what the run actually spends is plan usage. Reports label the
   basis, and a budget grader still works — it is comparing runs against each
   other, which is what you want either way.
+* **Each `model_usage` row carries its own `costBasis`**: `list` (the public
+  price list), `managed` (an organisation's negotiated rate) or `unknown`,
+  needing Claude Code 2.1.246+. It is not on the 0.2.165 `ModelUsage`
+  TypedDict, so read it with `.get()`; measured 2026-10-11 it was `"list"` on
+  every row of an API-key run. Two runs with different bases are not
+  comparable, however close the numbers look.
+* **`model_usage` holds more than one model.** Measured 2026-10-11, a Sonnet
+  5.5 session also billed `claude-haiku-5-5` for the CLI's background work. A
+  per-model ceiling has to allow it, and a total must sum the rows.
+* **One price is moving.** A Sonnet 5.5 cache read is $0.10/Mtok on the
+  platform list and in Claude Code **2.1.296**; the CLI bundled with
+  `claude-agent-sdk` 0.2.165 is **2.1.294** and still charges **$0.20/Mtok**
+  (measured). A cache-heavy series will step when the bundled CLI crosses
+  2.1.296, so record the CLI version with the series.
 
 ## `informational: true`
 
@@ -63,6 +77,12 @@ an efficiency table.
 There is a second ceiling that is not a grader at all:
 `max_budget_usd` in the agent's own options, and `--max-cost-usd` on the
 runner. Those stop a run. A grader scores one that finished.
+
+Both are **soft caps**: the figure they compare against is a running estimate,
+and that estimate can pass the value before the run stops. Leave headroom rather
+than setting the exact amount you can afford, and do not write a budget grader
+whose ceiling equals `max_budget_usd` — a run that tripped the cap can legally
+report a total above it.
 
 ## The efficiency table
 
@@ -99,4 +119,10 @@ measurement, the usage-key mapping, the cost delta) and §5.2 (`ResultMessage`
 fields as measured); https://code.claude.com/docs/en/agent-sdk/python
 (`ResultMessage.usage`, `total_cost_usd`, `max_budget_usd`);
 https://code.claude.com/docs/en/agent-sdk/cost-tracking (what the figure
-counts).
+counts), https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom
+(the soft cap),
+https://platform.claude.com/docs/en/about-claude/models/overview (cache-read
+percentages). `costBasis`, `thinkingTokens`, the two-model `model_usage` and the
+$0.20/Mtok cache read of the bundled CLI 2.1.294 were measured by this plugin on
+2026-10-11. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
+2.1.296 docs.

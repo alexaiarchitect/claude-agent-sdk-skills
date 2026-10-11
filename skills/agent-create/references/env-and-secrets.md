@@ -44,7 +44,27 @@ entirely; two of them set at once is `ENV011`.
 The practical trap is order 1: developers set a key months ago, forget, and
 wonder why their subscription plan is not being drawn down. `check_env.py`
 reports the active credential by name, and the reports here always repeat it
-before anything runs.
+before anything runs. On an API-key run the CLI prints one notice on stderr —
+"claude.ai connectors are disabled because ANTHROPIC_API_KEY or another auth
+source is set and takes precedence over your claude.ai login". It is
+informational, measured on every such run; **a wrapper must not treat it as a
+failure.**
+
+A second, quieter consequence of the credential choice. A session that holds a
+**gateway token**, runs against a **third-party provider**, or has telemetry
+turned off never receives the interactive feature flags — and from Claude Code
+**2.1.285** that is exactly the session that starts in **`auto`** permission
+mode when `permission_mode` is left unset, where broad allow rules such as a
+bare `Bash` are dropped. Pass `permission_mode="dontAsk"` (unattended) or
+`"default"` explicitly; the lint reports the omission as `OPT013`, and this
+plugin's runner supplies `"dontAsk"` itself. Note too that settings-file and
+option `env` values are **not shell-expanded**: write absolute paths, because
+`"$HOME/state"` reaches the subprocess as that literal string.
+
+Values a `.env` or `env` block sets are also not all inherited by commands
+Claude runs: `ANTHROPIC_API_KEY`, `AWS_SECRET_ACCESS_KEY` and `CLAUDE_CONFIG_DIR`
+are scrubbed from the subprocess environment, while `GITHUB_TOKEN`, the proxy
+variables and `GIT_CONFIG_*` are kept.
 
 ## What `total_cost_usd` means on a subscription
 
@@ -113,4 +133,10 @@ https://code.claude.com/docs/en/agent-sdk/python (`ClaudeAgentOptions.env`,
 `ResultMessage`); https://code.claude.com/docs/en/claude-code/settings
 (`apiKeyHelper`, environment variables);
 https://code.claude.com/docs/en/agent-sdk/secure-deployment (keeping
-credentials out of the repository).
+credentials out of the repository);
+https://code.claude.com/docs/en/permission-modes (the headless starting-mode
+table: `default` only in sessions that fetch feature flags);
+https://code.claude.com/docs/en/env-vars (`env` values are not shell-expanded;
+the subprocess scrub list). The stderr connectors notice was measured by this
+plugin on 2026-10-11 against SDK 0.2.165 with bundled CLI 2.1.294. Re-read
+2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

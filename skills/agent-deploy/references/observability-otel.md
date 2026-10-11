@@ -37,6 +37,23 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4318
 ```
 
+**Telemetry off is not free of consequences.** A session that does not fetch
+the interactive feature flags — which includes one with telemetry disabled, one
+on a third-party provider and one holding a gateway token — is exactly the
+session that starts in **`auto`** permission mode from Claude Code 2.1.285 when
+`permission_mode` is left unset. So a deployment that turns telemetry off to
+avoid exporting prompts also has to pass `permission_mode` explicitly, or its
+allow rules quietly stop settling calls.
+
+Two cost fields worth exporting beside the token counters: every `model_usage`
+row carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
+and `thinkingTokens`, neither of which is on the 0.2.165 `ModelUsage` TypedDict
+— read both with `.get()`. A dashboard that charts cost without the basis
+cannot tell a list-price estimate from a negotiated one, and `model_usage`
+routinely holds more than one model (measured 2026-10-11: the agent's Sonnet 5.5
+plus the CLI's background `claude-haiku-5-5`), so aggregate per model rather
+than taking the first row.
+
 ## The spans
 
 | Span | Wraps |
@@ -127,6 +144,11 @@ reference, traces beta),
 <https://code.claude.com/docs/en/env-vars>;
 <https://github.com/Arize-ai/openinference> (package
 `openinference-instrumentation-claude-agent-sdk`);
-`claude-agent-sdk` 0.2.162
+<https://code.claude.com/docs/en/permission-modes> (why telemetry-off sessions
+start in `auto`), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
+`claude-agent-sdk` 0.2.165
 `_internal/transport/subprocess_cli.py:814-860` (env merge and trace-context
-injection).
+injection), `types.py:1314` (`ModelUsage`). The two-model `model_usage` and
+`costBasis: "list"` were measured by this plugin on 2026-10-11 against SDK
+0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against claude-agent-sdk
+0.2.165 / Claude Code 2.1.296 docs.

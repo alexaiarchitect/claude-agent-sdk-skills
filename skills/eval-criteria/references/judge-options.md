@@ -79,6 +79,24 @@ with formatting and hedging conventions it considers normal.
 The argument against: two models make verdicts harder to compare across a model
 upgrade, and a cheaper judge is a weaker one.
 
+**The cheap option, as of 2026-10-11, is `claude-haiku-5-5`** — $0.10 in and
+$0.50 out per Mtok against Sonnet 5.5's $2 / $10, with a 1M context window by
+default on every plan and no `[1m]` suffix needed. Two caveats before you reach
+for it: its price is a *from* price, because a prompt over 100K tokens costs
+more per token, so a judge that reads a whole transcript is not necessarily
+twenty times cheaper; and it needs Claude Code **2.1.293+** (the `haiku` alias
+resolves to it on the Anthropic API from that release; Bedrock, Vertex, Foundry
+and Claude Platform on AWS still resolve `haiku` to Haiku 4.5, which is
+retiring). It is the right judge for a yes/no check on short output, and the
+wrong one for a rubric that needs the failure explained. **The default does not
+change**: `DEFAULT_JUDGE_MODEL` stays `claude-sonnet-5-5` so scores stay
+comparable with the ones already recorded. Name Haiku 5.5 per grader instead.
+
+Note that `claude plugin eval` made the opposite choice: its `--judge-model`
+default is now "the model Claude Code uses for background tasks", which is not a
+fixed id. Pin it — `--judge-model claude-sonnet-5-5` — whenever a plugin-eval
+score has to be comparable with an earlier one.
+
 Pick deliberately. `CFG010` and `CFG011` catch the third case, which is the one
 that actually breaks: a judge model that is retiring, or already retired, so
 every judge call fails and every judged case reports `NOT_EVALUATED`.
@@ -106,4 +124,9 @@ and the measured 17x ambient-config cost) and §3 (the `judge` config block);
 `VOTE_MODES`); `lib/agent_sdk_skills/graders.py` (`TIER_JUDGE`, the `llm`
 spec); https://code.claude.com/docs/en/agent-sdk/structured-outputs
 (`output_format`); https://code.claude.com/docs/en/agent-sdk/python
-(`query`, `ClaudeAgentOptions`).
+(`query`, `ClaudeAgentOptions`);
+https://platform.claude.com/docs/en/about-claude/models/overview and
+https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricing
+(Haiku 5.5's price, context window and the 2.1.293 alias);
+https://code.claude.com/docs/en/plugin-evals (the `--judge-model` default).
+Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

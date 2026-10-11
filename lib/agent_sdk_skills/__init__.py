@@ -11,28 +11,41 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.1.0"
+RUNNER_VERSION = "0.1.1"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the
 #: mcp 2.x transport arrived in 0.2.140). The SDK bundles its own CLI, so the
 #: CLI version is reported separately (`cli_version`), never derived.
-SDK_TARGET = "0.2.162"
+SDK_TARGET = "0.2.165"
 SDK_MIN_SUPPORTED = "0.2.140"
-CLI_BUNDLED_WITH_TARGET = "2.1.285"
+CLI_BUNDLED_WITH_TARGET = "2.1.294"
 
-#: Model policy. Ids from platform.claude.com/docs/en/about-claude/models/overview
-#: and .../model-deprecations (read 2026-09-30). Retiring ids are past or within
-#: 60 days of their "not sooner than" retirement date; retired ids are gone.
+#: Model policy. Ids from platform.claude.com/docs/en/models/overview and
+#: .../about-claude/model-deprecations (read 2026-10-11). Four grades, in order
+#: of how urgently a reader has to act: `CURRENT_MODELS` are generally
+#: available; `DEPRECATED_MODELS` have an announced retirement *date*, not just
+#: a floor, so they map id -> that date; `RETIRING_MODELS` are past or within 60
+#: days of their "not sooner than" date; `RETIRED_MODELS` are gone.
 DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_JUDGE_MODEL = "claude-sonnet-5-5"
 MODEL_ENV_VAR = "CLAUDE_MODEL"
+CURRENT_MODELS = (
+    "claude-sonnet-5-5",            # $2/$10 per Mtok, 1M context, effort high
+    "claude-opus-5-5",              # $4/$20
+    "claude-fable-5-1",             # $10/$50
+    "claude-haiku-5-5",             # $0.10/$0.50; the `haiku` alias from CLI 2.1.293
+)
+#: Deprecated ids: the retirement date is committed, not a floor. Keep the date
+#: in every message about one, because that is what makes the warning actionable.
+DEPRECATED_MODELS = {
+    "claude-sonnet-4-5-20250929": "2026-11-30",   # deprecated 2026-09-30
+}
 RETIRING_MODELS = (
-    "claude-sonnet-4-5-20250929",   # retirement not sooner than 2026-09-29
     "claude-haiku-4-5-20251001",    # retirement not sooner than 2026-10-15
     "claude-opus-4-5-20251101",     # retirement not sooner than 2026-11-24
 )
@@ -46,7 +59,7 @@ RETIRED_MODELS = (
 ALIAS_MODELS = ("sonnet", "opus", "haiku", "fable", "best", "default", "opusplan")
 
 #: `ClaudeAgentOptions` field names in declaration order (`types.py:1971` of
-#: claude-agent-sdk 0.2.162, 49 fields). "Is this even an option?" (EVC003).
+#: claude-agent-sdk 0.2.165, 49 fields). "Is this even an option?" (EVC003).
 OPTION_NAMES = (
     "tools", "allowed_tools", "system_prompt", "mcp_servers", "strict_mcp_config",
     "permission_mode", "continue_conversation", "resume", "session_id", "max_turns",
@@ -75,6 +88,12 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 
 #: Isolation the runner forces unless a case overrides it (17x cost difference
 #: measured with and without; see CONTRACTS §1.2).
+#: The runner also resolves one *conditional* default that is not a key here,
+#: because it only applies when the agent leaves the field `None`:
+#: `permission_mode="dontAsk"`. A headless session that never sets the mode can
+#: start in `auto` on CLI 2.1.285+, where a classifier reviews each tool call
+#: and a bare allow rule no longer settles it. The trace `init` event records
+#: which way it went as `permission_mode_source` ("agent" or "runner-default").
 ISOLATION_DEFAULTS = {"setting_sources": [], "strict_mcp_config": True}
 
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "bypassPermissions", "dontAsk", "auto")

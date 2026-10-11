@@ -1,10 +1,11 @@
-# The permission model: six steps, six modes, two layers
+# The permission model: seven steps, six modes, two layers
 
 ## The evaluation order
 
-When Claude requests a tool, the SDK checks six things in this order. Knowing
+When Claude requests a tool, the SDK checks these things in this order. Knowing
 the order is the difference between a restriction that works and one that only
-looks like it does.
+looks like it does. Step 7 exists only when a **mod** is installed (Claude Code
+2.1.292+), which is a plugin class this plugin does not otherwise cover.
 
 | # | Step | What it can do |
 |---|---|---|
@@ -12,8 +13,9 @@ looks like it does.
 | 2 | **Deny rules** | from `disallowed_tools` and `settings.json`. A match blocks the call **even in `bypassPermissions`**. A bare-name rule (`"Bash"`) removed the tool from context before this step, so only scoped rules (`"Bash(rm *)"`) are evaluated here |
 | 3 | **Ask rules** | from `settings.json`. A match falls through to `can_use_tool` even in `bypassPermissions`. `AskUserQuestion` and MCP tools whose server sets `requiresUserInteraction` always land here; in `dontAsk` mode they are **denied** instead, because that mode never prompts |
 | 4 | **Permission mode** | `bypassPermissions` approves everything that reaches this step; `acceptEdits` approves file operations; `plan` sends file-edit and shell-write tools to `can_use_tool` regardless of allow rules; other modes fall through |
-| 5 | **Allow rules** | from `allowed_tools` and `settings.json`. A match approves. Calls a tool approves on its own — a read inside the working directory, a read-only Bash command — resolve here with no rule |
+| 5 | **Allow rules** | from `allowed_tools` and `settings.json`. A match approves. Calls a tool approves on its own — a read inside the working directory, a read-only Bash command — resolve here with no rule. **A read from a network path is the exception**: it has its own check that no allow rule, no `PreToolUse` `"allow"` and no classifier can bypass |
 | 6 | **`can_use_tool`** | everything unresolved. **Skipped entirely in `dontAsk`**, where the call is denied instead |
+| 7 | **A mod's `tool.check`** | only when a mod is installed (2.1.292+). It answers **after** the rules and the `PreToolUse` hooks and can replace their answer: it overrides ask rules, a blocking `PreToolUse` hook and the auto-mode classifier. It cannot override a blocking hook that came from **managed settings**, and deny rules beat a mod only under managed settings or a Team/Enterprise sign-in. A mod still cannot bypass a prompt for a tool that needs user interaction |
 
 ## The two layers, and the mistake everyone makes
 
@@ -39,6 +41,17 @@ Allow rules accept a tool-name glob **only after a literal `mcp__<server>__`
 prefix**: `mcp__github__get_*` works, `mcp__*` and `*` are ignored with a
 startup warning and approve nothing.
 
+**Network paths (2.1.292+).** A network path is a Windows UNC path
+(`\\server\share\file`) or a macOS/Linux `/net` automount path. Reading one
+gets a permission check of its own, outside the allow system: an allow rule, an
+`allowed_tools` entry, a `PreToolUse` hook returning `"allow"` and the auto-mode
+classifier all fail to bypass it, so such a read always prompts. In `dontAsk` it
+is **denied outright** rather than prompted — one of that mode's always-denied
+cases, beside `AskUserQuestion`, `requiresUserInteraction` MCP tools and
+connector tools an organisation set to `ask`. Only `bypassPermissions` and the
+plan-mode bypass skip the check. If the agent genuinely needs the data, map a
+drive letter and pass `--add-dir`, or mount the share locally.
+
 `Edit(path)` rules govern every built-in that writes files, `Write` and
 `NotebookEdit` included; a `Write(path)` rule is never matched by the file
 permission checks. Use `//path` for an absolute filesystem path — with one
@@ -50,22 +63,40 @@ means the session's working directory.
 | Mode | What it does |
 |---|---|
 | `default` | no mode-based approvals; anything needing approval and matching no allow rule reaches `can_use_tool` |
-| `dontAsk` | anything that would prompt is **denied**. `can_use_tool` is never called. Pre-approved calls still run |
+| `dontAsk` | anything that would prompt is **denied**. `can_use_tool` is never called. Pre-approved calls, and **file reads inside the working directories**, still run; a network-path read is denied |
 | `acceptEdits` | file edits and filesystem operations (`mkdir`, `rm`, `mv`) are auto-approved. **Does not auto-approve MCP tools** |
 | `bypassPermissions` | everything that reaches step 4 runs. Deny and ask rules still apply; critical-path removals still fall through |
 | `plan` | file edits are never auto-approved and always prompt |
-| `auto` | a model classifier approves or denies each prompt |
+| `auto` | a model classifier reviews actions such as shell commands and network requests before they run, allowing or blocking each one it reviews. It does **not** decide a network-path read. Broad allow rules such as a bare `Bash` are dropped in this mode |
 
 `dontAsk` is the right default for an unattended run: it never blocks waiting
 for an answer that will not come, and it fails closed. `bypassPermissions`
 fails open, which is `OPT002`.
 
+**Leaving `permission_mode` unset is a decision too, and not the one most
+authors think.** With the mode `None` the CLI resolves it: `permissions.defaultMode`
+from a settings file where one applies, otherwise the built-in default — and from
+Claude Code **2.1.285** the built-in default for a session that does **not** fetch
+the interactive feature flags is **`auto`**, not `default`. A third-party
+provider, telemetry turned off and a gateway token are each enough to make a
+headless session one of those, and an organisation policy can withhold the `auto`
+default separately. In `auto`, broad allow rules are dropped, so an app that
+relies on a bare `Bash` entry quietly stops being pre-approved. Pass `"default"`
+or `"dontAsk"` explicitly; `lint_agent.py`/`lint_harness.py` report the omission
+as **`OPT013`**, and this plugin's runner forces `"dontAsk"` when the agent's
+options leave it unset. For an organisation with a HIPAA configuration the `auto`
+default does not apply at all, and managed settings can block the mode outright
+with `permissions.disableAutoMode: "disable"`.
+
 **Subagent inheritance:** a subagent runs in the parent's mode unless its
 `AgentDefinition` sets `permissionMode` *and* the parent is in `default`,
-`dontAsk` or `plan`. Claude Code never applies a `bypassPermissions` value from
-an `AgentDefinition`; a subagent runs in that mode only when the parent already
+`dontAsk` or `plan`. There are **two** exceptions to applying the definition's
+value. Claude Code never applies a `bypassPermissions` value from an
+`AgentDefinition`; a subagent runs in that mode only when the parent already
 does — and then it has the parent's full autonomous access with a different
-system prompt.
+system prompt. And an `"auto"` value is applied only when auto mode is
+**available to that subagent**; where it is not, the subagent keeps the parent's
+mode.
 
 ## `can_use_tool` versus a hook
 
@@ -101,8 +132,11 @@ allow and deny rules, permission modes, subagent inheritance),
 (the availability/permission table),
 <https://code.claude.com/docs/en/agent-sdk/user-input> (`can_use_tool`),
 <https://code.claude.com/docs/en/permission-modes>,
-<https://code.claude.com/docs/en/permissions#bash-rule-limits>;
-`claude-agent-sdk` 0.2.162 `types.py:25` (`PermissionMode`), `:259`
+<https://code.claude.com/docs/en/permissions#bash-rule-limits>,
+<https://code.claude.com/docs/en/permissions#network-paths> (the network-path
+check and the mod precedence rules);
+`claude-agent-sdk` 0.2.165 `types.py:25` (`PermissionMode`), `:259`
 (`PermissionResultAllow`), `:268` (`PermissionResultDeny`), `:278`
 (`CanUseTool`), `:1835-1924` (`CanUseToolShadowedWarning`), `:1974-1993`
-(`tools` and `allowed_tools` docstrings).
+(`tools` and `allowed_tools` docstrings), `:2025` (`permission_mode`). Re-read
+2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

@@ -12,13 +12,18 @@ Five of them, and each has a default that is a decision rather than a habit:
   ambient settings loaded the same case measured 17x the cost and describes the
   machine it ran on rather than the agent.
 * **`judge`** carries the model, `samples` and the vote. An odd `samples` on
-  purpose: majority voting over an even number can tie.
+  purpose: majority voting over an even number can tie. The default judge stays
+  `claude-sonnet-5-5`; `--judge-model claude-haiku-5-5` is the cheap option as
+  of 2026-10-11 ($0.10 / $0.50 per Mtok, needs Claude Code 2.1.293+), suited to
+  short yes/no rubrics and not to one that has to explain a failure.
 * **`tiers`** are `pr` (free graders, one run, threshold 1.0) and `nightly`
   (judges too, repeated runs, threshold 0.8 with pass@k). The split exists
   because no single tier can be cheap enough for every pull request and
   thorough enough to trust for a release.
 * **`budget`** caps per run and in total, with `on_not_evaluated: warn` so a
-  usage limit reads as inconclusive rather than as a regression.
+  usage limit reads as inconclusive rather than as a regression. The caps are
+  soft: the estimate they compare against can pass the value before a run
+  stops, so the numbers written here carry headroom.
 
     gen_config.py <project> [--model M] [--judge-model M] [--samples N]
                   [--pr-threshold X] [--nightly-runs N]
@@ -69,7 +74,9 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("project", nargs="?", default=".")
     parser.add_argument("--model", help=f"agent model (default ${{{MODEL_ENV_VAR}:-{DEFAULT_MODEL}}})")
-    parser.add_argument("--judge-model", help=f"judge model (default {DEFAULT_JUDGE_MODEL})")
+    parser.add_argument("--judge-model",
+                        help=f"judge model (default {DEFAULT_JUDGE_MODEL}; "
+                             "claude-haiku-5-5 is the cheap option)")
     parser.add_argument("--samples", type=int, help="judge samples per grader; keep it odd")
     parser.add_argument("--pr-threshold", type=float, help="pass rate the pr tier requires")
     parser.add_argument("--nightly-runs", type=int, help="runs per case in the nightly tier")

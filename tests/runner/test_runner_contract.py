@@ -32,6 +32,7 @@ def test_the_frontmatter_reader_is_a_byte_identical_copy(plugin_root: Path):
     "SYNTHETIC_TOOLS", "SUBAGENT_TOOL_NAMES", "PYTHON_HOOK_EVENTS",
     "HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT", "RESULT_SUBTYPES", "TERMINAL_REASONS",
     "RATE_LIMIT_STATUSES", "PERMISSION_MODES", "SETTING_SOURCES", "EFFORT_LEVELS",
+    "CURRENT_MODELS", "DEPRECATED_MODELS", "RETIRING_MODELS", "RETIRED_MODELS",
 ])
 def test_the_two_copies_of_every_sdk_tuple_are_equal(name: str):
     assert getattr(runner, name) == getattr(plugin, name), f"{name} has drifted"
@@ -46,8 +47,15 @@ def test_the_runner_version_matches_the_library():
     assert RUNNER_VERSION == plugin.RUNNER_VERSION
 
 
-def test_the_option_list_matches_the_installed_sdk():
-    """The pinned list is 49 names in declaration order, and the live dataclass agrees."""
+def test_the_option_list_matches_the_stub():
+    """The pinned list is 49 names in declaration order, and the stub agrees.
+
+    `claude_agent_sdk` here is the stub in `tests/fixtures/stubs/`, so this
+    checks that the stub and the pinned tuple were updated together — not that
+    either matches the released wheel. The test that can actually fail on an
+    upstream change is `tests/lib/test_sdk_surface_live.py`, which runs the same
+    comparison inside an interpreter with the real SDK installed.
+    """
     import claude_agent_sdk as sdk
 
     live = tuple(sdk.ClaudeAgentOptions.__dataclass_fields__)
@@ -78,7 +86,7 @@ def test_the_result_file_carries_every_required_key(mini_evals: Path):
         config={"tier": "nightly", "model": "claude-sonnet-5-5",
                 "judge": {"model": "claude-sonnet-5-5", "samples": 3},
                 "isolation": {"setting_sources": [], "strict_mcp_config": True},
-                "cost_basis": "subscription", "sdk_version": "0.2.162", "cli_version": "2.1.285"},
+                "cost_basis": "subscription", "sdk_version": "0.2.165", "cli_version": "2.1.294"},
         runs=[RunRecord(run=1, trace="c.1.trace.jsonl", status="PASSED",
                         graders=[{"name": "g", "type": "regex", "status": "PASSED", "score": 1.0}],
                         result={"subtype": "success", "terminal_reason": "completed",
@@ -108,7 +116,7 @@ def test_the_aggregate_carries_every_required_key():
     from agent_sdk_evals.results import Aggregate, CaseResult, RunRecord
 
     aggregate = Aggregate(
-        tier="nightly", sdk_version="0.2.162", cli_version="2.1.285",
+        tier="nightly", sdk_version="0.2.165", cli_version="2.1.294",
         credential={"kind": "login", "cost_basis": "subscription", "plan": "max",
                     "auth_method": "claude.ai", "api_provider": "firstParty"},
         rate_limit={"status": "allowed_warning", "windows": {"seven_day": {"utilization": 0.83}}},

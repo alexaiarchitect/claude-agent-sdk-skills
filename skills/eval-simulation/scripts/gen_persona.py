@@ -43,7 +43,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "lib"))
 
-from agent_sdk_skills.env import classify_model_id  # noqa: E402
+from agent_sdk_skills.env import classify_model_id, model_retirement_date  # noqa: E402
 from agent_sdk_skills.layout import detect_layout  # noqa: E402
 from agent_sdk_skills.report import EXIT_FINDINGS, EXIT_OK, EXIT_USAGE  # noqa: E402
 from agent_sdk_skills.templating import WritePlan, dumps_json  # noqa: E402
@@ -168,8 +168,12 @@ def main(argv: list[str] | None = None) -> int:
     model_note = None
     if args.model:
         grade = classify_model_id(args.model)
-        if grade in ("retired", "retiring", "unknown"):
-            model_note = f"SIM006: persona model {args.model!r} is {grade}"
+        if grade in ("retired", "deprecated", "retiring", "unknown"):
+            # `deprecated` carries a committed retirement date; say it, so the
+            # note is a deadline rather than a worry.
+            retires = model_retirement_date(args.model)
+            when = f", retires {retires}" if retires else ""
+            model_note = f"SIM006: persona model {args.model!r} is {grade}{when}"
 
     layout = detect_layout(project)
     evals_dir = Path(layout.evals.dir) if layout.evals else project / "evals"

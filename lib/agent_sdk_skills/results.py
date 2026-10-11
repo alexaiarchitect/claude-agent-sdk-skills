@@ -87,6 +87,53 @@ class RunRecord:
         usage = self.result.get("usage")
         return usage if isinstance(usage, dict) else {}
 
+    @property
+    def model_usage(self) -> dict[str, dict[str, Any]]:
+        """Per-model usage, defensively. Never indexed: the wire carries keys
+        (`costBasis`, `thinkingTokens`) the pinned `ModelUsage` TypedDict does
+        not declare, so every read goes through `.get()`."""
+        usage = self.result.get("model_usage")
+        if not isinstance(usage, dict):
+            return {}
+        return {str(k): dict(v) for k, v in usage.items() if isinstance(v, dict)}
+
+    @property
+    def models_billed(self) -> list[str]:
+        """Every model this run was billed for, not the model that ran.
+
+        Measured 2026-10-11: CLI 2.1.294 bills its own background work to
+        `claude-haiku-5-5` unasked, so the cost is spread over more than one
+        model and a reader must loop rather than take the first entry.
+        """
+        recorded = self.result.get("models_billed")
+        if isinstance(recorded, (list, tuple)):
+            return [str(name) for name in recorded]
+        return sorted(self.model_usage)
+
+    @property
+    def cost_basis_list(self) -> bool | None:
+        """True when every billed model priced at list; None when unknown.
+
+        `costBasis` is `list | managed | unknown`; absent counts as list.
+        """
+        recorded = self.result.get("cost_basis_list")
+        if isinstance(recorded, bool):
+            return recorded
+        usage = self.model_usage
+        if not usage:
+            return None
+        return all(entry.get("costBasis", "list") == "list" for entry in usage.values())
+
+    @property
+    def thinking_tokens(self) -> float:
+        """Thinking tokens: the session figure, else summed over billed models."""
+        value = self.usage.get("thinking_tokens")
+        if isinstance(value, (int, float)):
+            return float(value)
+        return sum(
+            float(entry.get("thinkingTokens") or 0) for entry in self.model_usage.values()
+        )
+
     def failed_graders(self) -> list[GraderVerdict]:
         return [g for g in self.graders if g.status == "FAILED"]
 
@@ -103,6 +150,8 @@ class RunRecord:
             "cost_usd": round(self.cost_usd, 6), "num_turns": self.num_turns,
             "terminal_reason": self.result.get("terminal_reason"),
             "subtype": self.result.get("subtype"),
+            "models_billed": self.models_billed,
+            "cost_basis_list": self.cost_basis_list,
             "rate_limit": self.rate_limit, "error": self.error,
         }
 
@@ -374,9 +423,13 @@ def efficiency_rows(run_dirs: Iterable[RunDir]) -> list[dict[str, Any]]:
         for name, result in run_dir.cases.items():
             row = rows.setdefault(name, {"case": name, "runs": 0, "turns": 0.0, "input_tokens": 0.0,
                                          "output_tokens": 0.0, "cache_read": 0.0, "cost_usd": 0.0,
-                                         "duration_ms": 0.0, "cost_basis": result.config.get("cost_basis")})
+                                         "duration_ms": 0.0, "models_billed": [],
+                                         "cost_basis": result.config.get("cost_basis")})
             for run in result.runs:
                 row["runs"] += 1
+                for model in run.models_billed:
+                    if model not in row["models_billed"]:
+                        row["models_billed"].append(model)
                 row["turns"] += run.num_turns or 0
                 row["input_tokens"] += float(run.usage.get("input_tokens") or 0)
                 row["output_tokens"] += float(run.usage.get("output_tokens") or 0)
@@ -394,6 +447,7 @@ def efficiency_rows(run_dirs: Iterable[RunDir]) -> list[dict[str, Any]]:
             "mean_cache_read_tokens": round(row["cache_read"] / n),
             "mean_cost_usd": round(row["cost_usd"] / n, 4),
             "mean_duration_ms": round(row["duration_ms"] / n),
+            "models_billed": sorted(row["models_billed"]),
         })
     return sorted(out, key=lambda r: -r["mean_cost_usd"])
 

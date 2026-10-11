@@ -52,6 +52,11 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
    way that makes the run mean something else. A warning runs today and either
    misleads or stops running on a date.
 
+   Name every finding by the id the script printed (`AGT030`, `OPT002`, …),
+   with the severity the script gave it and its `Source:` line, so the reader
+   can check the claim. Never assign a severity of your own, and never report
+   an id the script did not print.
+
 3. **Options.** Typically: fix the errors; pin the model; add ceilings; isolate
    the run with `setting_sources=[]`; move on to the harness or to eval
    coverage. Offer the load check when the static review is clean and the agent
@@ -68,7 +73,7 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 | 2 | legacy names | `claude_code_sdk`, `ClaudeCodeOptions`, `max_thinking_tokens`, `debug_stderr` |
 | 3 | model policy | a hardcoded dated id, a retiring or retired id, or no model at all so the session inherits Claude Code's default |
 | 4 | credentials | an `sk-ant-` literal in source; no `.env.example` to say what is needed |
-| 5 | tool surface | `allowed_tools` mistaken for a restriction; `tools` never set, so the built-ins are still in context; `"Skill"` instead of `skills` |
+| 5 | tool surface | `allowed_tools` mistaken for a restriction; `tools` never set, so the built-ins are still in context; `"Skill"` instead of `skills`; `permission_mode` never passed, so the CLI picks it (`OPT013`) |
 | 6 | ceilings | no `max_turns`, no `max_budget_usd` |
 | 7 | context | `setting_sources` unset, so the host machine's settings and `CLAUDE.md` load into every run — measured at 17x the cost |
 | 8 | hooks | a synchronous callback, a wrong return shape, an invalid matcher, an event the Python SDK does not have |
@@ -82,6 +87,13 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
   wanted a smaller agent, the answer is `tools=[]` or bare names in
   `disallowed_tools`. Say this plainly: it is the single most common
   misunderstanding of the options object.
+- **An unset `permission_mode` is not the same as `"default"`.** The CLI
+  resolves it, and from Claude Code 2.1.285 a headless session that does not
+  fetch the interactive feature flags — a gateway token, a third-party
+  provider, telemetry off — starts in `auto`, where broad allow rules such as a
+  bare `Bash` are dropped. `OPT013` says so; the fix is to pass `"dontAsk"` or
+  `"default"` explicitly. The plugin's runner forces `"dontAsk"`, but the
+  agent also runs outside the runner, so the finding stands either way.
 - **Options built inside `main()` are a structural finding, not a style note.**
   Until there is a builder, no eval can override anything and this review can
   only see literals. Say what the review could not see.

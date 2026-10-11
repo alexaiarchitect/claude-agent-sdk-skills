@@ -81,6 +81,21 @@ On a subscription token, parallel sessions reach a rejected rate limit sooner,
 and a rejected limit costs the whole suite its verdict rather than speeding it
 up (`CI022`).
 
+A job that switches backend (`CLAUDE_CODE_USE_BEDROCK=1` and friends) has to
+carry **the provider's own variables** in the same `env:` block — the AWS,
+Google Cloud or Azure credentials the backend mints from the job's OIDC token —
+because the suite inherits them from the job environment and nothing else
+supplies them. And because such a job never receives the interactive feature
+flags, a session whose `permission_mode` is unset starts in **`auto`** from
+Claude Code **2.1.285**, where broad allow rules are dropped; the agent should
+pass `permission_mode="dontAsk"`, and the runner forces it when the options do
+not.
+
+`--max-cost-usd` and the agent's `max_budget_usd` are both **soft**: the
+estimate they compare against can pass the value before the run or the query
+stops, so leave headroom in the number the workflow passes rather than setting
+the exact figure the repository can afford.
+
 ## The exit-3 mechanism
 
 The runner's exit codes are 0 pass, 1 a case below threshold, 2 it could not run
@@ -140,5 +155,9 @@ the template could not know about.
 Sources: `https://code.claude.com/docs/en/github-actions` (secret names, the
 OAuth-token input, the action alternative); `https://code.claude.com/docs/en/env-vars`
 (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, the backend switches);
-`.dev/CONTRACTS.md` §8 (the four exit codes); this plugin's
+`.dev/CONTRACTS.md` §8 (the four exit codes);
+`https://code.claude.com/docs/en/permission-modes` (the headless starting-mode
+table); `https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom`
+(the soft budget cap); this plugin's
 `skills/eval-run/references/running-in-ci.md` and `assets/templates/workflows/`.
+Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

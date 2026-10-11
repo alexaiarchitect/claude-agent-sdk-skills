@@ -23,6 +23,12 @@ In `.mcp.json` and other JSON config, `"streamable-http"` is accepted as an
 alias for `"http"`; the SDK's own `McpHttpServerConfig` declares only `"http"`,
 so use that in code.
 
+A server declared in a **plugin manifest** also accepts `requestTimeout` — a
+positive integer in milliseconds, default **60000**, needing Claude Code
+**2.1.288+**. It is a manifest field, not a `ClaudeAgentOptions` one: there is no
+per-server timeout among the 49 options, so an SDK-configured server that is slow
+has to be wrapped or replaced by a mock instead.
+
 ### In-process is the one to prefer
 
 No subprocess, no port, no network, no install — and the handler is ordinary
@@ -84,6 +90,12 @@ allowed_tools=["mcp__library__lookup"]   # one tool
 
 A glob is only honoured after a literal, glob-free server segment.
 
+Two tools escape the allow list entirely. A tool whose server sets
+`requiresUserInteraction`, and a connector tool an organisation has set to `ask`,
+always reach the ask step however they are pre-approved — and in `dontAsk` they
+are **denied** rather than prompted, because that mode never prompts. An
+unattended suite that needs such a tool has to mock it; no allow rule will do.
+
 ## Mocks, for evals
 
 An eval that calls a real external server is testing the server. Replace it:
@@ -116,10 +128,14 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/mcp> (naming, transports,
 allowing tools, connection timing, error handling),
 <https://code.claude.com/docs/en/agent-sdk/custom-tools> (the `@tool`
 contract, content types, error handling);
-`claude-agent-sdk` 0.2.162 `__init__.py:241` (`SdkMcpTool`), `:251` (`tool`),
+`claude-agent-sdk` 0.2.165 `__init__.py:241` (`SdkMcpTool`), `:251` (`tool`),
 `:451-489` (content-item handling), `:491` (`create_sdk_mcp_server`),
 `types.py:979` (`ToolResultBlock`), `:2010` (`mcp_servers`), `:2018`
 (`strict_mcp_config`), `client.py:471` (`get_mcp_status`), `:540`
 (`get_server_info`); this plugin's `.dev/CONTRACTS.md` §2 for the mock format.
+<https://code.claude.com/docs/en/plugins/manifest-reference#mcpservers>
+(`requestTimeout`), <https://code.claude.com/docs/en/permission-modes>
+(`dontAsk`'s always-denied list).
 The `is_error is None`, ambient-connector and `tools=["Read"]` observations were
-measured by this plugin on 2026-09-30.
+measured by this plugin on 2026-09-30. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

@@ -413,12 +413,35 @@ def validate_overrides(overrides: dict[str, Any], live_fields: Any = None) -> Ov
     return check
 
 
-def apply_overrides(options: Any, overrides: dict[str, Any], isolation: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
-    """Return (new options, the isolation actually applied).
+#: The mode the runner resolves when nobody else does (CONTRACTS section 13.1).
+#: An unset `permission_mode` is not `default`: from CLI 2.1.285 a headless
+#: session without the interactive feature flags can start in `auto`, where a
+#: classifier reviews each tool call and a bare allow rule no longer settles it.
+#: An eval has to know which rules were in force, so the runner decides.
+PERMISSION_MODE_DEFAULT = "dontAsk"
+
+
+def resolve_permission_mode(options: Any) -> tuple[Any, str]:
+    """Return (options with a mode set, `"agent"` or `"runner-default"`).
+
+    `"agent"` means the mode came from the options as handed over — the agent's
+    `build_options()` or a case's `overrides` — and the runner left it alone.
+    """
+    if getattr(options, "permission_mode", None):
+        return options, "agent"
+    return dataclasses.replace(options, permission_mode=PERMISSION_MODE_DEFAULT), "runner-default"
+
+
+def apply_overrides(
+    options: Any, overrides: dict[str, Any], isolation: dict[str, Any],
+) -> tuple[Any, dict[str, Any], str]:
+    """Return (new options, the isolation actually applied, the mode's source).
 
     The isolation defaults win over whatever the agent built, and the case's own
     `overrides` win over the isolation defaults — a case that opts out is
     recorded in the trace `init` event so the loss of portability is visible.
+    `permission_mode` is resolved last, and only when it is still unset, so an
+    explicit mode from either side always wins.
     """
     applied = dict(isolation)
     changes: dict[str, Any] = dict(applied)
@@ -426,7 +449,8 @@ def apply_overrides(options: Any, overrides: dict[str, Any], isolation: dict[str
         changes[name] = value
         if name in applied:
             applied[name] = value
-    return dataclasses.replace(options, **changes), applied
+    built, source = resolve_permission_mode(dataclasses.replace(options, **changes))
+    return built, applied, source
 
 
 # -- the agent under test ---------------------------------------------------

@@ -26,9 +26,14 @@ the obvious implementation:
   pointed at an attachment's uuid, not at the user line. A loader that assumed
   user→assistant adjacency mis-orders any real session, so :func:`load_session`
   walks the whole uuid graph.
-* **There is no result line.** A session carries no cost, no `num_turns` and no
-  `terminal_reason`, so `budget`, `terminal` and `structured_output` graders are
-  `NOT_EVALUATED` on imported evidence — not FAILED.
+* **There is no result line, but there may be a `cost-state` line.** A session
+  carries no `ResultMessage`, so no `num_turns` and no `terminal_reason`. An
+  SDK-produced session (`entrypoint: "sdk-py"`) does write one `cost-state` line
+  with the session totals, and :func:`load_session` reads it into a synthesised
+  `result` event marked `imported_cost: true` (CONTRACTS section 13.2). So a
+  `budget` grader can be decided on such a session while `terminal` and
+  `structured_output` stay `NOT_EVALUATED` — never FAILED. A `claude -p` session
+  has no `cost-state` line, and then there is no result event at all.
 * **`version` is the CLI version, not the SDK's** (measured `"2.1.274"`). It
   lands on `init.cli_version`; `sdk_version` is a separate field the runner fills
   from `claude_agent_sdk.__version__`.
@@ -369,13 +374,79 @@ def load_session(path: Path | str) -> list[TraceEvent]:
                 events.append(event)
                 counter += 1
             continue
-        # Everything else is bookkeeping: kept, never dropped.
+        if line_type == "cost-state":
+            events.append(_imported_result(raw, i=counter, t=stamp, session_id=session_id))
+            counter += 1
+            continue
+        # Everything else is bookkeeping: kept, never dropped. `system` lines
+        # (`stop_hook_summary` and friends) land here too, as `system` events.
         events.append(TraceEvent(
             type="system", i=counter, t=stamp, session_id=session_id,
             data={"subtype": line_type, "data": _summarize_bookkeeping(raw)},
         ))
         counter += 1
     return events
+
+
+def _imported_result(raw: dict[str, Any], *, i: int, t: str | None,
+                     session_id: str | None) -> TraceEvent:
+    """A `result` event synthesised from a session's `cost-state` line.
+
+    An SDK-produced session (`entrypoint: "sdk-py"`) writes one `cost-state`
+    line holding the session's own totals, which is the only place an imported
+    session reports what it spent. Reading it closes CONTRACTS section 12.9: a
+    `budget` grader can now be decided on imported evidence.
+
+    What it is *not* is a `ResultMessage`. There is no `subtype`, no
+    `terminal_reason` and no `num_turns` in the line, so those stay `None`
+    rather than being guessed, and `imported_cost: true` marks the event so a
+    reader — and the `terminal` grader — can tell a cost the SDK reported from
+    one the runner measured in process. `claude -p` sessions carry no
+    `cost-state` line at all, so section 5.3's "no cost on import" still holds
+    for them.
+
+    `modelUsage` here is the camelCase per-model mapping the CLI writes, with
+    the same undeclared `costBasis`/`thinkingTokens` keys the live
+    `ResultMessage` carries, so it is read with `.get()` and never indexed.
+    """
+    model_usage = raw.get("modelUsage")
+    if not isinstance(model_usage, dict):
+        model_usage = {}
+    model_usage = {str(k): dict(v) for k, v in model_usage.items() if isinstance(v, dict)}
+    return TraceEvent(
+        type="result", i=i, t=t, session_id=session_id,
+        data={
+            "subtype": None,
+            "is_error": False,
+            "terminal_reason": None,
+            "stop_reason": None,
+            "num_turns": None,
+            "duration_ms": _int_or_none(raw.get("totalDuration")),
+            "duration_api_ms": _int_or_none(raw.get("totalAPIDuration")),
+            "total_cost_usd": _float_or_none(raw.get("totalCostUSD")),
+            "cost_delta_usd": None,
+            "usage": {},
+            "model_usage": model_usage,
+            "models_billed": sorted(model_usage),
+            "cost_basis_list": all(
+                entry.get("costBasis", "list") == "list" for entry in model_usage.values()
+            ),
+            "structured_output": None,
+            "result_text": None,
+            "permission_denials": [],
+            "api_error_status": None,
+            "imported_cost": True,
+            "has_unknown_model_cost": bool(raw.get("hasUnknownModelCost")),
+        },
+    )
+
+
+def _int_or_none(value: Any) -> int | None:
+    return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def _float_or_none(value: Any) -> float | None:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
 def _order_session_lines(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -706,6 +777,8 @@ def to_summary(events: Sequence[TraceEvent]) -> dict[str, Any]:
     if result is not None:
         usage = result.get("usage") or {}
         summary["result"] = {
+            "imported_cost": bool(result.get("imported_cost")),
+            "models_billed": result.get("models_billed") or sorted(result.get("model_usage") or {}),
             "subtype": result.get("subtype"),
             "terminal_reason": result.get("terminal_reason"),
             "is_error": bool(result.get("is_error")),
@@ -718,6 +791,14 @@ def to_summary(events: Sequence[TraceEvent]) -> dict[str, Any]:
             "structured_output": result.get("structured_output"),
             "api_error_status": result.get("api_error_status"),
         }
+        if result.get("imported_cost"):
+            # The cost is real; the terminal state and the structured output are
+            # simply not in a `cost-state` line, so they stay undecidable.
+            summary["not_evaluated"] = ["terminal", "structured_output"]
+            summary["not_evaluated_reason"] = (
+                "the result was synthesised from an imported session's `cost-state` line: it "
+                "carries the cost but no subtype, terminal_reason or num_turns"
+            )
     else:
         summary["not_evaluated"] = [
             "budget", "terminal", "structured_output",

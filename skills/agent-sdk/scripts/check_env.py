@@ -26,7 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "lib"))
 
 from agent_sdk_skills import DEFAULT_MODEL, MODEL_ENV_VAR  # noqa: E402
 from agent_sdk_skills.env import (  # noqa: E402
-    classify_model_id, detect_credential, resolve_runner, version_is_supported,
+    CHECKED_AGAINST, classify_model_id, detect_credential, resolve_runner,
+    version_is_supported, version_newer_than_target,
 )
 from agent_sdk_skills.report import EXIT_FINDINGS, EXIT_OK, EXIT_USAGE  # noqa: E402
 from agent_sdk_skills.sdk_subprocess import describe_runner  # noqa: E402
@@ -51,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
     runner = resolve_runner(project, probe=not args.no_probe)
     model = credential.model_env or DEFAULT_MODEL
     grade = classify_model_id(model)
+    # Newer than the pin is information, never a blocker: 0.2.166+ is expected
+    # to work, and saying so is how a surprise gets attributed to the version
+    # gap rather than to the agent.
+    sdk_newer = version_newer_than_target(runner.sdk_version) if runner.sdk_version else None
     blockers: list[str] = []
     if not credential.ready:
         blockers.append("credential: " + credential.describe())
@@ -66,6 +71,8 @@ def main(argv: list[str] | None = None) -> int:
         "credential": credential.to_dict(),
         "runner": runner.to_dict(),
         "runner_description": describe_runner(runner),
+        "checked_against": dict(CHECKED_AGAINST),
+        "sdk_newer_than_checked": sdk_newer,
         "model": {"value": model, "source": MODEL_ENV_VAR if credential.model_env else "plugin default",
                   "grade": grade},
         "ready": not blockers,
@@ -79,6 +86,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"- credential: {credential.describe()}")
         print(f"- cost basis: {credential.cost_basis}")
         print(f"- interpreter: {describe_runner(runner)}")
+        print(f"- checked against: claude-agent-sdk {CHECKED_AGAINST['sdk']} "
+              f"(bundled Claude Code {CHECKED_AGAINST['cli']})")
+        if sdk_newer:
+            print(f"- ENV003: this plugin was checked against {CHECKED_AGAINST['sdk']}; "
+                  f"your {runner.sdk_version} is newer, run the sync checker")
         print(f"- model: {model} ({payload['model']['source']}, {grade})")
         if credential.env_files:
             print(f"- .env files: {', '.join(credential.env_files)} (the SDK does not load these itself)")

@@ -35,7 +35,13 @@ as its last stdout line, one JSON object.
 
 1. the agent's own `build_options()` (or the entry named by `eval_config.json`,
    the case, or `AGENT_ENTRY`);
-2. isolation defaults `setting_sources=[]`, `strict_mcp_config=True`;
+2. isolation defaults `setting_sources=[]`, `strict_mcp_config=True`, and
+   `permission_mode="dontAsk"` when the agent left the mode unset — recorded in
+   the trace `init` event as `permission_mode_source: "runner-default"` (or
+   `"agent"` when the agent set it). The runner resolves the mode itself because
+   a headless session that does not fetch feature flags can start in `auto` from
+   Claude Code 2.1.285, where broad allow rules are dropped; an explicit mode in
+   the options or in a case's `overrides` always wins;
 3. the model: case override, then config `model` (with `${CLAUDE_MODEL:-...}`
    expansion), then the agent's own; none of these set means a refusal;
 4. the case's `overrides`, validated by name before anything starts;
@@ -51,8 +57,11 @@ as its last stdout line, one JSON object.
 
 ---
 
-Sources: this plugin's `runner/agent_sdk_evals/cli.py` and `.dev/CONTRACTS.md`;
+Sources: this plugin's `runner/agent_sdk_evals/cli.py` and `.dev/CONTRACTS.md`
+(§13.1 for the forced `dontAsk` and `permission_mode_source`);
 SDK behaviour per `https://code.claude.com/docs/en/agent-sdk/python` (`query`,
-`ClaudeSDKClient`, `ClaudeAgentOptions`) and
+`ClaudeSDKClient`, `ClaudeAgentOptions`),
 `https://code.claude.com/docs/en/agent-sdk/configuration` (model selection,
-`setting_sources`).
+`setting_sources`) and `https://code.claude.com/docs/en/permission-modes` (the
+headless starting-mode table). Re-read 2026-10-11 against claude-agent-sdk
+0.2.165 / Claude Code 2.1.296 docs.

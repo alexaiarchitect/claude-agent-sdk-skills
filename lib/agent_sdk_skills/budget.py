@@ -25,6 +25,17 @@ Four measured facts shape :func:`check_budget`, and each one is a bug if ignored
   rate-limit event as a limit hit would have marked every healthy run
   inconclusive. Only `rejected` stops anything: see :func:`rate_limit_verdict`.
 
+Two more, measured on 0.2.165 / CLI 2.1.294 (2026-10-11):
+
+* **`max_budget_usd` is a soft cap.** It refuses the *next* request once the
+  estimate has passed the ceiling, so a session can and does finish over it.
+  Every figure here is read as "what it cost", never "what it was allowed".
+* **`model_usage` holds more than one model.** The CLI bills its own background
+  work to `claude-haiku-5-5` without being asked, and the entries carry
+  `costBasis` and `thinkingTokens`, neither of which the pinned `ModelUsage`
+  TypedDict declares. So the readers below loop over every entry and use
+  `.get()`: see :func:`models_billed` and :func:`cost_basis_is_list`.
+
 The efficiency table is deliberately lower-is-better and deliberately separate
 from pass/fail. A cheaper agent that fails is not better; but between two agents
 that both pass, the one using half the turns is the one to keep, and nothing in a
@@ -279,6 +290,68 @@ def total_tokens(result_event: TraceEvent | dict[str, Any] | None) -> float:
         "cache_creation_input_tokens"))
 
 
+def model_usage_of(result_event: TraceEvent | dict[str, Any] | None) -> dict[str, dict[str, Any]]:
+    """`model_usage` as a dict of dicts, defensively.
+
+    The wire carries two keys the 0.2.165 `ModelUsage` TypedDict does not
+    declare — `costBasis` and `thinkingTokens`, both measured 2026-10-11 — so
+    every read of this mapping goes through `.get()` and never indexes a key.
+    """
+    data = _as_dict(result_event) or {}
+    usage = data.get("model_usage")
+    if not isinstance(usage, dict):
+        return {}
+    return {
+        str(name): dict(entry) for name, entry in usage.items() if isinstance(entry, dict)
+    }
+
+
+def models_billed(result_event: TraceEvent | dict[str, Any] | None) -> list[str]:
+    """Every model the session was billed for, sorted.
+
+    Not "the model that ran": measured 2026-10-11, CLI 2.1.294 bills its own
+    background work to `claude-haiku-5-5` without being asked, so a cost note
+    about "the agent's model" is wrong about the total. The runner records the
+    same list on the `result` event as `models_billed`; this reads it back, and
+    falls back to the keys of `model_usage` for an older trace.
+    """
+    data = _as_dict(result_event) or {}
+    recorded = data.get("models_billed")
+    if isinstance(recorded, (list, tuple)):
+        return [str(name) for name in recorded]
+    return sorted(model_usage_of(result_event))
+
+
+def cost_basis_is_list(result_event: TraceEvent | dict[str, Any] | None) -> bool | None:
+    """True when every billed model priced at list, None when nothing is known.
+
+    `ModelUsage.costBasis` is `list | managed | unknown` and is absent from the
+    pinned TypedDict, so an absent key counts as list pricing; a `managed` entry
+    means a negotiated rate and the estimate is not the bill. The runner records
+    the same answer as `cost_basis_list` on the `result` event.
+    """
+    data = _as_dict(result_event) or {}
+    recorded = data.get("cost_basis_list")
+    if isinstance(recorded, bool):
+        return recorded
+    usage = model_usage_of(result_event)
+    if not usage:
+        return None
+    return all(entry.get("costBasis", "list") == "list" for entry in usage.values())
+
+
+def model_thinking_tokens(result_event: TraceEvent | dict[str, Any] | None) -> float:
+    """Thinking tokens summed over every billed model, zero when unreported.
+
+    `thinkingTokens` is undeclared on `ModelUsage` as well, so it is read with
+    `.get()`; `usage.thinking_tokens` is the per-session figure beside it.
+    """
+    return sum(
+        _number(entry.get("thinkingTokens")) or 0
+        for entry in model_usage_of(result_event).values()
+    )
+
+
 # ---------------------------------------------------------------------------
 # the efficiency table
 # ---------------------------------------------------------------------------
@@ -287,6 +360,10 @@ def total_tokens(result_event: TraceEvent | dict[str, Any] | None) -> float:
 EFFICIENCY_COLUMNS = (
     "case", "runs", "turns", "tool_calls", "tokens", "cache_read", "duration_ms", "cost_usd",
 )
+
+#: Row keys the table does not print but a reader of the rows needs: which
+#: models the cost is spread over, and whether the estimate used list prices.
+EFFICIENCY_EXTRA_KEYS = ("models_billed", "cost_basis_list")
 
 
 def efficiency_rows(results: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -315,6 +392,7 @@ def efficiency_rows(results: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         }
         if not measured:
             row.update({c: None for c in EFFICIENCY_COLUMNS if c not in ("case", "runs")})
+            row.update({c: None for c in EFFICIENCY_EXTRA_KEYS})
             row["note"] = "no measured runs (imported evidence, or every run NOT_EVALUATED)"
             rows.append(row)
             continue
@@ -329,6 +407,16 @@ def efficiency_rows(results: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         # each run, and the row averages those — never a sum across turns.
         row["cost_usd"] = _mean(_number(r["result"].get("total_cost_usd")) for r in measured)
         row["tool_calls"] = _mean(_number(r.get("tool_calls")) for r in measured)
+        # Which models were billed, not which model ran: the CLI bills its own
+        # background work to a model nobody asked for (measured: Haiku 5.5).
+        billed: list[str] = []
+        for run in measured:
+            for name in models_billed(run["result"]):
+                if name not in billed:
+                    billed.append(name)
+        row["models_billed"] = sorted(billed)
+        bases = [cost_basis_is_list(r["result"]) for r in measured]
+        row["cost_basis_list"] = all(b for b in bases) if any(b is not None for b in bases) else None
         rows.append(row)
     return rows
 

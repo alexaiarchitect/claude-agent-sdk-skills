@@ -66,9 +66,31 @@ meaning is given first.
 - **Structured output** — a JSON-schema `output_format` the SDK enforces on
   the final answer; it lands on `ResultMessage.structured_output`.
 - **Terminal reason** — why a run ended: completed, `max_turns`,
-  `max_budget_usd`, an API error, an abort.
+  `max_budget_usd`, an API error, an abort. A deferred tool gives the result a
+  `stop_reason` of `tool_deferred`, which is a stopped turn rather than a
+  refusal.
+- **Cost basis** — which price list a cost figure came from: `list`, `managed`
+  (an organisation's negotiated rate) or `unknown`, reported per model in
+  `ResultMessage.model_usage[*].costBasis` (Claude Code 2.1.246+, read it with
+  `.get()`). Two figures with different bases are not comparable.
+- **Soft cap** — `max_budget_usd` and `--max-cost-usd`. They compare against a
+  running client-side estimate, which can pass the value before the run stops,
+  so they need headroom rather than exactness.
+- **`fork_session()`** — the module-level function that copies a transcript into
+  a new session (optionally up to one message). Distinct from the
+  `fork_session: bool` option, which forks on resume; a fork keeps no file
+  checkpoints from before it.
+- **Mod** — a TypeScript plugin class Claude Code gained in 2.1.292, whose
+  `tool.check` handler answers after the permission rules and hooks. Out of
+  scope for these skills except as the seventh step of the permission model.
+- **Unset permission mode** — not the same as `"default"`. The CLI resolves it,
+  and a headless session without the interactive feature flags can land in
+  `auto` from 2.1.285, where broad allow rules are dropped (`OPT013`).
 
 ---
 
 Sources: this plugin; SDK terms from `https://code.claude.com/docs/en/agent-sdk/python`
-and `https://code.claude.com/docs/en/agent-sdk/agent-loop`.
+(`fork_session`, `costBasis`) and `https://code.claude.com/docs/en/agent-sdk/agent-loop`
+(the budget headroom note); `https://code.claude.com/docs/en/permission-modes`
+and `https://code.claude.com/docs/en/permissions` (the unset mode, mods). Re-read
+2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.

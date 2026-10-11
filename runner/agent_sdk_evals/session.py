@@ -33,7 +33,7 @@ from typing import Any
 
 from . import FAILED, NOT_EVALUATED, PASSED
 from .capture import Capture, looks_like_usage_limit, rate_limit_payload
-from .loader import Case, Config
+from .loader import Case, Config, resolve_permission_mode
 
 
 @dataclass
@@ -180,10 +180,20 @@ async def run_once(
     mock_calls: list[dict[str, Any]],
     persona: Any = None,
     keep_cwd: bool = False,
+    permission_mode_source: str | None = None,
 ) -> RunOutcome:
-    """One attempt at one case. Never raises for an agent-side failure."""
+    """One attempt at one case. Never raises for an agent-side failure.
+
+    `permission_mode_source` is what `apply_overrides` already decided; it is
+    passed in because the answer is no longer readable from the options once the
+    mode has been filled in. Omitted (a direct caller), it is resolved here, so
+    a session never starts with the mode unset whichever way it was reached.
+    """
+    if permission_mode_source is None:
+        options, permission_mode_source = resolve_permission_mode(options)
     capture = Capture(run_id=run_id, case=case.name,
-                      include_thinking=bool(config.trace.get("include_thinking")))
+                      include_thinking=bool(config.trace.get("include_thinking")),
+                      permission_mode_source=permission_mode_source)
     cwd = make_cwd(case.name, run)
     outcome = RunOutcome(run=run, case=case.name, capture=capture, cwd=cwd, cwd_kept=keep_cwd)
     env = child_env(case, config)

@@ -39,7 +39,7 @@ Start with `--dry-run`. It resolves the config, the cases, the agent entry, the
 model, the isolation and the credential, refuses anything invalid, prints what
 *would* run, and exits 0 having started nothing.
 
-## Three things worth knowing before you trust a number
+## Four things worth knowing before you trust a number
 
 - **Isolation is forced.** Every run gets `setting_sources=[]` and
   `strict_mcp_config=True` unless a case overrides them. Without those, the
@@ -53,7 +53,17 @@ model, the isolation and the credential, refuses anything invalid, prints what
   client-side calculation from a bundled price table; what a run really spends is
   plan quota. `whoami` says which basis you are on. A `rejected` rate limit marks
   runs NOT_EVALUATED and exits 3 — never a fabricated failure. An
-  `allowed_warning` is recorded and the suite keeps going.
+  `allowed_warning` is recorded and the suite keeps going. The cost is also not
+  all the agent's: the trace's `models_billed` lists every model in
+  `model_usage`, and the CLI bills its own background work to a cheap model
+  nobody asked for (measured `claude-haiku-5-5` on CLI 2.1.294).
+- **The permission mode is decided, never inherited.** An agent that leaves
+  `permission_mode` unset gets `dontAsk`, and the trace `init` event says who
+  chose it (`permission_mode_source`: `"agent"` or `"runner-default"`). An unset
+  mode is not `default` — a headless session without the interactive feature
+  flags can start in `auto` on CLI 2.1.285+, where a classifier reviews each
+  tool call and a bare allow rule no longer settles it. `--dry-run` prints the
+  resolved mode and its source for every case.
 
 ## This is a copy
 

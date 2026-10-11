@@ -7,9 +7,9 @@ error — it is simply never called (`HOK020`).
 | Event | When it fires | Distinctive input fields | `hookSpecificOutput` |
 |---|---|---|---|
 | `PreToolUse` | a tool call is requested, before it runs | `tool_name`, `tool_input`, `agent_id`/`agent_type` inside a subagent | `permissionDecision` (`allow`/`deny`/`ask`/`defer`), `permissionDecisionReason`, `updatedInput`, `additionalContext` |
-| `PostToolUse` | the tool returned | `tool_name`, `tool_input`, the result | `additionalContext`, `updatedToolOutput` (any tool), `updatedMCPToolOutput` (MCP only, deprecated) |
+| `PostToolUse` | the tool returned | `tool_name`, `tool_input`, the result | `additionalContext`, `updatedToolOutput` (any tool), `updatedMCPToolOutput` (**MCP tools only — not deprecated**; prefer `updatedToolOutput`, which works for all tools) |
 | `PostToolUseFailure` | the tool raised or errored | as above plus the failure | `additionalContext` |
-| `UserPromptSubmit` | a user turn is submitted | the prompt | `additionalContext` |
+| `UserPromptSubmit` | a user turn is submitted — **and a turn Claude Code starts on its own**: a scheduled task or `/loop` iteration firing, a background subagent reporting back to its parent, a cross-session message arriving in the main conversation | the prompt | `additionalContext` |
 | `Notification` | the agent emits a status message | `message` | `additionalContext` |
 | `SubagentStart` | a subagent begins | `agent_id`, `agent_type` (required here) | `additionalContext` |
 | `SubagentStop` | a subagent finishes | `agent_id`, `agent_type` | **none** |
@@ -22,6 +22,15 @@ all**. They use the common fields only: `decision: "block"` with `reason` sends
 the agent back to work; `continue_: False` with `stopReason` ends the turn;
 `systemMessage` shows the user a line. A generator or a check that demands
 `hookSpecificOutput` on those three is wrong.
+
+`updatedToolOutput` has to match the tool's own output shape; a mismatch is
+rejected and the original output is kept. `WorktreeRemove` (a TypeScript-side
+event) is narrower than its name suggests: it fires only when a worktree that a
+`WorktreeCreate` hook created is being removed, not on every worktree teardown.
+
+`permissionDecision: "defer"` is not a quieter deny. It ends the turn, and the
+`ResultMessage` then carries **`stop_reason: "tool_deferred"`** — assert on that,
+not on the text, and expect `deferred_tool_use` to be populated.
 
 ## The callback contract
 
@@ -78,7 +87,8 @@ callback must not assume another has already run.
   allow.** One deny blocks the operation regardless of the others.
 - A `PreToolUse` hook that returns `allow` does **not** skip the deny and ask
   rules that follow it in the evaluation order. It also cannot approve an `rm`
-  or `rmdir` targeting a critical path.
+  or `rmdir` targeting a critical path, and it does not skip the prompt for a
+  read from a **network path**, which has its own check.
 - Default timeout: **600 seconds** for most events, **30** for
   `UserPromptSubmit`. Set `timeout=` on the `HookMatcher` to change it.
 - What a timeout does depends on the event. On `PreToolUse`, an Agent SDK
@@ -86,6 +96,61 @@ callback must not assume another has already run.
   error result naming the timeout. On `PostToolUse` the result is kept and the
   turn continues. On `Stop`/`SubagentStop` the timed-out callback counts as no
   decision, and the agent stops as if it had allowed.
+
+## Command and `http` hooks: three outcomes, not two
+
+A hook written in a settings file or a plugin manifest is a process or a request,
+not a callback, so it reports through its exit code and its stdout. The contract
+is three outcomes:
+
+| Outcome | How | Effect |
+|---|---|---|
+| Success | exit **0** | stdout is read for field-setting JSON; the action proceeds |
+| Blocking error | exit **2** | the action is blocked and stderr goes back to the model |
+| Non-blocking error | any other exit code, or failing to start or to parse | the hook is ignored and the action proceeds — it **fails open** |
+
+Stdout parses as JSON only when the **entire** output is one JSON object. From
+Claude Code **2.1.295** that object may span several lines or be
+pretty-printed; output that is one JSON object per line is plain text unless one
+of those lines sets a field, in which case it is a parse failure.
+
+`onFailure` (**2.1.295+**) is the answer to the fail-open row: set it to
+`"block"` on a `command` or `http` hook and a failure — cannot start, an exit
+code other than 0 or 2, an HTTP error, a timeout, invalid or unparseable output
+— fails the action the way exit 2 would (`PermissionRequest` is denied instead).
+It defaults to `"continue"`, and it has **no effect at all** on `Stop`,
+`SubagentStop`, `TaskCompleted`, `TeammateIdle` or background
+(`async`/`asyncRewake`) command hooks, so do not promise it there.
+
+## 0.2.166+ (on the SDK's `main`, not in 0.2.165)
+
+Version-gate anything from this list; none of it exists in the pinned release.
+
+- Richer hook inputs: `prompt_id` (the UUID of the prompt being processed,
+  matching the OpenTelemetry `prompt.id` attribute, absent until the first user
+  input) and `effort` (a `HookEffort`, `{level: str}`, the level for the current
+  turn after any downgrade) on every hook input; `duration_ms` on `PostToolUse`
+  and `PostToolUseFailure` (tool execution time, excluding permission-prompt and
+  hook time); `last_assistant_message`, `background_tasks`
+  (`BackgroundTaskSummary`: shell, subagent, monitor or workflow) and
+  `session_crons` (`SessionCronSummary`: a cron expression and a prompt) on
+  `Stop` and `SubagentStop`. `agent_id`/`agent_type` move onto the four
+  tool-lifecycle inputs.
+- **17 newly exported `*HookSpecificOutput` types**, taking the total from 4 to
+  21. **12 of the 17 are for events that are still not registrable from
+  Python** — `UserPromptExpansion`, `SessionStart`, `PostToolBatch`,
+  `PermissionDenied`, `PreModelSwitch`, `PostModelSwitch`, `Elicitation`,
+  `ElicitationResult`, `CwdChanged`, `FileChanged`, `WorktreeCreate`,
+  `MessageDisplay` — so the type existing is not the event existing, and
+  `HOK020` still fires on all of them. The other five belong to `PreToolUse`,
+  `PostToolUse`, `UserPromptSubmit`, `Stop` and `SubagentStop`.
+- `SystemInitData`, the documented shape of `SystemMessage.data` for
+  `system`/`init`, with a `capabilities` list for feature detection instead of
+  comparing `claude_code_version`.
+
+`ClaudeAgentOptions`, the six permission modes, the five effort levels and the
+ten `HookEvent` literals are **unchanged** on `main`, so nothing above widens
+what you may register.
 
 ## The one thing hooks are uniquely good for
 
@@ -114,10 +179,13 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/hooks>
 hook timeout), <https://code.claude.com/docs/en/hooks> (matcher patterns,
 JSON output, per-event sections),
 <https://code.claude.com/docs/en/agent-sdk/permissions#how-permissions-are-evaluated>;
-`claude-agent-sdk` 0.2.162 `types.py:284-297` (`HookEvent`, ten literals),
+`claude-agent-sdk` 0.2.165 `types.py:284-297` (`HookEvent`, ten literals),
 `:299-435` (hook input types), `:437-500` (`hookSpecificOutput` per event),
 `:507-581` (`HookJSONOutput`), `:584` (`HookContext`), `:594`
 (`HookCallback`), `:606` (`HookMatcher`), `:2176-2187` (concurrent dispatch),
 `:2199` (`include_hook_events`), `:1835-1924`
 (`CanUseToolShadowedWarning`). The "emits nothing without a registered hook"
-observation was measured by this plugin on 2026-09-30.
+observation was measured by this plugin on 2026-09-30. The 0.2.166+ list was
+read from the SDK's `main` at `b6e9d12f` on 2026-10-11 and is not in the pinned
+wheel. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
+docs.

@@ -99,7 +99,7 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 | Question | File |
 |---|---|
 | All ten events, when they fire, input fields, return shapes, timeouts, concurrency | [hooks-catalog.md](references/hooks-catalog.md) |
-| The six-step evaluation order, the six modes, `tools` vs `allowed_tools` | [permission-model.md](references/permission-model.md) |
+| The seven-step evaluation order, the six modes, `tools` vs `allowed_tools` | [permission-model.md](references/permission-model.md) |
 | In-process vs stdio vs HTTP, `mcp__server__tool`, `strict_mcp_config`, mocks | [mcp-patterns.md](references/mcp-patterns.md) |
 | `AgentDefinition` fields, depth/concurrency/spend caps, the Agent/Task naming | [subagent-design.md](references/subagent-design.md) |
 | `setting_sources`, `CLAUDE.md`, auto memory, and the 17x measurement | [context-and-settings.md](references/context-and-settings.md) |
