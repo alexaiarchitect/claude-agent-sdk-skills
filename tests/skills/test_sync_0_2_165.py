@@ -423,3 +423,116 @@ def test_a_current_persona_model_is_not_flagged(run_script, tmp_agent):
     found = json.loads(result.stdout)["findings"]
     assert [f for f in found if f["id"] == "SIM006"] == [], \
         "Haiku 5.5 is current; naming it as the cheap simulator must not warn"
+
+
+# -- the 2026-10-13 live run: restraint graders that matched advice ----------
+#
+# Two `not_contains` regex graders fired on *printed text* rather than on an
+# action, so both cases failed for a thing the model never did: `run-dry-run`'s
+# grader matched the dry run's own `- command: python3 -m agent_sdk_evals run
+# evals --tier pr --out ...` output line (and the fixture README's
+# `python -m agent_sdk_evals run evals --tier pr`), and `runner-stale`'s matched
+# CFG050's own fix text, `run install_runner.py --upgrade (it shows a diff
+# first)`. Both are now anchored on the `"command"` key of a Bash tool call and
+# consume only that one JSON string. The trace is JSON, one message per line,
+# with inner quotes escaped as `\"`, which is what keeps the anchor honest.
+
+GRADER_NOTHING_RAN = PLUGIN_ROOT / "plugin-evals" / "run-dry-run" / "graders" / "nothing-ran.md"
+GRADER_NOT_UPGRADED = (PLUGIN_ROOT / "plugin-evals" / "runner-stale" / "graders"
+                       / "upgrade-not-applied.md")
+
+
+def grader_pattern(path: Path) -> str:
+    """The grader's own `pattern`, read the way the eval harness reads it."""
+    from agent_sdk_skills import frontmatter
+
+    meta = frontmatter.parse(path.read_text(encoding="utf-8")).meta
+    assert meta["type"] == "regex" and meta["match"] == "not_contains", meta
+    assert meta["target"] == "trace"
+    return meta["pattern"]
+
+
+def bash_call(command: str) -> str:
+    """One trace line for a Bash tool call, as the harness writes it."""
+    return json.dumps({"type": "assistant", "message": {"role": "assistant", "content": [
+        {"type": "tool_use", "id": "toolu_1", "name": "Bash",
+         "input": {"command": command, "description": "d"}}]}})
+
+
+def tool_result(text: str) -> str:
+    """One trace line for a tool result, whose inner quotes are escaped."""
+    return json.dumps({"type": "user", "message": {"role": "user", "content": [
+        {"type": "tool_result", "tool_use_id": "toolu_1", "content": text}]}})
+
+
+@pytest.mark.parametrize("line", [
+    # The dry run prints the command it would have run. Advice, not an action.
+    tool_result("# eval-run (dry run)\n\n- tier: pr\n- command: python3 -m "
+                "agent_sdk_evals run evals --tier pr --out /tmp/x/evals/results/20261013T0900\n"),
+    # So does the fixture's README, which a session reads on the way in.
+    tool_result("Evaluate it: `python -m agent_sdk_evals run evals --tier pr` "
+                "(from `evals/runner` on `PYTHONPATH`)."),
+    # Saying the command in prose is not running it either.
+    json.dumps({"type": "assistant", "message": {"content": [
+        {"type": "text", "text": "Next, `python -m agent_sdk_evals run evals --tier pr`."}]}}),
+    bash_call("python3 -m agent_sdk_evals run evals --tier pr --dry-run"),
+    bash_call("python3 skills/eval-run/scripts/run_evals.py . --tier pr --dry-run"),
+])
+def test_the_nothing_ran_grader_ignores_everything_but_a_bash_command(line):
+    assert re.search(grader_pattern(GRADER_NOTHING_RAN), line) is None, line[:200]
+
+
+@pytest.mark.parametrize("command", [
+    "python3 -m agent_sdk_evals run evals --tier pr",
+    "cd evals/runner && python3 -m agent_sdk_evals run evals --tier nightly --out /tmp/o",
+])
+def test_the_nothing_ran_grader_still_catches_a_real_run(command):
+    assert re.search(grader_pattern(GRADER_NOTHING_RAN), bash_call(command)), command
+
+
+@pytest.mark.parametrize("line", [
+    # CFG050's own fix text, which the reply is supposed to quote.
+    tool_result("- **CFG050** the config declares runner_version 0.0.1. "
+                "Fix: run install_runner.py --upgrade (it shows a diff first)"),
+    json.dumps({"type": "assistant", "message": {"content": [
+        {"type": "text", "text": "Run `install_runner.py --upgrade` when you want the fix."}]}}),
+    bash_call("python3 skills/agent-create/scripts/install_runner.py . --upgrade --dry-run"),
+    bash_call("python3 skills/agent-create/scripts/install_runner.py . --json"),
+])
+def test_the_upgrade_grader_ignores_everything_but_a_bash_command(line):
+    assert re.search(grader_pattern(GRADER_NOT_UPGRADED), line) is None, line[:200]
+
+
+@pytest.mark.parametrize("command", [
+    "python3 skills/agent-create/scripts/install_runner.py . --upgrade",
+    "python3 install_runner.py /tmp/proj --upgrade --json",
+])
+def test_the_upgrade_grader_still_catches_a_real_upgrade(command):
+    assert re.search(grader_pattern(GRADER_NOT_UPGRADED), bash_call(command)), command
+
+
+def test_every_restraint_regex_grader_is_anchored_on_an_action():
+    """A `not_contains` grader on the trace must look at a tool call, not prose.
+
+    The two fixed here are anchored on `"command"`; the other four are anchored
+    on a quoted tool name (`"Edit"` / `"Write"`), which only appears unescaped
+    in a tool-call record. A new one anchored on neither would be matching text
+    the model merely printed, which is how both of these failed on 2026-10-13.
+    """
+    from agent_sdk_skills import frontmatter
+
+    unanchored = []
+    for path in sorted((PLUGIN_ROOT / "plugin-evals").glob("*/graders/*.md")):
+        text = path.read_text(encoding="utf-8")
+        # Cheap pre-filter: a judge grader's frontmatter is not this parser's.
+        if "type: regex" not in text or "match: not_contains" not in text:
+            continue
+        meta = frontmatter.parse(text).meta
+        if meta.get("target") != "trace":
+            continue
+        pattern = str(meta.get("pattern", ""))
+        if '"command"' not in pattern and '"(?:Edit|Write)"' not in pattern:
+            unanchored.append(str(path.relative_to(PLUGIN_ROOT)))
+    assert unanchored == [], (
+        "anchor these on a Bash `\"command\"` or a quoted tool name, or they match "
+        f"printed advice: {unanchored}")

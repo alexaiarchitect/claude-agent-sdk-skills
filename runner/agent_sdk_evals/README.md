@@ -37,7 +37,10 @@ readable comes before it. The exit code is the gate:
 
 Start with `--dry-run`. It resolves the config, the cases, the agent entry, the
 model, the isolation and the credential, refuses anything invalid, prints what
-*would* run, and exits 0 having started nothing.
+*would* run, and exits 0 having started nothing. It also reports
+`sessions_total` — the sum of the per-case runs, one session per run whatever
+the turn count — because a case's own `runs:` outranks the tier's, so the
+number of sessions is not `cases x tier.runs`.
 
 ## Four things worth knowing before you trust a number
 

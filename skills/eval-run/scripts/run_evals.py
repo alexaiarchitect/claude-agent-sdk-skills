@@ -37,6 +37,47 @@ from agent_sdk_skills.results import load_run_dir  # noqa: E402
 from agent_sdk_skills.runner_version import findings_for, inspect_runner_copy  # noqa: E402
 from agent_sdk_skills.sdk_subprocess import build_runner_cmd, describe_runner, run_project_runner  # noqa: E402
 
+
+def count_sessions(project: Path, tier: str, *, runs: int | None,
+                   case_glob: str | None, tags: list[str]) -> tuple[int, dict[str, dict]]:
+    """How many sessions the tier starts, and the per-case runs behind the sum.
+
+    One session per run, whatever the turn count: a scripted multi-turn case
+    replays its turns inside a single session. The sum is not
+    `cases x tier.runs`, because the runner resolves runs narrowest-first —
+    `--runs`, then the case's own `runs:`, then the tier's, then 1 — so a case
+    that pins `runs: 3` outranks a `runs: 1` tier.
+    """
+    from fnmatch import fnmatch
+
+    from agent_sdk_skills.evalcase import iter_cases
+
+    evals = project / "evals"
+    tier_runs = None
+    try:
+        config = json.loads((evals / "eval_config.json").read_text(encoding="utf-8"))
+        tier_runs = (config.get("tiers") or {}).get(tier, {}).get("runs")
+    except (OSError, ValueError, AttributeError):
+        tier_runs = None
+    # The runner's own `--tag` takes a single value, so a repeated flag ends with
+    # the last one winning; mirror that rather than inventing an intersection.
+    tag = tags[-1] if tags else None
+    per_case: dict[str, dict] = {}
+    for case in iter_cases(evals):
+        if case_glob and not fnmatch(case.name, case_glob):
+            continue
+        if tag and tag not in case.tags:
+            continue
+        case_runs = case.meta.get("runs") if isinstance(case.meta.get("runs"), int) else None
+        per_case[case.name] = {
+            "runs": int(runs or case_runs or tier_runs or 1),
+            "runs_source": ("cli" if runs else "case" if case_runs
+                            else "tier" if tier_runs else "default"),
+        }
+    for entry in per_case.values():
+        entry["tier_runs"] = tier_runs
+    return sum(c["runs"] for c in per_case.values()), per_case
+
 TIERS = ("pr", "nightly", "free", "run", "judge")
 
 
@@ -97,12 +138,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.wait_for_reset:
         runner_args.append("--wait-for-reset")
 
+    sessions_total, per_case_runs = count_sessions(
+        project, args.tier, runs=args.runs, case_glob=args.case, tags=list(args.tag))
     plan = {
         "project": str(project), "tier": args.tier, "cases": layout.evals.case_count,
         "runs": args.runs, "credential": credential.describe(), "cost_basis": credential.cost_basis,
         "interpreter": describe_runner(runner),
         "runner_copy": {"version": copy.version, "status": copy.status},
         "warnings": [f"{f.id} {f.message}" for f in warnings],
+        "sessions_total": sessions_total,
+        "runs_per_case": per_case_runs,
         "command": " ".join(build_runner_cmd(runner, runner_args)) if runner.available
                    else f"<python> -m agent_sdk_evals {' '.join(runner_args)}",
         "results_dir": str(out_dir),
@@ -116,6 +161,12 @@ def main(argv: list[str] | None = None) -> int:
             print("# eval-run (dry run)\n")
             for key in ("project", "tier", "cases", "credential", "interpreter", "command", "results_dir"):
                 print(f"- {key}: {plan[key]}")
+            pinned = [c["runs"] for c in per_case_runs.values()
+                      if c["runs_source"] == "case" and c["runs"] != c.get("tier_runs")]
+            detail = ", ".join(
+                f"{pinned.count(value)} case(s) pin runs: {value}" for value in sorted(set(pinned))
+            )
+            print(f"- sessions_total: {sessions_total}" + (f" ({detail})" if detail else ""))
             for warning in plan["warnings"]:
                 print(f"- warning: {warning}")
         return EXIT_OK

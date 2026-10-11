@@ -1,5 +1,5 @@
 ---
-max_turns: 14
+max_turns: 20
 allowed_tools: [Read, Glob, Grep, Write, Edit, Skill, AskUserQuestion, "Bash(python3 *)"]
 tags: [simulation]
 ---

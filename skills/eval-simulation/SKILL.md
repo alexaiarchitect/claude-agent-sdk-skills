@@ -53,7 +53,13 @@ Use it verbatim; a sibling skill's scripts are at
    case (free), a simulated-user case (judge calls per turn — state the number).
    Ask with `AskUserQuestion` and wait.
 
-4. **Generate.** `--dry-run` first, always, then write:
+4. **Generate.** `--dry-run` first, always, then write. "Always" includes the
+   case where the user has **already approved writing**: the dry run's write
+   plan is the record of what is about to change, so pre-approval skips the
+   *confirmation*, not the dry run. Every lever is generated — a persona by
+   `gen_persona.py`, mocks by `gen_mocks.py`, faults by `gen_faults.py` — never
+   hand-written, because the generators are what know the exact JSON shapes
+   `simulate.Persona` and `faults.load_plan` load:
 
    ```bash
    python3 ${CLAUDE_SKILL_DIR}/scripts/gen_mocks.py <project> --from-agent --dry-run
@@ -70,6 +76,19 @@ Use it verbatim; a sibling skill's scripts are at
    case that uses it, then re-run `validate_sim.py <project> --strict`. Hand
    grader choices to `/agent-sdk:eval-criteria` and the run to
    `/agent-sdk:eval-run`.
+
+6. **Say what wrote what.** In the answer, name the generator behind each file
+   and quote a line of its plan — "`gen_persona.py` planned **create**
+   `evals/personas/<name>.json`", "`gen_mocks.py` reported all three mocks as
+   **skip**, they already exist" — never "I wrote the persona", which reads as
+   a hand-written file. Then show the validator's output as it printed it: its
+   findings **by id** (`SIM…`, `EVC…`, `MCP…`) with the `Fix:` it gave, and its
+   `_Summary: N error(s), M warning(s), K note(s)._` line, unfiltered. "Both validators pass"
+   with the output piped through `grep` is not a report; a note that was
+   printed and not shown is the one the reader needed. Keep the credential line
+   the way the scripts gave it, `none found` included, and when the user has
+   said they are on a subscription, say that the figures are therefore
+   estimates rather than claiming a cost basis no script reported.
 
 ## Decision rules
 

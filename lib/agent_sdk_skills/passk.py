@@ -66,6 +66,30 @@ def runs_needed(goal: str = "iterating") -> int:
     return RUN_GUIDANCE.get(goal, 5)
 
 
+def pooled_warning(pooled: Sequence[Mapping[str, Any]]) -> str | None:
+    """Warn when several result directories were pooled but are not one series.
+
+    pass@k only means something over repeats of *the same* suite under the same
+    tier. Pooling a `pr` run of three cases with a `nightly` run of five mixes
+    populations: the denominators stop being comparable and a case that is
+    simply absent from one directory reads as fragile. Each entry is
+    ``{"path": ..., "tier": ..., "cases": [...]}``.
+    """
+    if len(pooled) < 2:
+        return None
+    tiers = sorted({(entry.get("tier") or "unknown") for entry in pooled})
+    case_sets = {tuple(sorted(entry.get("cases") or ())) for entry in pooled}
+    differ = []
+    if len(tiers) > 1:
+        differ.append("tiers " + "/".join(tiers))
+    if len(case_sets) > 1:
+        differ.append("case sets")
+    if not differ:
+        return None
+    return (f"pooled {len(pooled)} directories with different {' and '.join(differ)}; "
+            "these are not repeats of one suite — pass `--last` or a single directory")
+
+
 def resolution_warning(n: int) -> str | None:
     if n < 3:
         return f"{n} run(s) cannot measure reliability at all; it only tells you the agent can pass once"
@@ -126,7 +150,16 @@ class PassKReport:
     cases: list[CaseReliability] = field(default_factory=list)
     perfect_runs: int = 0
     sources: list[str] = field(default_factory=list)
-    warning: str | None = None
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def warning(self) -> str | None:
+        """Every warning on one line, for readers that expect a single string."""
+        return "; ".join(self.warnings) or None
+
+    def warn(self, note: str | None) -> None:
+        if note and note not in self.warnings:
+            self.warnings.append(note)
 
     @property
     def suite_pass_at(self) -> dict[int, float]:
@@ -152,12 +185,15 @@ class PassKReport:
             "suite_pass_at": {str(k): round(v, 4) for k, v in self.suite_pass_at.items()},
             "cases": [case.to_dict() for case in self.weakest],
             "all_reliable": self.all_reliable, "warning": self.warning,
+            "warnings": list(self.warnings),
         }
 
     def to_md(self) -> str:
         lines = [f"## Reliability over {self.runs} run(s) — `{self.suite or 'suite'}`", ""]
-        if self.warning:
-            lines.extend([f"> {self.warning}", ""])
+        for note in self.warnings:
+            lines.append(f"> {note}")
+        if self.warnings:
+            lines.append("")
         header = "| case | passed | pass@1 | " + " | ".join(f"pass@{k}" for k in self.ks if k != 1)
         lines.append(header + " | pass^3 | fragility | verdict |")
         lines.append("|---" * (5 + max(0, len(self.ks) - 1)) + "|---|")
@@ -187,15 +223,22 @@ def aggregate(
     ks: Iterable[int] = DEFAULT_KS,
     suite: str = "",
     sources: Sequence[str] = (),
+    pooled: Sequence[Mapping[str, Any]] = (),
 ) -> PassKReport:
-    """Build a reliability report from suite runs: one `{case: status}` per run."""
+    """Build a reliability report from suite runs: one `{case: status}` per run.
+
+    `pooled` describes the result directories the runs came from, as
+    ``{"path": ..., "tier": ..., "cases": [...]}``; it is only used to warn when
+    they are not repeats of one suite.
+    """
     runs = [dict(r) for r in suite_runs]
     k_values = sorted({int(k) for k in ks if int(k) >= 1})
     report = PassKReport(suite=suite, runs=len(runs), ks=k_values, sources=list(sources))
     if not runs:
-        report.warning = "no result files found"
+        report.warn("no result files found")
         return report
-    report.warning = resolution_warning(len(runs))
+    report.warn(resolution_warning(len(runs)))
+    report.warn(pooled_warning(list(pooled)))
 
     by_case: dict[str, list[str]] = {}
     for run in runs:
@@ -212,7 +255,6 @@ def aggregate(
 
     missing = [case.case for case in report.cases if case.runs != report.runs]
     if missing:
-        note = ("case(s) missing from some runs (a case was added between runs, or a run stopped early): "
-                + ", ".join(missing[:5]))
-        report.warning = f"{report.warning}; {note}" if report.warning else note
+        report.warn("case(s) missing from some runs (a case was added between runs, "
+                    "or a run stopped early): " + ", ".join(missing[:5]))
     return report

@@ -208,6 +208,8 @@ class Plan:
     runs: dict[str, int]
     warnings: list[str]
     entries: dict[str, str]
+    #: case -> ("cli" | "case" | "tier" | "default"), who decided `runs`.
+    runs_sources: dict[str, str] = field(default_factory=dict)
     #: case -> ("agent" | "runner-default"), who decided `permission_mode`.
     permission_modes: dict[str, str] = field(default_factory=dict)
 
@@ -238,6 +240,7 @@ def build_plan(args: argparse.Namespace, sdk: Any) -> Plan:
     models: dict[str, str] = {}
     isolation: dict[str, dict[str, Any]] = {}
     runs: dict[str, int] = {}
+    runs_sources: dict[str, str] = {}
     entries: dict[str, str] = {}
     permission_modes: dict[str, str] = {}
     errors: list[str] = []
@@ -277,10 +280,16 @@ def build_plan(args: argparse.Namespace, sdk: Any) -> Plan:
         options[case.name] = built
         models[case.name] = model
         isolation[case.name] = applied
+        # Precedence, narrowest first: --runs beats the case's own `runs:`, which
+        # beats the tier's. A case pinning its own repetition is the design, so the
+        # dry run reports who decided rather than quietly averaging it away.
         runs[case.name] = int(args.runs or case.runs or tier.runs or 1)
+        runs_sources[case.name] = (
+            "cli" if args.runs else "case" if case.runs else "tier" if tier.runs else "default"
+        )
     return Plan(config=config, tier=tier, cases=cases, options=options, models=models,
                 isolation=isolation, runs=runs, warnings=warnings, entries=entries,
-                permission_modes=permission_modes)
+                permission_modes=permission_modes, runs_sources=runs_sources)
 
 
 def _newer(left: str, right: str) -> bool:
@@ -560,6 +569,27 @@ class _HookTarget:
         self.records.clear()
 
 
+def sessions_line(sessions_total: int, cases: list[dict[str, Any]],
+                  tier_runs: int | None = None) -> str:
+    """`sessions: 11 (3 cases pin runs: 3)` — the arithmetic, not just the case count.
+
+    A case's own `runs:` outranks the tier's, so the number of sessions a tier
+    starts is the sum of the per-case runs, not `cases x tier.runs`. The
+    parenthetical names only the cases whose pinned `runs:` differs from the
+    tier's, because those are the whole of the difference between the sum and
+    the `cases x tier.runs` a reader would otherwise assume.
+    """
+    pinned: dict[int, int] = {}
+    for case in cases:
+        if case.get("runs_source") == "case" and case["runs"] != tier_runs:
+            pinned[case["runs"]] = pinned.get(case["runs"], 0) + 1
+    detail = ", ".join(
+        f"{count} case{'s' if count != 1 else ''} pin runs: {value}"
+        for value, count in sorted(pinned.items())
+    )
+    return f"sessions:   {sessions_total}" + (f" ({detail})" if detail else "")
+
+
 def dry_run_payload(args: argparse.Namespace, plan: Plan, creds: dict[str, Any],
                     versions: dict[str, str]) -> dict[str, Any]:
     command = ["python", "-m", "agent_sdk_evals", "run", str(args.evals_dir), "--tier", args.tier]
@@ -584,6 +614,10 @@ def dry_run_payload(args: argparse.Namespace, plan: Plan, creds: dict[str, Any],
                 "category": case.category,
                 "tags": case.tags,
                 "runs": plan.runs[case.name],
+                "runs_source": plan.runs_sources.get(case.name, "default"),
+                # One session per run, whatever the turn count: a scripted
+                # multi-turn case replays its turns inside the one session.
+                "sessions": plan.runs[case.name],
                 "model": plan.models[case.name],
                 "agent": plan.entries[case.name],
                 "isolation": plan.isolation[case.name],
@@ -600,6 +634,7 @@ def dry_run_payload(args: argparse.Namespace, plan: Plan, creds: dict[str, Any],
             for case in plan.cases
         ],
         "warnings": plan.warnings,
+        "sessions_total": sum(plan.runs[case.name] for case in plan.cases),
         "exit_code": EXIT_OK,
         "started_nothing": True,
     }
@@ -608,6 +643,7 @@ def dry_run_payload(args: argparse.Namespace, plan: Plan, creds: dict[str, Any],
         + (f", plan {creds['plan']}" if creds.get("plan") else "") + ")")
     say(f"  versions:   runner {RUNNER_VERSION}, sdk {versions['sdk_version']}, "
         f"cli {versions['cli_version']}")
+    say("  " + sessions_line(payload["sessions_total"], payload["cases"], plan.tier.runs))
     for case in payload["cases"]:
         say(f"  case {case['case']}: model {case['model']}, {case['runs']} run(s), "
             f"permission_mode {case['permission_mode']} ({case['permission_mode_source']}), "

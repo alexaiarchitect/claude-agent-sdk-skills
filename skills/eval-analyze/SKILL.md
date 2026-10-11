@@ -38,6 +38,14 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
    python3 ${CLAUDE_SKILL_DIR}/scripts/pass_at_k.py <project> --last 5
    ```
 
+   `summarize_results.py` reads the **last** run directory only. When the
+   question covers more than one — two runs the user wants compared, a run that
+   never produced a verdict beside the one that failed — pass `--last N`, or the
+   directory itself, so every run named is actually in the output. The reverse
+   holds for `pass_at_k.py`: it pools whatever it is given, and pooling runs of
+   different tiers or different case sets is not a reliability measurement. It
+   warns when it had to, and the warning is the answer, not a footnote.
+
 2. **Report.** Per case: statuses, the failed graders with their reasons, the
    quadrant, the never-evaluated cause, how the run ended. Lead with the count
    and the single most informative failure. Quote the cost line with its basis.

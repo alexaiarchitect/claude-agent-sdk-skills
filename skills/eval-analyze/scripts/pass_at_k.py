@@ -8,6 +8,10 @@ retry rescues it), pass^k (the chance k attempts all pass) and the gap between
 them, which is fragility. A case that passes 2 runs in 5 is not "mostly
 working"; it fails three requests in five.
 
+Pooling only means something over repeats of one suite: when the directories
+read differ in tier or in case set, the report warns and says to pass `--last`
+or a single directory instead.
+
     pass_at_k.py <project|evals|results> [--last N] [--case NAME] [--k 1,3,5] [--json]
 
 Exit codes: 0 every case reliable (pass@1 >= 0.95), 1 not, 2 nothing to read.
@@ -44,8 +48,10 @@ def main(argv: list[str] | None = None) -> int:
     samples = suite_runs(runs)
     if args.case:
         samples = [{args.case: r[args.case]} for r in samples if args.case in r]
+    pooled = [{"path": r.path, "tier": r.aggregate.tier if r.aggregate else None,
+               "cases": sorted(r.cases)} for r in runs]
     report = aggregate(samples, ks=ks, suite=Path(runs[0].path).parent.name,
-                       sources=[r.path for r in runs])
+                       sources=[r.path for r in runs], pooled=pooled)
     if args.json:
         print(json.dumps(report.to_dict(), indent=2))
     else:

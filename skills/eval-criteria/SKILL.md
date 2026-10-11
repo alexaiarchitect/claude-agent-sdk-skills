@@ -38,11 +38,20 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
    ```bash
    python3 ${CLAUDE_SKILL_DIR}/scripts/validate_config.py <project>
    python3 ${CLAUDE_SKILL_DIR}/scripts/grader_info.py
+   python3 ${CLAUDE_SKILL_DIR}/../eval-review/scripts/crosscheck_tools.py <project>
    ```
+
+   The cross-check is what makes the recommendation this agent's rather than
+   generic: it prints the agent's real tool names, read from its code, and a
+   grader naming a tool the agent does not have asserts nothing. Never name a
+   tool that no script output shows.
 
 2. **Report.** The config's model pin, judge model and samples, tier split and
    budgets, plus any `CFG` findings. For a grader question, show the candidate
-   types with their "does not prove" line — that column is the decision.
+   types with their "does not prove" line **from the catalog, in the catalog's
+   own terms** — that column is the decision, and a gap written from scratch is
+   an opinion where the catalog had a fact. Carry the type's line first; then,
+   if it helps, say what it means for this case.
 
 3. **Options.** Two to four, all `free` to *write*. Say which of them adds a
    `judge`-tier cost when the suite next runs: one `llm` grader is
@@ -50,9 +59,13 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 
 4. **Confirm** with `AskUserQuestion`.
 
-5. **Act.** `--dry-run`, show the plan, write. Then fill in the placeholders
-   with Edit: a grader left with `TODO-tool` or a TODO pattern asserts nothing,
-   and the script exits 1 to say so.
+5. **Act.** `--dry-run`, show the plan, write. The dry run happens **even when
+   the user has already approved writing**: its write plan is the record of what
+   is about to change; pre-approval skips the *confirmation*, not the dry run.
+   Graders come from `gen_grader.py` and the config from `gen_config.py`, never
+   hand-written. Then fill in the placeholders with Edit: a grader left with
+   `TODO-tool` or a TODO pattern asserts nothing, and the script exits 1 to say
+   so.
 
 6. **Verify.**
 
@@ -71,6 +84,12 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 | did it produce the artifact? | `file_exists`, `structured_output` | whether the values are true |
 | did it say the right thing? | `regex`, `final_text` | whether it meant it |
 | is the answer acceptable? | `llm` | whether another sample would agree |
+A refusal case needs `no_tool` or an `EXACT` trajectory specifically, and not
+`IN_ORDER` or `ANY_ORDER`: those two tolerate extra calls, so the forbidden call
+can happen in between and the grader still passes. `no_tool` asserts the absence
+itself; `EXACT` asserts the whole call list, so anything extra fails it. Pair
+either with an `llm` grader on the explanation — restraint alone could also be
+an agent that crashed or refused everything.
 
 ## Decision rules
 
@@ -79,6 +98,15 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
   less stable than the regex would have been.
 - **A judge grader is half a case.** It reads text, so it can never prove what
   the agent did. Pair it with a trace-level grader and say so in the body.
+- **A refusal needs `no_tool` or `EXACT`, never `IN_ORDER`/`ANY_ORDER`.** The
+  looser matches tolerate extra calls, so the call the case forbids can happen
+  in between and still pass; `no_tool` asserts the absence itself and `EXACT`
+  asserts the whole call list, so anything extra fails it. State that in the
+  reply for **every refusal case you touch**, including one that already has
+  the right grader — "already correct" without the reason teaches the reader
+  nothing, and the reader is deciding. Say the other half too: pair it with an
+  `llm` grader on the explanation, because restraint alone could also be an
+  agent that crashed or refused everything.
 - **One claim per criterion.** If it needs "and", it is two graders — a
   compound verdict does not say which half failed.
 - **Always write a FAIL clause.** "Otherwise FAIL" leaves the near-misses
@@ -117,7 +145,9 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 ## Completion checklist
 
 - [ ] The config or the existing graders were read before anything was proposed.
-- [ ] Each grader offered was named with what it does **not** prove.
+- [ ] Each grader offered carried **that type's own** "does not prove" line
+      from `grader_info.py`, in the option where it is offered. A limit quoted
+      for a different type does not count.
 - [ ] The judge-call arithmetic (samples x runs x cases) was stated before an `llm` grader was added.
 - [ ] `--dry-run` was shown and confirmed before writing.
 - [ ] Every TODO placeholder in a generated grader was filled in.

@@ -64,7 +64,7 @@ exceeded.
 | `pass-at-k` | reliability comes from repeated runs, read as pass@1 |
 | `agent-review-drift` | a review reports the drift and edits nothing, with `Write`/`Edit` available |
 | `ci-setup` | CI gates on the runner's exit code with the OAuth secret; a workflow file actually lands |
-| `runner-stale` | a stale runner copy is reported as `DEP001` and the upgrade is offered, not applied |
+| `runner-stale` | a stale runner copy is reported by id (`DEP001` from the runner check, or `CFG050` from the validator) and the upgrade is offered, not applied |
 | `harness-hooks` | hook defects are reported by id from the linter, the correct shape is explained, nothing is written |
 | `simulation` | simulated users bring their cost and the trajectory-grader constraint with them; the persona and mocks are validated |
 | `case-validate` | a validation request reaches `eval-review`, runs the validator before pronouncing, and finds the planted `EVC003` |
@@ -79,7 +79,7 @@ with the case's arguments. The shared script prepares the session's working dire
 so nothing in the repository is touched:
 
 ```
-scaffold.sh [<fixture>|none] [<mutation>] [stage-results] [stage-traces] [stage-sessions]
+scaffold.sh [<fixture>|none] [<mutation>] [stage-results[=<dirs>]] [stage-traces] [stage-sessions]
 ```
 
 - **fixture** copies a project from `tests/fixtures/agents/` and a copy of the
@@ -88,7 +88,11 @@ scaffold.sh [<fixture>|none] [<mutation>] [stage-results] [stage-traces] [stage-
   `retiring-judge`, `stale-runner`).
 - **stage-\*** directives copy fixture data into `./fixtures/` inside the
   sandbox, so prompts use sandbox-relative paths instead of reaching back into
-  the plugin.
+  the plugin. `stage-results` takes an optional comma-separated selector
+  (`stage-results=failure_only,not_evaluated`) naming which run directories to
+  copy; without one it stages them all. All four at once makes "the last run"
+  ambiguous — their timestamps are identical — and makes `pass_at_k.py` pool
+  unrelated series, so a case asking about one run names the run it means.
 
 It also writes `.scaffold/manifest.txt` (what ran) and `.scaffold/protected.sha256`
 (a checksum per file the case must not modify).
@@ -105,8 +109,17 @@ a finding in its own words, but the id, the severity and the figures have to be
 the script's. Every `criteria.md` carries `focus: trace`, because an `llm`
 grader's default `focus` is `last_message` and a judge looking only at the
 final answer cannot see the script output these rubrics rest on. `trace` shows
-it the first 12 and the last 12 messages, which covers these cases whole (4-9
-turns). Every `criteria.md` FAIL list ends with the same clause — advice or a verdict given without running
+it the **first 12 and the last 12 messages** and nothing in between, and that
+window is fixed — there is no flag that widens it. Measured on 2026-10-13, the
+longer cases elide far more than they show (`simulation` elided 87 messages,
+`runner-stale` 17), so the script output a rubric asks about is routinely
+outside the judge's view. Every `criteria.md` therefore carries a *What the
+judge can see* paragraph: an elided middle is not evidence that a script was
+never run, and an item counts as evidenced when the script's call or output is
+visible **or** the response states it with the specificity only that script's
+output has (a finding id, a verbatim reason or `Fix:` string, an exact figure).
+That test applies to the items the rubric names; the rest of an answer is
+neither required nor penalised. Every `criteria.md` FAIL list ends with the same clause — advice or a verdict given without running
 the plugin's script — so a model that answers correctly from its own knowledge
 of the SDK still fails. That is deliberate: these cases measure whether the
 skills fire and are followed, not whether the model knows the Agent SDK.

@@ -11,11 +11,11 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.1.1"
+RUNNER_VERSION = "0.1.2"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the

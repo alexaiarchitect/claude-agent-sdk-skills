@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -138,6 +139,59 @@ def test_a_dry_run_still_refuses_a_bad_override(project, monkeypatch):
         execute(project, [], monkeypatch, dry_run=True)
     assert exc.value.code == "EVC003" and "tolls" in str(exc.value)
     assert sdk.calls() == []
+
+
+def _pin_runs(project: Path, case: str, runs: int) -> None:
+    """Give one case its own `runs:`, as the `good` fixture's three cases do."""
+    path = project / "evals" / case / "prompt.md"
+    path.write_text(path.read_text().replace("category:", f"runs: {runs}\ncategory:", 1))
+
+
+def test_a_dry_run_counts_the_sessions_a_case_pinned_its_own_runs_for(project, monkeypatch,
+                                                                      capsys):
+    """A case's `runs:` outranks the tier's, so the sum is not `cases x tier.runs`.
+
+    The `pr` tier here says `runs: 1` over three cases, which reads as three
+    sessions. Two cases pinning `runs: 3` make it seven, and a dry run that
+    printed only the case count would under-count what the real run spends.
+    """
+    _pin_runs(project, "echo-ready", 3)
+    _pin_runs(project, "lookup-first", 3)
+    payload, code = execute(project, READY_RUN, monkeypatch, dry_run=True)
+    assert code == EXIT_OK
+    assert payload["sessions_total"] == 7, "3 + 3 + 1, not 3 x 1"
+    by_case = {c["case"]: c for c in payload["cases"]}
+    assert by_case["echo-ready"]["runs"] == 3
+    assert by_case["echo-ready"]["runs_source"] == "case"
+    assert by_case["echo-ready"]["sessions"] == 3
+    assert by_case["structured-answer"]["runs"] == 1
+    assert by_case["structured-answer"]["runs_source"] == "tier"
+    out = capsys.readouterr().out
+    assert re.search(r"sessions:\s+7 \(2 cases pin runs: 3\)", out), out
+
+
+def test_the_cli_runs_flag_outranks_a_pinned_case_and_the_dry_run_says_so(project, monkeypatch,
+                                                                         capsys):
+    """`--runs` is the narrowest of the four sources, so it decides every case."""
+    _pin_runs(project, "echo-ready", 3)
+    payload, _ = execute(project, READY_RUN, monkeypatch, dry_run=True, runs=2)
+    assert payload["sessions_total"] == 6
+    assert {c["runs_source"] for c in payload["cases"]} == {"cli"}
+    out = capsys.readouterr().out
+    assert re.search(r"sessions:\s+6$", out, re.MULTILINE), \
+        "no case pinned anything --runs did not overrule, so no parenthetical"
+
+
+def test_a_multi_turn_case_still_counts_one_session_per_run(project, monkeypatch):
+    """A scripted multi-turn case replays its turns inside the one session."""
+    path = project / "evals" / "echo-ready" / "prompt.md"
+    header, _, body = path.read_text().partition("---\n")[2].partition("---\n")
+    path.write_text("---\n" + header.replace("category:", "runs: 2\ncategory:", 1)
+                    + 'turns:\n  - "say ready"\n  - "say it again"\n---\n')
+    payload, _ = execute(project, READY_RUN, monkeypatch, dry_run=True, case="echo-ready")
+    assert payload["cases"][0]["runs"] == 2
+    assert payload["cases"][0]["sessions"] == 2, "two runs, one session each, not one per turn"
+    assert payload["sessions_total"] == 2
 
 
 # -- a passing run ----------------------------------------------------------
@@ -491,7 +545,7 @@ def test_version_reports_all_three_versions():
     payload, code = cli_module.execute_version(argparse.Namespace(command="version", json=True))
     assert code == EXIT_OK
     assert set(payload) == {"runner_version", "sdk_version", "cli_version", "python"}
-    assert payload["runner_version"] == "0.1.1"
+    assert payload["runner_version"] == "0.1.2"
     assert payload["sdk_version"] == sdk.__version__
     assert payload["cli_version"] == "2.1.294", "the CLI version is read, never derived"
 

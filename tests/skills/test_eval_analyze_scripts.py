@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def write_run_dir(root: Path, name: str, cases: dict, *, cost=0.01) -> Path:
+def write_run_dir(root: Path, name: str, cases: dict, *, cost=0.01, tier="nightly") -> Path:
     """cases: {name: [(status, graders)]} where graders is a list of (name, type, status, reason)."""
     directory = root / "evals" / "results" / name
     directory.mkdir(parents=True)
@@ -22,11 +22,11 @@ def write_run_dir(root: Path, name: str, cases: dict, *, cost=0.01) -> Path:
                                        "usage": {"input_tokens": 5, "output_tokens": 50, "cache_read_input_tokens": 100}}})
         (directory / f"{case}.result.json").write_text(json.dumps({
             "schema": "agent-sdk-skills.result/1", "case": case, "category": "edge",
-            "config": {"tier": "nightly", "cost_basis": "subscription"}, "runs": records,
+            "config": {"tier": tier, "cost_basis": "subscription"}, "runs": records,
             "summary": {"passed": 0, "failed": 0, "not_evaluated": 0, "pass_rate": 0, "cost_usd": 0}}))
     (directory / "aggregate.json").write_text(json.dumps({
-        "schema": "agent-sdk-skills.aggregate/1", "tier": "nightly", "cases": [], "totals": totals,
-        "exit_code": 0, "runner_version": "0.1.1", "sdk_version": "0.2.165", "cli_version": "2.1.294",
+        "schema": "agent-sdk-skills.aggregate/1", "tier": tier, "cases": [], "totals": totals,
+        "exit_code": 0, "runner_version": "0.1.2", "sdk_version": "0.2.165", "cli_version": "2.1.294",
         "credential": {"kind": "subscription"}}))
     return directory
 
@@ -73,6 +73,35 @@ def test_pass_at_k_across_directories_and_inner_runs(run_script, tmp_path):
     assert "missing from some runs" in doc["warning"]
     md = run_script("skills/eval-analyze/scripts/pass_at_k.py", tmp_path, "--k", "1,3")
     assert "pass@3" in md.stdout and "Flaky" in md.stdout
+
+
+def test_pass_at_k_warns_when_it_pooled_directories_that_are_not_one_series(run_script, tmp_path):
+    """Pooling is only meaningful over repeats of the same suite.
+
+    Two directories with different tiers, or different case sets, are different
+    populations: the denominators stop being comparable and a case that is
+    merely absent from one of them reads as fragile. The script says so and
+    names the way out (`--last`, or one directory).
+    """
+    ok = [("ok", "regex", "PASSED", None)]
+    write_run_dir(tmp_path, "20260930T120000", {"a": [("PASSED", ok)]}, tier="pr")
+    write_run_dir(tmp_path, "20260930T130000", {"a": [("PASSED", ok)], "b": [("PASSED", ok)]}, tier="nightly")
+    doc = run_script("skills/eval-analyze/scripts/pass_at_k.py", tmp_path, "--json").json()
+    pooled = [w for w in doc["warnings"] if w.startswith("pooled 2 directories")]
+    assert pooled, f"no pooled-directory warning in {doc['warnings']}"
+    assert "tiers" in pooled[0] and "case sets" in pooled[0]
+    assert "--last" in pooled[0], "say how to narrow it"
+    assert pooled[0] in doc["warning"], "the one-line form carries it too"
+    md = run_script("skills/eval-analyze/scripts/pass_at_k.py", tmp_path).stdout
+    assert "pooled 2 directories" in md, "the prose report warns as well"
+
+
+def test_pass_at_k_does_not_warn_about_one_series_in_one_directory(run_script, tmp_path):
+    ok = [("ok", "regex", "PASSED", None)]
+    bad = [("ok", "regex", "FAILED", "no match")]
+    write_run_dir(tmp_path, "20260930T120000", {"a": [("PASSED", ok), ("FAILED", bad), ("PASSED", ok)]})
+    doc = run_script("skills/eval-analyze/scripts/pass_at_k.py", tmp_path, "--json").json()
+    assert not any(w.startswith("pooled") for w in doc["warnings"])
 
 
 def test_calibration_sample_prefers_judged_runs_and_is_reproducible(run_script, tmp_path):

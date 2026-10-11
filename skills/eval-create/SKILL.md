@@ -46,7 +46,14 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 
 2. **Report.** Cases by category, the adversarial share against the 20%
    target, the rules with no case, and the refusal rules with no case that
-   tries to break them.
+   tries to break them. Quote the matrix's own figures: `rule_coverage: N/M`,
+   and for each rule the cases its row lists. **When every rule already has a
+   case** — `rule_coverage: 4/4`, no empty row — say exactly that, and then pick
+   from the *thinnest* rows: the rules the matrix gives the fewest cases, named
+   with their counts. Never present a gap the matrix does not show as one it
+   does; the matrix matches on tools and phrases, so "this rule has one case and
+   these three have five" is evidence and "I read the prompts and this branch
+   looks untested" is an opinion. Say which it is.
 
 3. **Options.** Two to four, each `free`: the highest-value gap first
    (usually an adversarial case for an untested refusal), then the others.
@@ -54,15 +61,32 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 
 4. **Confirm** with `AskUserQuestion`.
 
-5. **Act.** `--dry-run`, show the plan, then write. Then **fill in the TODOs**
-   with Edit — the generated prompt body and any `TODO-tool` placeholder. A
-   generated case that is left as generated asserts nothing.
+5. **Act.** `--dry-run`, show the plan, then write. The dry run happens **even
+   when the user has already approved writing**: its write plan is the record of
+   what is about to change. Pre-approval skips the *confirmation*, not the dry
+   run. Cases come from `gen_cases.py`, never from a hand-written prompt.md and
+   grader — the generator is what knows the frontmatter keys and the grader
+   fields. Then **fill in the TODOs** with Edit — the generated prompt body and
+   any `TODO-tool` placeholder. A generated case that is left as generated
+   asserts nothing.
 
 6. **Verify.**
 
    ```bash
    python3 ${CLAUDE_SKILL_DIR}/../eval-review/scripts/validate_cases.py <project>
    ```
+
+   Run it **unfiltered** — no `| sed`, `| grep` or `| head`. A filter that
+   happens to match nothing leaves no report at all, and the lines it cuts are
+   the ones the reader needed. Then put the output in the answer: each finding
+   by its id (`EVC041`, `CFG013`, …) with the `Fix:` the script printed, and the
+   `_Summary: N error(s), M warning(s), K note(s)._` line. "It validates with 0
+   errors" is a paraphrase, not a report.
+
+7. **Show the plan in the answer.** Quote the generator's `## Write plan` block
+   — every `**create**` line — in the final reply, not only in the terminal. A
+   reply that says a dry run was done is not the plan; the plan is the record of
+   what changed.
 
 ## What each category gets
 
@@ -119,7 +143,10 @@ at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 
 - [ ] The existing suite and its coverage gaps were reported before anything was written.
 - [ ] The chosen case names the rule or behaviour it covers.
-- [ ] `--dry-run` was shown and confirmed before writing.
+- [ ] `--dry-run` was shown before writing, and its `## Write plan` lines are
+      quoted in the answer.
+- [ ] `validate_cases.py` was run unfiltered and its findings and summary line
+      are in the answer, by id.
 - [ ] Every TODO in the generated prompt and graders was filled in, not left as generated.
 - [ ] An adversarial case has a trace-level grader, not only an `llm` one.
 - [ ] `validate_cases.py` was run afterwards and its findings shown.

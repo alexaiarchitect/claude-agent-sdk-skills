@@ -76,10 +76,15 @@ tiers, and `--concurrency 1` in both.
    python3 ${CLAUDE_SKILL_DIR}/scripts/lint_workflows.py <project>
    ```
 
-   Show the write plan before writing it. Existing files are skipped unless
-   `--force`. Lint what was written: the generated files are expected to come
-   back clean, and a finding means the project has something the template could
-   not know about.
+   Show the write plan before writing it. The `--dry-run` pass runs **even when
+   the user has already approved writing**: its write plan is the record of what
+   is about to change, and without it the plan and the change land in the same
+   breath, so there is nothing to check the result against. Pre-approval skips
+   the *confirmation*, never the dry run. Never hand-write a workflow file:
+   `gen_workflows.py` is the only thing that knows the gate's shape. Existing
+   files are skipped unless `--force`. Lint what was written: the generated
+   files are expected to come back clean, and a finding means the project has
+   something the template could not know about.
 
 ## The two tiers
 

@@ -38,16 +38,26 @@ terminal scroll.
    python3 ${CLAUDE_SKILL_DIR}/scripts/run_evals.py <project> --tier pr --dry-run
    ```
 
-   `--dry-run` prints the exact command, the credential kind and the results
-   directory, and starts nothing.
+   `--dry-run` prints the exact command, the credential kind, the results
+   directory and a `sessions_total:` line, and starts nothing. Add `--json` for
+   the per-case `runs` and `runs_source` behind that total.
 
 2. **Report.** The runner copy version against the plugin's, the interpreter
    and SDK version, the credential line verbatim, the tier's graders, and how
-   many sessions will start.
+   many sessions will start. Quote the dry run's own lines rather than
+   re-deriving them: **`sessions_total`** is the session count (never recount
+   the cases by hand), and the `interpreter:` line carries its own
+   qualification — `(unverified - claude_agent_sdk not checked)` means the dry
+   run did not probe the SDK, so say that it was not verified rather than
+   asserting a version either way. `check_runner.py`'s probe line is the other
+   half: report its result as it is worded.
 
 3. **Options and cost.** Say the arithmetic: cases × runs sessions, plus
    `llm` graders × samples × runs judge calls. Offer the `pr` tier (free
-   graders, one run) before `nightly` (judges, repeated runs). On a
+   graders, one run) before `nightly` (judges, repeated runs), each with its
+   cost tier and its own numbers — dry-run the other tier too rather than
+   guessing what it would add, or read its `runs` and `graders` from the
+   config's tier block and say that is where they came from. On a
    subscription, mention that a usage limit mid-suite marks the rest
    `NOT_EVALUATED` and exits 3, never a fake failure.
 

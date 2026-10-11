@@ -3,6 +3,22 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.1.2 — 2026-10-11
+
+The runner's behaviour changed, so a project copy at 0.1.1 is reported as older
+(`DEP001`) and offered the upgrade.
+
+- **`--dry-run` counts sessions, not cases.** `runs` is resolved
+  narrowest-first — `--runs`, then the case's own `runs:`, then the tier's, then
+  1 — and a case pinning its own repetition outranks the tier, which is the
+  design. The dry run now says so: the JSON carries `sessions_total` (the sum of
+  the per-case runs; one session per run, since a `turns:` or `simulated_user`
+  case replays inside the one session) and per-case `runs`, `sessions` and
+  `runs_source` (`"cli"` | `"case"` | `"tier"` | `"default"`), and the prose
+  prints `sessions: 11 (3 cases pin runs: 3)`. The plugin's `run_evals.py
+  --dry-run` reports the same total. Before this, the worked example's `pr` tier
+  read as 5 sessions and started 11.
+
 ## 0.1.1 — 2026-10-11
 
 Re-checked against `claude-agent-sdk` 0.2.165 with its bundled CLI 2.1.294;

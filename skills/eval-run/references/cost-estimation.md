@@ -3,13 +3,24 @@
 ## The arithmetic
 
 ```
-sessions     = cases × runs                       (+ subagent turns inside a session)
-judge calls  = Σ over cases of (llm graders × samples) × runs
+runs(case)   = --runs  or  case `runs:`  or  tier `runs`  or  1   (first set wins)
+sessions     = Σ over cases of runs(case)         (+ subagent turns inside a session)
+judge calls  = Σ over cases of (llm graders × samples) × runs(case)
 ```
 
-Twelve cases, three runs, two `llm` graders at three samples: 36 sessions and
-216 judge calls. Say both numbers before the user chooses. The `pr` tier in a
+Twelve cases at three runs each, two `llm` graders at three samples: 36 sessions
+and 216 judge calls. Say both numbers before the user chooses. The `pr` tier in a
 generated config has no `llm` graders, so a per-change gate never pays a judge.
+
+`cases × runs` is only right when every case takes the tier's `runs`. A case's
+own `runs:` outranks the tier's (and `--runs` outranks both), so the sum is
+per-case: the worked example in `tests/fixtures/agents/good/evals` has five
+cases on a `pr` tier at `runs: 1`, three of them pinning `runs: 3`, and starts
+3 + 3 + 3 + 1 + 1 = **11** sessions — more than twice the five a case count
+suggests, and more than twice the money. One session per run whatever the turn
+count: a `turns:` or `simulated_user` case replays inside the one session.
+`--dry-run` does this arithmetic for you and prints `sessions_total`; read that
+number, not the case count, before quoting a cost.
 
 ## What a session costs
 
@@ -76,4 +87,5 @@ running totals, `max_budget_usd`), `https://code.claude.com/docs/en/agent-sdk/co
 `https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom`,
 `https://platform.claude.com/docs/en/about-claude/models/overview` (cache-read
 percentages); measurements in `.dev/VERIFIED-FACTS.md`. Re-read 2026-10-11
-against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; the session
+arithmetic and the `runs` precedence re-checked 2026-10-13 against `cli.py`.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prepare the eval session's working directory.
 #
-#   scaffold.sh [<fixture>|none] [<mutation>] [stage-results] [stage-traces] [stage-sessions]
+#   scaffold.sh [<fixture>|none] [<mutation>] [stage-results[=<dirs>]] [stage-traces] [stage-sessions]
 #
 # Fixtures live in tests/fixtures/agents/ and use a library-reservations domain,
 # so a case can exercise a real project without touching the repository. `none`
@@ -18,6 +18,13 @@
 #   stage-traces     tests/fixtures/traces   -> ./fixtures/traces
 #   stage-sessions   tests/fixtures/sessions -> ./fixtures/sessions
 #
+# `stage-results` takes an optional comma-separated selector naming which run
+# directories to copy, e.g. `stage-results=failure_only,import_failed`; with no
+# selector every directory is staged, as before. Staging all four at once makes
+# "the last run" ambiguous (their timestamps are identical) and makes
+# `pass_at_k.py` pool unrelated series, so a case that asks about one run should
+# name the one it means.
+#
 # It also writes ./.scaffold/ for a human: manifest.txt records what ran,
 # protected.sha256 records the checksum of every file a case must not modify.
 # No grader reads either one — `file_exists` counts only files Claude created
@@ -33,12 +40,14 @@ plugin_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture=""
 mutation=""
 stage_results=0
+stage_results_only=""
 stage_traces=0
 stage_sessions=0
 
 for arg in "$@"; do
   case "${arg}" in
     stage-results)  stage_results=1 ;;
+    stage-results=*) stage_results=1; stage_results_only="${arg#stage-results=}" ;;
     stage-traces)   stage_traces=1 ;;
     stage-sessions) stage_sessions=1 ;;
     *)
@@ -113,8 +122,22 @@ esac
 staged=""
 if [[ "${stage_results}" -eq 1 ]]; then
   mkdir -p ./fixtures/results
-  cp -R "${plugin_root}/tests/fixtures/results/." ./fixtures/results/
-  staged="${staged} results"
+  if [[ -z "${stage_results_only}" ]]; then
+    cp -R "${plugin_root}/tests/fixtures/results/." ./fixtures/results/
+    staged="${staged} results"
+  else
+    IFS=',' read -r -a wanted <<< "${stage_results_only}"
+    for name in "${wanted[@]}"; do
+      [[ -z "${name}" ]] && continue
+      run_dir="${plugin_root}/tests/fixtures/results/${name}"
+      if [[ ! -d "${run_dir}" ]]; then
+        echo "no such results fixture: ${name}" >&2
+        exit 2
+      fi
+      cp -R "${run_dir}" ./fixtures/results/
+    done
+    staged="${staged} results(${stage_results_only})"
+  fi
 fi
 if [[ "${stage_traces}" -eq 1 ]]; then
   mkdir -p ./fixtures/traces

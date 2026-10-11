@@ -51,6 +51,13 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
    present and wrong; a gap is something absent — no hooks, no MCP server, no
    subagents — and a gap is a suggestion, not a defect.
 
+   Name every finding by the id the script printed (`HOK001`, `MCP001`, …),
+   with the severity the script gave it and its `Source:` line, so the reader
+   can check the claim. Never assign a severity of your own, and never report
+   an id the script did not print. Describing a hook defect in prose with no id
+   leaves the reader nothing to look up and nothing to re-run. When the fix is
+   a hook, offer the generator by name — `gen_hook.py` — as the next step.
+
 3. **Options.** Fix the wiring errors first; then generate what is missing.
    Name the cost: every generator here is free and writes at most one file.
 
