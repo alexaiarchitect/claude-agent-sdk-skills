@@ -40,11 +40,12 @@ agent.
 
 **Omitting `permission_mode` changed meaning too**, and later than the rename.
 It used to be equivalent to passing `"default"` — the docs state the equivalence
-ended before TypeScript Agent SDK v0.3.286 — and from Claude Code **2.1.285** a
-headless session that does not fetch the interactive feature flags (a gateway
-token, a third-party provider, telemetry off) starts in **`auto`** instead, where
-a classifier reviews each shell command and network request and broad allow
-rules such as a bare `Bash` are dropped. A project migrated years ago and never
+ended before TypeScript Agent SDK v0.3.286 — and on Claude Code
+**2.1.285–2.1.301** a headless session that fetches no feature flags (a gateway
+or third-party provider, telemetry off, the first run after an upgrade) starts in
+**`auto`** instead, where a classifier reviews each shell command and network
+request and broad allow rules such as a bare `Bash` are dropped (2.1.302 starts
+those in `default` again). A project migrated years ago and never
 revisited is exactly the one that relies on the old equivalence. Pass the mode
 explicitly; `OPT013` flags the omission.
 
@@ -75,4 +76,6 @@ system prompt default, settings sources default and the 0.1.59 note);
 `https://code.claude.com/docs/en/agent-sdk/permissions` and
 `https://code.claude.com/docs/en/permission-modes` (which mode a session starts
 in). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
-docs.
+docs. The 2.1.302 unset-mode change is from
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
+2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

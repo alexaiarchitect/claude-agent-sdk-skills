@@ -47,7 +47,7 @@ branch on them and a test may assert them.
 | `OPT002` | warn (**error** under `--strict`) | `permission_mode="bypassPermissions"` | approves everything that reaches the permission-mode step. Deny rules still apply; nothing else does. It is also one of the two modes that skip the network-path check |
 | `OPT003` | info | allow/deny lists set but `tools` never set | the built-ins are still in context. `tools=[]` is what removes them; MCP tools are unaffected either way |
 | `OPT004` | warn | `"Skill"` in `allowed_tools` | deprecated. The `skills` option configures everything including allowing the Skill tool |
-| `OPT013` | warn | `permission_mode` is not passed at all | the mode becomes whatever the CLI picks. From Claude Code **2.1.285** a headless session that does not fetch the interactive feature flags — a third-party provider, telemetry off, a gateway token — starts in **`auto`**, where a classifier reviews each shell command and network request and a bare allow rule such as `Bash` no longer settles the call. Pass `"default"` or `"dontAsk"` explicitly. This plugin's runner forces `"dontAsk"` when the agent leaves it unset and records `permission_mode_source: "runner-default"`, but the agent also runs outside the runner, so the finding stands |
+| `OPT013` | warn | `permission_mode` is not passed at all | the mode becomes whatever the CLI picks. A session that fetches feature flags starts in `default` (measured on 2.1.292 and 2.1.301); on Claude Code **2.1.285–2.1.301** one that fetches none — a third-party provider or gateway, telemetry off, the first run after an install or upgrade — starts in **`auto`**, where a classifier reviews each shell command and network request and a bare allow rule such as `Bash` no longer settles the call; **2.1.302** starts those in `default` too. A warn, because the behaviour depends on CLI version and environment. Pass `"default"` or `"dontAsk"` explicitly. This plugin's runner forces `"dontAsk"` when the agent leaves it unset and records `permission_mode_source: "runner-default"`, but the agent also runs outside the runner, so the finding stands |
 | `OPT040` | warn | `agents` defined but neither `Agent` nor `Task` is available | Claude cannot delegate. The CLI reports the tool as `Task`, the docs and SDK call it `Agent`; a check has to accept both |
 | `OPT060` | **error** | `permission_mode` is not one of the six literals | `default`, `acceptEdits`, `plan`, `bypassPermissions`, `dontAsk`, `auto` |
 | `OPT061` | **error** | `effort` is not one of the five literals | `low`, `medium`, `high`, `xhigh`, `max` |
@@ -79,7 +79,7 @@ branch on them and a test may assert them.
 | Id | Severity | Trigger | Why |
 |---|---|---|---|
 | `HOK001` | **error** | a callback is not `async def`, or does not take three parameters | the SDK awaits `cb(input_data, tool_use_id, context)` |
-| `HOK002` | **error** | a callback returns a dict the SDK does not read — no `hookSpecificOutput` **and** a key outside the common fields — or a `hookSpecificOutput` whose `hookEventName` is not the event it is registered on | nothing in that dict reaches the decision. Not flagged: `return {}` (allow, unchanged), and a return made only of common top-level fields (`continue_`, `stopReason`, `decision`, `reason`, `systemMessage`, `suppressOutput`, `async_`), which every event accepts — that is how a hook halts a turn. `Stop`, `SubagentStop` and `PreCompact` have no `hookSpecificOutput` type and are skipped |
+| `HOK002` | **error** | a callback returns a dict the SDK does not read — no `hookSpecificOutput` **and** a key outside the common fields — or a `hookSpecificOutput` whose `hookEventName` is not the event it is registered on | nothing in that dict reaches the decision. Not flagged: `return {}` (allow, unchanged), and a return made only of common top-level fields (`continue_`, `stopReason`, `decision`, `reason`, `systemMessage`, `suppressOutput`, `async_`), which every event accepts — that is how a hook halts a turn (and how a `Stop`/`SubagentStop` hook blocks a stop). Only `PreCompact` has no `hookSpecificOutput` type and is skipped; `Stop` and `SubagentStop` take `additionalContext` (typed from 0.2.166) |
 | `HOK003` | **error** | the matcher is not a valid regular expression | it can never match |
 | `HOK010` | warn | a `PreToolUse` deny with no `permissionDecisionReason` | the reason is the only thing the model reads; without it the agent is told no and cannot correct |
 | `HOK020` | **error** | an event the Python SDK does not have, e.g. `SessionStart` | the Python `HookEvent` literal has **ten** values. `SessionStart` and `SessionEnd` are TypeScript-only, even though a `SessionStartHookSpecificOutput` type exists in Python |
@@ -89,7 +89,7 @@ branch on them and a test may assert them.
 
 | Id | Severity | Trigger | Why |
 |---|---|---|---|
-| `MCP001` | **error** | an `mcp__<server>__` prefix in `allowed_tools` with no such server | the rule can never match. Tool names are `mcp__<server>__<tool>`, where `<server>` is the key in `mcp_servers` |
+| `MCP001` | **error** | an `mcp__<server>__` prefix in `allowed_tools` with no such server | the rule can never match. Tool names are `mcp__<server>__<tool>`, where `<server>` is the key in `mcp_servers` with `.` and spaces turned into `_`. From 2.1.299 an MCP rule reaches only the server it names; approve a whole server with `mcp__<server>__*`, the only form that works for a name containing `__` |
 | `MCP002` | warn | a stdio server's `command` is not on this machine's PATH | the server fails to connect and its tools are absent from the init message. Pass `--no-path-check` when reviewing for a different machine |
 | `MCP010` | warn | a `@tool` schema that is not a readable dict of types, a missing description, or a non-async handler | the description and schema are the whole of what the model is told; arguments are validated against the schema before the handler runs |
 
@@ -120,17 +120,21 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
 `.../agent-sdk/claude-code-features`, `.../agent-sdk/modifying-system-prompts`,
 `.../agent-sdk/structured-outputs`, `.../agent-sdk/agent-loop`,
 `.../agent-sdk/migration-guide`, `.../agent-sdk/python`;
-`claude-agent-sdk` 0.2.165 `types.py:25` (`PermissionMode`), `:37`
-(`EffortLevel`), `:284` (`HookEvent`), `:507-581` (`HookJSONOutput`), `:594`
-(`HookCallback`), `:606` (`HookMatcher`), `:1991` (the `Skill` deprecation),
-`:2025` (`permission_mode`, the field `OPT013` reads),
-`:2149` (`debug_stderr`), `:2350` (`max_thinking_tokens`), `:1971-2430` (the 49
-fields); `__init__.py:241` (`SdkMcpTool`);
+`claude-agent-sdk` 0.2.168 `types.py:25` (`PermissionMode`), `:37`
+(`EffortLevel`), `:284` (`HookEvent`), `:728-815` (`HookJSONOutput`), `:828`
+(`HookCallback`), `:840` (`HookMatcher`), `:2346` (the `Skill` deprecation),
+`:2380` (`permission_mode`, the field `OPT013` reads),
+`:2504` (`debug_stderr`), `:2705` (`max_thinking_tokens`), `:2326-2785` (the 49
+fields); `__init__.py:267` (`SdkMcpTool`);
 <https://platform.claude.com/docs/en/about-claude/model-deprecations>;
 <https://code.claude.com/docs/en/permission-modes> (the headless starting-mode
-row behind `OPT013`), <https://code.claude.com/docs/en/permissions#network-paths>,
+row behind `OPT013`, which has not caught up with 2.1.302),
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.302 unset
+mode, 2.1.299 MCP rule scoping), <https://code.claude.com/docs/en/permissions#mcp>,
+<https://code.claude.com/docs/en/permissions#network-paths>,
 <https://code.claude.com/docs/en/hooks> (`onFailure`). The 17x and 4x cost
 figures and the `max_turns=1 -> num_turns=2` result were measured by this plugin
 against SDK 0.2.162 with bundled CLI 2.1.285; re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs (`types.py` is byte-identical
-at 0.2.165, so the line numbers above are unchanged).
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
+claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs, with the line numbers above
+re-pinned to 0.2.168 (`types.py` gained 365 lines in 0.2.166).

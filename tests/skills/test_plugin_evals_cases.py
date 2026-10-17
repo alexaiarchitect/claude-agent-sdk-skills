@@ -99,7 +99,7 @@ def test_runner_stale_accepts_either_id_the_scripts_print_for_the_mismatch():
     the validator and reported what it printed."""
     text = rubric("runner-stale")
     assert "DEP001" in text and "CFG050" in text
-    assert "0.0.1" in text and "0.1.2" in text, "both version strings"
+    assert "0.0.1" in text and "0.1.3" in text, "both version strings"
     assert "result schema" in text, "the risk in the validator's own words"
 
 

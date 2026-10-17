@@ -174,7 +174,7 @@ def test_a_summary_reports_what_happened(happy):
     assert summary["has_result"] is True
     assert summary["result"]["terminal_reason"] == "completed"
     assert summary["result"]["cost_basis"] == "subscription"
-    assert summary["init"]["cli_version"] == "2.1.294"
+    assert summary["init"]["cli_version"] == "2.1.301"
     assert summary["init"]["api_key_source"] == "none"
     assert summary["rate_limit"]["status"] == "allowed_warning"
 
@@ -359,7 +359,7 @@ def test_the_encoding_agrees_with_the_sdks_own_answer(sdk_python):
     """A reimplemented encoding nobody checks is a way to read the wrong directory.
 
     The interpreter comes from the `sdk_python` fixture, which resolves the
-    0.2.165 venv first and the older unversioned path as a fallback.
+    0.2.168 venv first and the older paths as fallbacks.
     """
     cases = ["/a/b c", "/tmp/my_app.v2", "/", "/Users/x/Café", "/" + "x" * 300]
     probe = (
@@ -384,3 +384,63 @@ def test_an_event_renders_back_to_its_wire_shape():
         "i": 3, "type": "tool_use", "t": "2026-09-30T10:00:00Z", "case": "c",
         "tool": "Bash", "input": {"command": "ls"},
     }
+
+
+# -- 0.2.166+ fields (measured on CLI 2.1.301, 2026-10-17) -------------------
+
+#: The hook-input fields SDK 0.2.166 added: two on every event, one on the tool
+#: events, three on `Stop`/`SubagentStop`.
+NEW_HOOK_INPUT = {
+    "prompt_id": "p-1", "effort": {"level": "high"}, "duration_ms": 41,
+    "last_assistant_message": "Done.",
+    "background_tasks": [{"id": "b1", "type": "bash", "status": "running", "description": "x"}],
+    "session_crons": [{"id": "c1", "schedule": "*/5 * * * *", "recurring": True, "prompt": "p"}],
+}
+
+
+def test_a_2_1_301_trace_summarizes_capabilities_and_fast_mode(traces):
+    events = load_trace(traces / "init_2_1_301.trace.jsonl")
+    summary = to_summary(events)
+    assert summary["init"]["cli_version"] == "2.1.301"
+    assert len(summary["init"]["capabilities"]) == 11
+    assert summary["init"]["fast_mode_state"] == "off"
+    assert summary["init"]["fast_mode_disabled_reason"] == "sdk_opt_in_required"
+    assert [e.get("subtype") for e in events_of(events, "system")] == ["commands_changed"]
+    assert summary["has_result"] is True
+
+
+def test_an_older_trace_has_no_capabilities_and_that_is_fine(happy):
+    assert "capabilities" not in to_summary(happy)["init"]
+
+
+def test_new_hook_input_fields_ride_along_in_a_trace(tmp_path):
+    path = tmp_path / "t.trace.jsonl"
+    path.write_text("\n".join(json.dumps(e) for e in [
+        {"i": 0, "type": "hook", "event": "Stop", "phase": "hook_response",
+         "data": {"hook_event_name": "Stop", "stop_hook_active": False, **NEW_HOOK_INPUT}},
+        {"i": 1, "type": "hook", "event": "PostToolUse", "tool": "Bash",
+         "data": {"tool_name": "Bash", "duration_ms": 41, "prompt_id": "p-1"}},
+    ]) + "\n")
+    events = load_trace(path)
+    stop = hook_events(events, event="Stop")[0]
+    assert stop.get("data")["session_crons"][0]["schedule"] == "*/5 * * * *"
+    assert to_summary(events)["hooks"] == {"Stop": 1, "PostToolUse": 1}
+
+
+def test_new_hook_input_fields_ride_along_in_an_imported_session(tmp_path):
+    path = tmp_path / "s.jsonl"
+    path.write_text("\n".join(json.dumps(line) for line in [
+        {"type": "user", "uuid": "u1", "parentUuid": None, "sessionId": "s", "cwd": "/w",
+         "version": "2.1.301", "message": {"role": "user", "content": "hi"}},
+        {"type": "attachment", "uuid": "a1", "parentUuid": "u1", "sessionId": "s",
+         "attachment": {"type": "hook_success", "hookEvent": "Stop", **NEW_HOOK_INPUT}},
+        {"type": "system", "subtype": "stop_hook_summary", "uuid": "y1", "parentUuid": "a1",
+         "sessionId": "s", **NEW_HOOK_INPUT},
+    ]) + "\n")
+    events = load_session(path)
+    assert init_event(events).get("cli_version") == "2.1.301"
+    kinds = [e.get("subtype") for e in events_of(events, "system")]
+    assert kinds == ["attachment", "system"]
+    attachment, summary_line = events_of(events, "system")
+    assert "session_crons" in attachment.get("data")["attachment_keys"]
+    assert summary_line.get("data")["prompt_id"] == "p-1"

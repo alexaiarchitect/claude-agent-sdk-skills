@@ -86,7 +86,7 @@ def test_the_result_file_carries_every_required_key(mini_evals: Path):
         config={"tier": "nightly", "model": "claude-sonnet-5-5",
                 "judge": {"model": "claude-sonnet-5-5", "samples": 3},
                 "isolation": {"setting_sources": [], "strict_mcp_config": True},
-                "cost_basis": "subscription", "sdk_version": "0.2.165", "cli_version": "2.1.294"},
+                "cost_basis": "subscription", "sdk_version": "0.2.168", "cli_version": "2.1.301"},
         runs=[RunRecord(run=1, trace="c.1.trace.jsonl", status="PASSED",
                         graders=[{"name": "g", "type": "regex", "status": "PASSED", "score": 1.0}],
                         result={"subtype": "success", "terminal_reason": "completed",
@@ -116,7 +116,7 @@ def test_the_aggregate_carries_every_required_key():
     from agent_sdk_evals.results import Aggregate, CaseResult, RunRecord
 
     aggregate = Aggregate(
-        tier="nightly", sdk_version="0.2.165", cli_version="2.1.294",
+        tier="nightly", sdk_version="0.2.168", cli_version="2.1.301",
         credential={"kind": "login", "cost_basis": "subscription", "plan": "max",
                     "auth_method": "claude.ai", "api_provider": "firstParty"},
         rate_limit={"status": "allowed_warning", "windows": {"seven_day": {"utilization": 0.83}}},

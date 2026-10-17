@@ -6,9 +6,11 @@ Three facts decide whether one works, and none of them raises when broken:
 
 * the callback must be `async def cb(input_data, tool_use_id, context)`;
 * what it returns must carry `hookSpecificOutput` with a `hookEventName` equal
-  to the event it is registered on — except on `Stop`, `SubagentStop` and
-  `PreCompact`, which have no `hookSpecificOutput` type at all and use
-  `decision`/`reason`/`continue_`;
+  to the event it is registered on — except to block a stop (`Stop`,
+  `SubagentStop`), which uses the top-level `decision`/`reason`, and on
+  `PreCompact`, the one event with no `hookSpecificOutput` type at all;
+  `Stop` and `SubagentStop` take `additionalContext` there (typed from
+  claude-agent-sdk 0.2.166, `types.py:614`, `:625`);
 * `HookMatcher` has no `probability` field, so anything probabilistic (fault
   injection, sampling) belongs *inside* the callback.
 
@@ -44,10 +46,12 @@ from agent_sdk_skills.templating import WritePlan  # noqa: E402
 #: Events whose `hookSpecificOutput` accepts `additionalContext`.
 CONTEXT_EVENTS = (
     "PostToolUse", "PostToolUseFailure", "UserPromptSubmit", "Notification",
-    "SubagentStart",
+    "SubagentStart", "Stop", "SubagentStop",
 )
 #: Events that can decide a tool call.
 DECIDING_EVENTS = ("PreToolUse", "PermissionRequest")
+#: Events whose "deny" is a top-level `decision: "block"` that refuses the stop.
+STOP_EVENTS = ("Stop", "SubagentStop")
 
 PURPOSES = ("audit", "deny", "inject", "latency")
 
@@ -173,9 +177,10 @@ BLOCKING_BODY = '''
 async def {func}(input_data, tool_use_id, context):
     """Decide whether the agent may stop.
 
-    {event} has no `hookSpecificOutput` type at all: it uses the common fields.
+    Blocking uses the common fields, not `hookSpecificOutput`:
     `{{"decision": "block", "reason": ...}}` sends the agent back to work with
-    that reason; an empty dict lets it stop.
+    that reason; an empty dict lets it stop. (`hookSpecificOutput` on {event}
+    carries `additionalContext` only, where the event has the type at all.)
     """
     if not _work_is_finished(input_data):
         return {{
@@ -211,7 +216,9 @@ def build(event: str, purpose: str, tool: str | None, probability: float,
         imports = ["", "import asyncio", "import random"]
         body = LATENCY_BODY
         title = f"{event} hook: inject latency, some of the time."
-    if event in HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT and purpose in ("deny", "inject"):
+    blocks_a_stop = event in STOP_EVENTS and purpose == "deny"
+    if blocks_a_stop or (event in HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT
+                         and purpose in ("deny", "inject")):
         body = BLOCKING_BODY
         imports = ["", "from typing import Any"]
         title = f"{event} hook: decide whether the agent may stop."
@@ -262,12 +269,13 @@ def main(argv: list[str] | None = None) -> int:
     if not 0.0 <= args.probability <= 1.0:
         print("error: --probability must be between 0 and 1", file=sys.stderr)
         return EXIT_USAGE
-    if args.purpose == "deny" and args.event not in DECIDING_EVENTS + HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT:
+    blocking = STOP_EVENTS + HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT
+    if args.purpose == "deny" and args.event not in DECIDING_EVENTS + blocking:
         print(f"error: {args.event} cannot deny a call. Only "
               + ", ".join(DECIDING_EVENTS)
               + " carry a permission decision; "
-              + ", ".join(HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT)
-              + " can block a stop.", file=sys.stderr)
+              + ", ".join(blocking)
+              + " can block with a top-level decision.", file=sys.stderr)
         return EXIT_USAGE
     if args.purpose == "inject" and args.event not in CONTEXT_EVENTS + ("PreToolUse",) + HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT:
         print(f"error: {args.event} has no additionalContext field. One of: "

@@ -95,7 +95,9 @@ comparable with the ones already recorded. Name Haiku 5.5 per grader instead.
 Note that `claude plugin eval` made the opposite choice: its `--judge-model`
 default is now "the model Claude Code uses for background tasks", which is not a
 fixed id. Pin it — `--judge-model claude-sonnet-5-5` — whenever a plugin-eval
-score has to be comparable with an earlier one.
+score has to be comparable with an earlier one. And from Claude Code 2.1.299 a
+plugin-eval run that ends on an API error scores 0 **without being judged** and
+makes the suite exit 1; before, the judge graded whatever the run had produced.
 
 Pick deliberately. `CFG010` and `CFG011` catch the third case, which is the one
 that actually breaks: a judge model that is retiring, or already retired, so
@@ -130,3 +132,4 @@ https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricin
 (Haiku 5.5's price, context window and the 2.1.293 alias);
 https://code.claude.com/docs/en/plugin-evals (the `--judge-model` default).
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+Re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

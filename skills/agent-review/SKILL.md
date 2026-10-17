@@ -88,11 +88,13 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
   `disallowed_tools`. Say this plainly: it is the single most common
   misunderstanding of the options object.
 - **An unset `permission_mode` is not the same as `"default"`.** The CLI
-  resolves it, and from Claude Code 2.1.285 a headless session that does not
-  fetch the interactive feature flags — a gateway token, a third-party
-  provider, telemetry off — starts in `auto`, where broad allow rules such as a
-  bare `Bash` are dropped. `OPT013` says so; the fix is to pass `"dontAsk"` or
-  `"default"` explicitly. The plugin's runner forces `"dontAsk"`, but the
+  resolves it: a session that fetches feature flags starts in `default`, but on
+  Claude Code 2.1.285–2.1.301 one that fetches none — a gateway or third-party
+  provider, telemetry off, the first run after an install or upgrade — starts
+  in `auto`, where broad allow rules such as a bare `Bash` are dropped; 2.1.302
+  starts those in `default` too. Behaviour that depends on the CLI version is
+  why `OPT013` stays a warn; the fix is to pass `"dontAsk"` or `"default"`
+  explicitly. The plugin's runner forces `"dontAsk"`, but the
   agent also runs outside the runner, so the finding stands either way.
 - **Options built inside `main()` are a structural finding, not a style note.**
   Until there is a builder, no eval can override anything and this review can

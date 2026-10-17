@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from agent_sdk_skills import SUBAGENT_TOOL_NAMES, SYNTHETIC_TOOLS
+from agent_sdk_skills import (
+    HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT, PYTHON_HOOK_EVENTS, SUBAGENT_TOOL_NAMES, SYNTHETIC_TOOLS,
+)
 from agent_sdk_skills.graders import (
     BUDGET_USAGE_KEYS,
     FREE_TYPES,
@@ -244,6 +246,15 @@ def test_session_start_is_not_a_python_hook_event():
     assert "EVC012" in ids(findings)
     assert "SessionStart" in " ".join(f.fix or "" for f in findings)
     assert "EVC012" not in ids(validate_grader({"type": "hook_event", "event": "PreToolUse"}, ""))
+
+
+def test_stop_and_subagent_stop_are_valid_hook_events_with_a_specific_output():
+    """From SDK 0.2.166, of the 10 Python events only `PreCompact` lacks a
+    `*HookSpecificOutput` type; `Stop`/`SubagentStop` take `additionalContext`."""
+    assert HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT == ("PreCompact",)
+    assert set(HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT) <= set(PYTHON_HOOK_EVENTS)
+    for event in ("Stop", "SubagentStop", "PreCompact"):
+        assert "EVC012" not in ids(validate_grader({"type": "hook_event", "event": event}, ""))
 
 
 def test_a_threshold_outside_zero_to_one_is_an_error():

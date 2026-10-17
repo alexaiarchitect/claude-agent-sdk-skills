@@ -46,9 +46,12 @@ separate cost tier again, and two things about it changed upstream. Its
 `--judge-model` default is now **"the model Claude Code uses for background
 tasks"**, which is not a fixed id, so pin it with
 `--judge-model claude-sonnet-5-5` whenever a score has to be comparable with an
-earlier one. And the two fixes this plugin's own suite depends on landed in
+earlier one. The two fixes this plugin's own suite depends on landed in
 Claude Code **2.1.289** and **2.1.293**, so treat **2.1.293** as the floor for
-running `plugin eval`.
+running `plugin eval`; from **2.1.299** a run that ends on an API error scores 0
+without grading and makes the suite exit 1, and `--disallow-tools` keeps named
+built-in tools (such as `Agent`) out of every case. The `disallowed_tools` case
+field from the same release is changelog-only and untested here.
 
 ## A plugin class these skills do not cover
 
@@ -99,5 +102,7 @@ Sources: this plugin; `https://code.claude.com/docs/en/plugin-evals` and
 default and the 2.1.289/2.1.293 fixes),
 `https://code.claude.com/docs/en/plugins/mods/overview` (the mod class),
 `https://code.claude.com/docs/en/permissions` (a mod's `tool.check`
-precedence). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
-2.1.296 docs.
+precedence), <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>
+(2.1.299: API-error scoring, `--disallow-tools`). Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
+claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

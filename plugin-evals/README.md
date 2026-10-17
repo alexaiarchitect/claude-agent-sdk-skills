@@ -14,9 +14,15 @@ claude plugin eval . --scaffold --allow-tools Bash Write Edit --judge-model clau
   --json results.json --threshold 0.8 --max-cost-usd 5
 ```
 
-**Claude Code 2.1.293 or newer.** Two `plugin eval` fixes these cases depend on
-landed in 2.1.289 and 2.1.293; on an older CLI a case can fail for a reason that
-is not in the plugin.
+**Claude Code 2.1.293 or newer; 2.1.299 for honest scores.** Two `plugin eval`
+fixes these cases depend on landed in 2.1.289 and 2.1.293; on an older CLI a
+case can fail for a reason that is not in the plugin. From **2.1.299** a run that
+ends on an API error scores 0 without grading and the suite exits 1 (before, such
+a run was graded on whatever it had produced), and `--disallow-tools <tools...>`
+keeps built-in tools such as `Agent` out of every case (listed in the 2.1.301
+help). The changelog also names a `disallowed_tools` case field; it is not in
+the plugin-evals docs yet and no case here uses it until a local run has
+accepted it.
 
 **Three flags, and none of them is a default.**
 

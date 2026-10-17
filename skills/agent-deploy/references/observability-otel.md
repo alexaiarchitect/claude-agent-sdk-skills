@@ -40,19 +40,37 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4318
 **Telemetry off is not free of consequences.** A session that does not fetch
 the interactive feature flags — which includes one with telemetry disabled, one
 on a third-party provider and one holding a gateway token — is exactly the
-session that starts in **`auto`** permission mode from Claude Code 2.1.285 when
-`permission_mode` is left unset. So a deployment that turns telemetry off to
-avoid exporting prompts also has to pass `permission_mode` explicitly, or its
-allow rules quietly stop settling calls.
+session that starts in **`auto`** permission mode on Claude Code
+2.1.285–2.1.301 when `permission_mode` is left unset (2.1.302 starts it in
+`default`, per its changelog). So a deployment that turns telemetry off to avoid
+exporting prompts also has to pass `permission_mode` explicitly, or on those
+versions its allow rules quietly stop settling calls.
 
 Two cost fields worth exporting beside the token counters: every `model_usage`
 row carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
-and `thinkingTokens`, neither of which is on the 0.2.165 `ModelUsage` TypedDict
+and `thinkingTokens`, neither of which is on the 0.2.168 `ModelUsage` TypedDict
 — read both with `.get()`. A dashboard that charts cost without the basis
 cannot tell a list-price estimate from a negotiated one, and `model_usage`
 routinely holds more than one model (measured 2026-10-11: the agent's Sonnet 5.5
 plus the CLI's background `claude-haiku-5-5`), so aggregate per model rather
 than taking the first row.
+
+Event fields added recently, worth a column in the collector (from the changelog;
+the monitoring page does not list them yet):
+
+| Event | Field | Since |
+|---|---|---|
+| `api_request` | `cache_creation_5m_tokens`, `cache_creation_1h_tokens` (cache writes split by lifetime) | 2.1.300 |
+| `tool_decision` | `classifier_verdict`, `permission_mode` (tell an auto-mode classifier decision from a permission rule) | 2.1.301 |
+| `tool_decision` | `classifier_category` (the built-in rule a classifier block matched; needs `OTEL_LOG_TOOL_DETAILS=1`) | 2.1.301, fixed 2.1.302 |
+| trace spans | GenAI semantic-convention attributes such as `gen_ai.provider.name`, `gen_ai.conversation.id`, `gen_ai.tool.name`, `error.type` | 2.1.300 |
+
+A low `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` pushed `tool_use_id`,
+`tool_source` and `tool_parameters` off `tool_decision` before 2.1.302. The
+model the client-side auto-mode classifier uses is chosen with
+`CLAUDE_CODE_AUTO_MODE_MODEL` (2.1.302, changelog only; it does not change
+server-side auto mode), so a classifier's tokens can show up under a model the
+agent never named.
 
 ## The spans
 
@@ -129,6 +147,12 @@ internally. The two are complementary: OTEL for operational health, OpenInferenc
 (or Braintrust, Langfuse, LangSmith, MLflow) for trace inspection and eval
 tooling.
 
+An agent that calls the Claude API or Managed Agents directly, rather than
+through the Agent SDK's CLI, is traced differently: the `anthropic` package
+emits its own spans and the API can deliver server-side spans under the same
+`traceparent`. The Claude Cookbooks' OpenTelemetry tracing notebook walks
+through that; none of it applies to the CLI's export described above.
+
 This plugin's own runner writes `*.trace.jsonl` from the message stream, which
 is a third thing again: a replayable artefact a grader can re-read offline with
 no collector involved.
@@ -144,11 +168,16 @@ reference, traces beta),
 <https://code.claude.com/docs/en/env-vars>;
 <https://github.com/Arize-ai/openinference> (package
 `openinference-instrumentation-claude-agent-sdk`);
+`anthropics/claude-cookbooks` `observability/opentelemetry_tracing.ipynb` at
+`a162e01` (Claude API and Managed Agents tracing);
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300–2.1.302
+event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default);
 <https://code.claude.com/docs/en/permission-modes> (why telemetry-off sessions
-start in `auto`), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
-`claude-agent-sdk` 0.2.165
+start in `auto` on 2.1.285–2.1.301; 2.1.302 is changelog-only), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
+`claude-agent-sdk` 0.2.168
 `_internal/transport/subprocess_cli.py:814-860` (env merge and trace-context
-injection), `types.py:1314` (`ModelUsage`). The two-model `model_usage` and
+injection), `types.py:1669` (`ModelUsage`). The two-model `model_usage` and
 `costBasis: "list"` were measured by this plugin on 2026-10-11 against SDK
 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against claude-agent-sdk
-0.2.165 / Claude Code 2.1.296 docs.
+0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against claude-agent-sdk
+0.2.168 / Claude Code 2.1.302 docs.

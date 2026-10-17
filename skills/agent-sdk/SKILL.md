@@ -107,7 +107,8 @@ results, CI. Read down the columns and the next piece of work names itself.
   Code uses for background tasks", not a fixed id, so pin
   `--judge-model claude-sonnet-5-5` for a comparable score; and the fixes a
   suite needs landed in 2.1.289 and 2.1.293, so **Claude Code 2.1.293** is the
-  floor.
+  floor — with 2.1.299 for the scoring fix (an API-error run scores 0 and the
+  suite exits 1) and `--disallow-tools`.
 - **Mods** (2.1.292+) are a third plugin class, written in TypeScript, with
   their own doc set and `claude plugin test`. Nothing here covers them except as
   the seventh step of the permission model.
@@ -126,7 +127,7 @@ results, CI. Read down the columns and the next piece of work names itself.
 
 - **Never guess the entry point, the SDK version or the credential.** Run the
   discovery script. It reports which versions this plugin was checked against —
-  `claude-agent-sdk` 0.2.165 with bundled Claude Code 2.1.294 — and raises
+  `claude-agent-sdk` 0.2.168 with bundled Claude Code 2.1.301 — and raises
   `ENV003` at info level when the installed SDK is newer; that is a note, never
   a blocker.
 - **Say what a run spends before running it.** Sessions and judge calls, in

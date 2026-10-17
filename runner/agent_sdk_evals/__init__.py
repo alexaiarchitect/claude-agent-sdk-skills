@@ -98,12 +98,16 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: difference with and without (CONTRACTS section 1.2).
 #: One more default is resolved per run but is deliberately *not* a key here,
 #: because it only applies when the agent leaves the field `None`:
-#: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). An unset mode
-#: is not `default` — from CLI 2.1.285 a headless session without the
-#: interactive feature flags can start in `auto`, where a classifier reviews
-#: each tool call and a bare allow rule no longer settles it. The trace `init`
-#: event records which way it went as `permission_mode_source`, either `"agent"`
-#: or `"runner-default"`.
+#: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). With the mode
+#: unset the CLI picks it, and which one depends on its version and environment:
+#: a headless session that fetches feature flags starts in `default` (measured on
+#: CLI 2.1.292 and 2.1.301, direct API key, telemetry on); on CLI 2.1.285-2.1.301
+#: one that does not (third-party provider, telemetry off, first run after an
+#: install or upgrade) starts in `auto`, where a classifier reviews each tool
+#: call and a bare allow rule no longer settles it; 2.1.302+ starts those in
+#: `default` too. The runner forces `dontAsk` for unattended runs either way.
+#: The trace `init` event records which way it went as `permission_mode_source`,
+#: either `"agent"` or `"runner-default"`.
 ISOLATION_DEFAULTS = {"setting_sources": [], "strict_mcp_config": True}
 
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "bypassPermissions", "dontAsk", "auto")
@@ -116,7 +120,10 @@ PYTHON_HOOK_EVENTS = (
     "PreToolUse", "PostToolUse", "PostToolUseFailure", "UserPromptSubmit", "Stop",
     "SubagentStop", "PreCompact", "Notification", "SubagentStart", "PermissionRequest",
 )
-HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT = ("Stop", "SubagentStop", "PreCompact")
+#: Of those 10, only `PreCompact` has no `*HookSpecificOutput` type (21 typed
+#: from SDK 0.2.166; `Stop`/`SubagentStop` take `additionalContext`, and blocking
+#: a stop is still the top-level `decision: "block"`).
+HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT = ("PreCompact",)
 
 #: Tool names the CLI synthesizes. `output_format` results arrive as a
 #: `StructuredOutput` tool call, so trajectory-style graders skip them unless a

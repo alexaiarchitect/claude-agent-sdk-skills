@@ -41,7 +41,7 @@ estimate** from a bundled price table. On a subscription it is an
 API-equivalent figure, not a bill — the real ceiling there is the plan's usage
 limits. Each `model_usage` row also carries `costBasis` — `list` (the public
 price list), `managed` (an organisation's negotiated rate) or `unknown`, needing
-Claude Code **2.1.246+**. It is not on the 0.2.165 `ModelUsage` TypedDict, so
+Claude Code **2.1.246+**. It is not on the 0.2.168 `ModelUsage` TypedDict, so
 read it with `.get()`; measured 2026-10-11 on an API key it was `"list"` on
 every row. A cost figure reported without its basis is not comparable between
 two accounts.
@@ -90,13 +90,14 @@ pays full input price every time.
 **The cache-read price moved, and which price you see depends on the CLI.** The
 platform price list now says a cache read costs 10 % of the base input price,
 **except 5 % on Opus 5.5 and Sonnet 5.5** — so the list price for a Sonnet 5.5
-cache read is **$0.10/Mtok**, and that is what Claude Code **2.1.296** charges.
-The CLI bundled with `claude-agent-sdk` 0.2.165 is **2.1.294**, and its estimate
-still prices a Sonnet 5.5 cache read at **$0.20/Mtok** — measured 2026-10-11,
-40257 cache-read tokens for a $0.0080514 residual, exactly $0.20 per Mtok. So a
+cache read is **$0.10/Mtok**. The CLI bundled with `claude-agent-sdk` 0.2.168
+is **2.1.301**, and its estimate charges exactly that — measured 2026-10-17,
+40479 cache-read tokens for a $0.0040479 residual. History: the 2.1.294 bundled
+with 0.2.165 still priced it at **$0.20/Mtok** (measured 2026-10-11, exactly
+$0.20 per Mtok), and the estimate caught up somewhere in 2.1.295–2.1.301. So a
 cost table in a report has to name the CLI version it was produced on, and a
-regression test that pins a cache-heavy total will change value when the CLI
-crosses 2.1.296.
+regression test that pins a cache-heavy total recorded on 2.1.294 or earlier
+changes value on a newer CLI.
 
 ## The cheapest optimisation is not a cap at all
 
@@ -137,11 +138,16 @@ only**, and an effective ceiling above two hours also becomes the maximum
 background time limit. An unattended deployment that sets those two high is
 therefore also lengthening how long a background command may burn tokens.
 
-**Retries** cost money too, and three variables bound them:
+**Retries** cost money too, and these variables bound them:
 `CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS` (**2.1.295+**) caps how long the
 watchdog waits before giving up on a stalled request;
+`CLAUDE_CODE_RETRY_WATCHDOG_MAX_USAGE_LIMIT_WAIT_MS` (**2.1.301**, changelog
+only so far) makes the watchdog end a request at a usage limit that resets too
+far away instead of waiting for it;
 `CLAUDE_CODE_OVERLOADED_RETRY_BASE_DELAY_MS` (default **500**, range 500–32000,
-**2.1.292+**) sets the backoff base when the API reports overload; and
+**2.1.292+**) sets the backoff base when the API reports overload and
+`CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS` (default **32000**, range
+32000–64000, **2.1.296+**) its ceiling — neither applies under the watchdog; and
 `CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES` (**2.1.285+**) bounds retries of a
 non-streaming request that timed out. Also set
 `CLAUDE_CODE_WEB_SEARCH_REFILLS_PER_HOUR` deliberately if the agent searches:
@@ -164,16 +170,20 @@ usage, totals, cache tokens, the 1-hour TTL and its controls),
 <https://code.claude.com/docs/en/agent-sdk/hosting#cost>,
 <https://code.claude.com/docs/en/env-vars>,
 <https://code.claude.com/docs/en/agent-sdk/quickstart> (the third-party policy
-note); `claude-agent-sdk` 0.2.165 `types.py:2050` (`max_turns`), `:2056`
-(`max_budget_usd`), `:1340-1379` (`ResultMessage`), `:1314` (`ModelUsage`),
-`:1398` (`RateLimitInfo`; `:1392` is `RateLimitType`);
+note); `claude-agent-sdk` 0.2.168 `types.py:2405` (`max_turns`), `:2411`
+(`max_budget_usd`), `:1695-1734` (`ResultMessage`), `:1669` (`ModelUsage`),
+`:1753` (`RateLimitInfo`; `:1747` is `RateLimitType`);
 <https://platform.claude.com/docs/en/about-claude/models/overview> (the
 cache-read percentages),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
-limit), <https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom>.
+limit), <https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom>,
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.301
+usage-limit wait).
 The 17x and 4x figures, the cumulative-cost behaviour, the
 `max_turns=1 → num_turns=2` result and the `RateLimitEvent` shape were measured
 by this plugin on 2026-09-30 on a Claude Max subscription with no API key set;
 `costBasis` and the $0.20/Mtok cache-read price of the bundled CLI 2.1.294 were
-measured 2026-10-11 with `ANTHROPIC_API_KEY` set. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+measured 2026-10-11 with `ANTHROPIC_API_KEY` set, and the $0.10/Mtok of the
+bundled CLI 2.1.301 on 2026-10-17. Re-read 2026-10-11 against claude-agent-sdk
+0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against claude-agent-sdk
+0.2.168 / Claude Code 2.1.302 docs.

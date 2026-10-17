@@ -74,13 +74,60 @@ BUILD_OPTIONS = "build_options"
 #: Top-level keys a hook may return on *any* event (`SyncHookJSONOutput` and
 #: `AsyncHookJSONOutput`). A return made only of these is well formed even
 #: without `hookSpecificOutput` — `{"continue_": False, "stopReason": ...}` is
-#: how a hook halts a turn, and `Stop`/`SubagentStop`/`PreCompact` have nothing
-#: else to use.
+#: how a hook halts a turn, `PreCompact` has nothing else to use, and blocking a
+#: `Stop`/`SubagentStop` is still the top-level `decision: "block"` (those two
+#: gained a `hookSpecificOutput` with `additionalContext` in SDK 0.2.166).
 HOOK_COMMON_KEYS = (
     "continue_", "continue", "suppressOutput", "stopReason", "decision",
     "systemMessage", "reason", "async_", "async", "asyncTimeout",
     "hookSpecificOutput",
 )
+
+#: `SandboxSettings` keys the SDK declares (`types.py:1141` of claude-agent-sdk
+#: 0.2.168), and the keys it forwards to the CLI without declaring them
+#: (`failIfUnavailable`, `filesystem` with `denyWrite` and friends; Python SDK
+#: docs and `settings-reference`, read 2026-10-17). Both sets are accepted.
+SANDBOX_DECLARED_KEYS = (
+    "enabled", "autoAllowBashIfSandboxed", "excludedCommands", "allowUnsandboxedCommands",
+    "network", "ignoreViolations", "enableWeakerNestedSandbox",
+)
+SANDBOX_FORWARDED_KEYS = ("failIfUnavailable", "filesystem")
+
+
+def sandbox_problems(sandbox: Any) -> list[str]:
+    """What is wrong with a literal `sandbox` dict, as plain sentences.
+
+    `ignoreViolations` is `dict[str, list[str]]` from SDK 0.2.166
+    (`SandboxIgnoreViolations`, `types.py:1126` of 0.2.168): a command-pattern
+    substring (`"*"` for every command) mapped to substrings of the violation
+    text. It changes which violations are *reported*, not what the sandbox
+    blocks. The earlier `{file, network}` TypedDict shape is gone. Keys the SDK
+    forwards without declaring (:data:`SANDBOX_FORWARDED_KEYS`) are accepted.
+    A non-dict value (a computed one) yields no problems: nothing is known.
+    """
+    if not isinstance(sandbox, dict):
+        return []
+    problems: list[str] = []
+    known = SANDBOX_DECLARED_KEYS + SANDBOX_FORWARDED_KEYS
+    for key in sandbox:
+        if isinstance(key, str) and key not in known:
+            problems.append(f"`sandbox` key {key!r} is neither declared on `SandboxSettings` "
+                            f"nor forwarded by the SDK ({', '.join(known)})")
+    ignore = sandbox.get("ignoreViolations")
+    if ignore is not None:
+        if not isinstance(ignore, dict):
+            problems.append("`ignoreViolations` must map a command pattern to a list of "
+                            "violation substrings (`dict[str, list[str]]`)")
+        else:
+            for pattern, needles in ignore.items():
+                if not isinstance(pattern, str) or not isinstance(needles, (list, tuple)) \
+                        or not all(isinstance(n, str) for n in needles):
+                    problems.append(f"`ignoreViolations[{pattern!r}]` must be a list of "
+                                    "violation-text substrings")
+    filesystem = sandbox.get("filesystem")
+    if filesystem is not None and not isinstance(filesystem, dict):
+        problems.append("`filesystem` must be a dict (e.g. `{\"denyWrite\": [...]}`)")
+    return problems
 
 #: A string that starts with one of these is a credential, wherever it appears.
 SECRET_PREFIXES = ("sk-ant-", "sk-ant-api03-", "sk-ant-oat01-")

@@ -94,7 +94,7 @@ find:
   match on the reply.
 * **A cost figure has a basis.** Each `model_usage` row carries `costBasis`
   (`list` | `managed` | `unknown`, Claude Code 2.1.246+) and `thinkingTokens`,
-  neither of them on the 0.2.165 `ModelUsage` TypedDict — read both with
+  neither of them on the 0.2.168 `ModelUsage` TypedDict — read both with
   `.get()`. Comparing a `list`-basis run with a `managed`-basis one compares two
   price lists.
 
@@ -123,3 +123,4 @@ https://platform.claude.com/docs/en/about-claude/models/overview (Haiku 5.5's
 price). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
 SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+Re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

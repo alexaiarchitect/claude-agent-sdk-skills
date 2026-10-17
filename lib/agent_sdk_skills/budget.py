@@ -25,7 +25,8 @@ Four measured facts shape :func:`check_budget`, and each one is a bug if ignored
   rate-limit event as a limit hit would have marked every healthy run
   inconclusive. Only `rejected` stops anything: see :func:`rate_limit_verdict`.
 
-Two more, measured on 0.2.165 / CLI 2.1.294 (2026-10-11):
+Two more, measured on 0.2.165 / CLI 2.1.294 (2026-10-11) and still so on
+0.2.168 / CLI 2.1.301 (2026-10-17):
 
 * **`max_budget_usd` is a soft cap.** It refuses the *next* request once the
   estimate has passed the ceiling, so a session can and does finish over it.
@@ -51,7 +52,7 @@ from .graders import BUDGET_CEILINGS, BUDGET_USAGE_KEYS
 from .report import Finding
 from .trace import TraceEvent
 
-_SRC_RESULT = "claude_agent_sdk types.py:1340 ResultMessage + measured VERIFIED-FACTS §2.2"
+_SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.168) + measured VERIFIED-FACTS §2.2"
 _SRC_TURNS = "measured: VERIFIED-FACTS §8.1 — max_turns=1 produced num_turns=2"
 _SRC_COST = "measured: VERIFIED-FACTS §8.2 — total_cost_usd is a session running total"
 _SRC_RATE = "measured: VERIFIED-FACTS §9 — RateLimitEvent on every run at allowed_warning"
@@ -293,8 +294,8 @@ def total_tokens(result_event: TraceEvent | dict[str, Any] | None) -> float:
 def model_usage_of(result_event: TraceEvent | dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     """`model_usage` as a dict of dicts, defensively.
 
-    The wire carries two keys the 0.2.165 `ModelUsage` TypedDict does not
-    declare — `costBasis` and `thinkingTokens`, both measured 2026-10-11 — so
+    The wire carries two keys the `ModelUsage` TypedDict (0.2.165, still on
+    0.2.168) does not declare — `costBasis` and `thinkingTokens`, both measured 2026-10-11 — so
     every read of this mapping goes through `.get()` and never indexes a key.
     """
     data = _as_dict(result_event) or {}
@@ -309,7 +310,8 @@ def model_usage_of(result_event: TraceEvent | dict[str, Any] | None) -> dict[str
 def models_billed(result_event: TraceEvent | dict[str, Any] | None) -> list[str]:
     """Every model the session was billed for, sorted.
 
-    Not "the model that ran": measured 2026-10-11, CLI 2.1.294 bills its own
+    Not "the model that ran": measured 2026-10-11 (CLI 2.1.294) and 2026-10-17
+    (CLI 2.1.301), the CLI bills its own
     background work to `claude-haiku-5-5` without being asked, so a cost note
     about "the agent's model" is wrong about the total. The runner records the
     same list on the `result` event as `models_billed`; this reads it back, and

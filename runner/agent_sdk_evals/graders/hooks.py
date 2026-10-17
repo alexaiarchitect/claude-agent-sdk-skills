@@ -9,6 +9,11 @@ Only the 10 events in the Python SDK's `HookEvent` literal are valid.
 `SessionStart` and `SessionEnd` are not among them (HOK020) even though a
 `SessionStartHookSpecificOutput` type exists, so a grader naming one abstains
 with that id in its reason.
+
+What a hook *returns* is not graded here. For the record (SDK 0.2.166+): of the
+10 events only `PreCompact` has no `hookSpecificOutput` type; a `Stop` or
+`SubagentStop` hook may return `hookSpecificOutput.additionalContext`, while
+blocking a stop is still the top-level `decision: "block"`.
 """
 
 from __future__ import annotations

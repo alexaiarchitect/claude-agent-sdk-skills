@@ -1,7 +1,7 @@
 # `ClaudeAgentOptions`: all 49 fields
 
-Read from the installed dataclass, `claude-agent-sdk` 0.2.165
-(`types.py:1971-2430`). It is a plain `@dataclass`, so an unknown or misspelled
+Read from the installed dataclass, `claude-agent-sdk` 0.2.168
+(`types.py:2326-2785`). It is a plain `@dataclass`, so an unknown or misspelled
 keyword raises `TypeError` at construction, and `dataclasses.replace()` works
 for per-case overrides.
 
@@ -43,7 +43,7 @@ serialisable.
 | `hooks` | `dict[HookEvent, list[HookMatcher]] \| None` | `None` | R | callables; the runner adds its capture and fault hooks here |
 | `output_format` | `dict \| None` | `None` | O | only `{"type":"json_schema","schema":{...}}` is acted on |
 | `verbatim_prompts` | `bool` | `False` | O | needs CLI 2.1.248+ |
-| `sandbox` | `SandboxSettings \| None` | `None` | O | |
+| `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166; `failIfUnavailable` and `filesystem` (`denyWrite`) are forwarded though undeclared |
 | `plugins` | `list[SdkPluginConfig]` | `[]` | O | |
 
 ## Ceilings
@@ -97,12 +97,14 @@ serialisable.
 
 **`permission_mode=None` does not mean `"default"`.** With the mode unset the
 CLI resolves it: `permissions.defaultMode` from a settings file where one
-applies, otherwise the built-in default — and from Claude Code **2.1.285** the
-built-in default for a session that does not fetch the interactive feature flags
-(a third-party provider, telemetry off, a gateway token) is **`auto`**, where a
-classifier reviews each shell command and network request and a broad allow rule
-such as a bare `Bash` is dropped. Before TypeScript Agent SDK v0.3.286 omitting
-the mode did equal `default`; it no longer does. Pass `"default"` or
+applies, otherwise the built-in default. A session that fetches feature flags
+starts in `default`; on Claude Code **2.1.285–2.1.301** one that fetches none (a
+third-party provider or gateway, telemetry off, the first run after an install
+or upgrade) starts in **`auto`**, where a classifier reviews each shell command
+and network request and a broad allow rule such as a bare `Bash` is dropped;
+**2.1.302** starts those in `default` too. A session in `auto` that
+`set_model()`s to a model without auto support drops to `default` with a
+`system`/`status` message (2.1.299+). Pass `"default"` or
 `"dontAsk"` explicitly — `lint_agent.py` reports the omission as `OPT013`, and
 this plugin's runner supplies `"dontAsk"` itself when the agent leaves it unset.
 
@@ -132,7 +134,7 @@ mount locally, if the agent genuinely needs the data.
   off-stream token-counting request**, so polling it costs nothing.
 - `ModelUsage` rows in `ResultMessage.model_usage` carry `costBasis`
   (`list` | `managed` | `unknown`, Claude Code 2.1.246+) and `thinkingTokens`
-  on the wire, and **neither is on the 0.2.165 TypedDict** — read both with
+  on the wire, and **neither is on the 0.2.168 TypedDict** — read both with
   `.get()`. Measured 2026-10-11: `costBasis == "list"` on an API key, and the
   dict held two models (the agent's and the CLI's background Haiku 5.5).
 
@@ -161,6 +163,7 @@ on `type` (`text`/`image`/`notebook`/`pdf`/`parts`/`file_unchanged`) under a
 - `HookEvent` (Python): `PreToolUse`, `PostToolUse`, `PostToolUseFailure`,
   `UserPromptSubmit`, `Stop`, `SubagentStop`, `PreCompact`, `Notification`,
   `SubagentStart`, `PermissionRequest` — ten. **Not** `SessionStart`/`SessionEnd`.
+  Only `PreCompact` lacks a `hookSpecificOutput` type (0.2.166+).
 - `SdkBeta`: `context-1m-2025-08-07` — one.
 - `SessionStoreFlushMode`: `batched`, `eager`.
 - Result `subtype`: `success`, `error_max_turns`, `error_during_execution`,
@@ -186,23 +189,41 @@ There is no state store: nothing among the 49 fields or the seven message types
 carries agent state. Assert state through files, `structured_output` or mock
 call records instead.
 
-## 0.2.166+ (not reachable from the pinned release)
+## Released in 0.2.166 (gate as "0.2.166+")
 
-The SDK's `main` branch adds richer hook inputs (`prompt_id`, `effort`,
-`duration_ms`, `last_assistant_message`, `background_tasks`, `session_crons`),
-17 more `*HookSpecificOutput` types and a documented `SystemInitData` shape with
-a `capabilities` list for feature detection. **None of it exists in 0.2.165**:
-`ClaudeAgentOptions` is still exactly these 49 fields on `main` too, and the six
-permission modes, five effort levels and ten hook events are unchanged. Guard
-any use of those names on the installed version.
+0.2.166 added richer hook inputs (`prompt_id`, `effort`, `duration_ms`,
+`last_assistant_message`, `background_tasks`, `session_crons`), 13 more
+`*HookSpecificOutput` types (21 in all) and a documented init shape;
+`ClaudeAgentOptions` is still exactly these 49 fields. Guard those names on
+0.2.140–0.2.165. **`SystemInitData`** types `SystemMessage.data` for
+`system`/`init`: `type`, `subtype`, `uuid`, `session_id`, `agents?`,
+`apiKeySource`, `betas?`, `claude_code_version`, `cwd`, `tools`, `mcp_servers`
+(`name`, `status`, `source?`), `model`, `permissionMode`, `slash_commands`,
+`terminal_slash_commands?`, `output_style`, `skills`, `plugins` (`name`, `path`,
+`version?`), `plugin_errors?`, `fast_mode_state?` (`off`/`cooldown`/`on`),
+`fast_mode_disabled_reason?` (`sdk_opt_in_required` measured; newer CLIs may send
+others) and `capabilities?`. Use `capabilities` to **feature-detect instead of
+comparing versions**, ignoring unknown strings: CLI 2.1.301 sent 11
+(`interrupt_receipt_v1`, `interrupt_cancel_queued_v1`, `interrupt_send_now_v1`,
+`msg_lifecycle_v1`, `request_marker_lists_v1`, `sdk_mcp_tools_list_changed`,
+`sdk_mcp_manifests`, `mcp_read_resource_v1`, `mcp_tool_ui_meta_v1`,
+`ui_surface_v1`, `mcp_call_result_not_for_model_v1`), 2.1.292 sent 9. Read every
+key with `.get()`: 2.1.301 also sent undeclared keys (`original_cwd`,
+`additional_directories`, `memory_paths`, `messaging_socket_path`,
+`per_turn_effort_active`, `view_mode`, `analytics_disabled`,
+`product_feedback_disabled`), plugin entries with `source` and no `version`, and
+a `system`/`commands_changed` message right after `init`.
+`SandboxSettings.ignoreViolations` is now `dict[str, list[str]]` — a command
+pattern (`"*"` for all) to violation-text substrings, affecting reporting only;
+the Python docs page still shows the old `{file, network}` shape.
 
 ---
 
-Sources: `claude-agent-sdk` 0.2.165, installed at
-`site-packages/claude_agent_sdk/types.py:1971-2430` (the 49 fields in
+Sources: `claude-agent-sdk` 0.2.168, installed at
+`site-packages/claude_agent_sdk/types.py:2326-2785` (the 49 fields in
 declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
-`SettingSource`, `:37` `EffortLevel`, `:284` `HookEvent`, `:1340`
-`ResultMessage`, `:1817` `ThinkingConfig`;
+`SettingSource`, `:37` `EffortLevel`, `:284` `HookEvent`, `:1695`
+`ResultMessage`, `:2172` `ThinkingConfig`;
 <https://code.claude.com/docs/en/agent-sdk/python#claudeagentoptions>,
 <https://code.claude.com/docs/en/agent-sdk/custom-tools#control-tool-access>,
 <https://code.claude.com/docs/en/agent-sdk/permissions#allow-and-deny-rules>,
@@ -210,9 +231,17 @@ declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 <https://code.claude.com/docs/en/agent-sdk/agent-loop#turns-and-budget>,
 <https://code.claude.com/docs/en/agent-sdk/session-storage>,
 <https://code.claude.com/docs/en/permission-modes>,
-<https://code.claude.com/docs/en/permissions#network-paths>. The
+<https://code.claude.com/docs/en/permissions#network-paths>,
+<https://code.claude.com/docs/en/agent-sdk/permissions> (auto mode and
+`set_model()`), <https://code.claude.com/docs/en/headless> (`init.capabilities`),
+<https://code.claude.com/docs/en/settings-reference> (`sandbox.filesystem.denyWrite`,
+`sandbox.failIfUnavailable`, `sandbox.ignoreViolations`); `types.py:1461`
+`SystemInitData`, `:1443` `FastModeState`, `:1447` `FastModeDisabledReason`,
+`:1126` `SandboxIgnoreViolations`, `:1141` `SandboxSettings`. The
 `max_turns=1 -> num_turns=2` result was measured by this plugin on 2026-09-30;
 `costBasis`, `thinkingTokens` and the two-model `model_usage` were measured
 2026-10-11 on SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs: `types.py` is byte-identical
-to 0.2.162, so every line number above is unchanged.
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs. The init keys,
+capabilities and fast-mode values were measured 2026-10-17 on CLI 2.1.301 and
+2.1.292; re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code
+2.1.302 docs, with every line number re-pinned to 0.2.168.

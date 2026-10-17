@@ -42,10 +42,11 @@ class ScriptRun:
 
 #: Interpreters that may have the real `claude_agent_sdk` installed, most
 #: specific first. The target venv is named for the release the plugin was
-#: checked against (`SDK_TARGET`); the unversioned path is the older convention
-#: and is kept as a fallback. `AGENT_SDK_TEST_PYTHON` overrides both.
+#: checked against (`SDK_TARGET`, 0.2.168); the previous target's venv and the
+#: unversioned path are the older conventions, kept as fallbacks. `AGENT_SDK_TEST_PYTHON` overrides both.
 SDK_VENV_CANDIDATES = (
     os.environ.get("AGENT_SDK_TEST_PYTHON") or "",
+    "/tmp/casdk-venv-0.2.168/bin/python",
     "/tmp/casdk-venv-0.2.165/bin/python",
     "/tmp/casdk-venv/bin/python",
 )
@@ -86,8 +87,8 @@ def sdk_python() -> str:
         pytest.skip(
             "no interpreter with claude_agent_sdk installed; tried "
             + ", ".join(c for c in SDK_VENV_CANDIDATES if c)
-            + ". Build one with: python3.12 -m venv /tmp/casdk-venv-0.2.165 && "
-            "/tmp/casdk-venv-0.2.165/bin/pip install 'claude-agent-sdk==0.2.165'"
+            + ". Build one with: python3.12 -m venv /tmp/casdk-venv-0.2.168 && "
+            "/tmp/casdk-venv-0.2.168/bin/pip install 'claude-agent-sdk==0.2.168'"
         )
     return found
 

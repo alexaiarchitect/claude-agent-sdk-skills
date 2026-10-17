@@ -3,8 +3,9 @@
 ## The naming rule everything depends on
 
 A tool from an MCP server reaches the model as **`mcp__<server>__<tool>`**,
-where `<server>` is the key in the `mcp_servers` dict (or in `.mcp.json`) and
-`<tool>` is the name the server advertises. Change the key and every
+where `<server>` is the key in the `mcp_servers` dict (or in `.mcp.json`) with
+any `.` or space turned into `_`, and `<tool>` is the name the server
+advertises. A plugin's server takes the scoped form `plugin_<plugin>_<server>`. Change the key and every
 `allowed_tools` entry, every grader and every trajectory changes with it.
 
 An `mcp__x__` prefix with no server `x` is `MCP001`: an allow rule that can
@@ -88,13 +89,29 @@ allowed_tools=["mcp__library__*"]        # one server, every tool
 allowed_tools=["mcp__library__lookup"]   # one tool
 ```
 
-A glob is only honoured after a literal, glob-free server segment.
+A glob is only honoured after a literal, glob-free server segment. From Claude
+Code **2.1.299** a rule reaches only the server it names: `mcp__a` no longer
+allows a server called `a__b` or `a_`, and a server whose normalised name
+contains `__` or ends in `_` must be written in the wildcard form with its whole
+name (`mcp__reports__v2__*`). The same release scoped an agent's `tools:` list
+to the named server's tools.
 
 Two tools escape the allow list entirely. A tool whose server sets
 `requiresUserInteraction`, and a connector tool an organisation has set to `ask`,
 always reach the ask step however they are pre-approved — and in `dontAsk` they
 are **denied** rather than prompted, because that mode never prompts. An
 unattended suite that needs such a tool has to mock it; no allow rule will do.
+
+Two transport details that changed recently. Claude Code trims MCP tool
+descriptions and server instructions to **4096** characters (**16384** for a
+tool loaded through tool search); `CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`
+replaces both limits, so a server whose description carries its usage rules
+should keep them near the top. And cloud-session and Remote Control connectors
+negotiate MCP protocol version **2026-07-28** by default on installs that fetch
+no flags (2.1.299; `MCP_PROTOCOL_NEGOTIATION=legacy` opts out); a server that
+negotiates it but omits `resultType`, `ttlMs` or `cacheScope` showed no tools
+until the 2.1.302 fix. A `"failed"` HTTP or SSE server can now reconnect on its
+own in the background.
 
 ## Mocks, for evals
 
@@ -128,14 +145,19 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/mcp> (naming, transports,
 allowing tools, connection timing, error handling),
 <https://code.claude.com/docs/en/agent-sdk/custom-tools> (the `@tool`
 contract, content types, error handling);
-`claude-agent-sdk` 0.2.165 `__init__.py:241` (`SdkMcpTool`), `:251` (`tool`),
-`:451-489` (content-item handling), `:491` (`create_sdk_mcp_server`),
-`types.py:979` (`ToolResultBlock`), `:2010` (`mcp_servers`), `:2018`
+`claude-agent-sdk` 0.2.168 `__init__.py:267` (`SdkMcpTool`), `:277` (`tool`),
+`:477-515` (content-item handling), `:517` (`create_sdk_mcp_server`),
+`types.py:1218` (`ToolResultBlock`), `:2365` (`mcp_servers`), `:2373`
 (`strict_mcp_config`), `client.py:471` (`get_mcp_status`), `:540`
 (`get_server_info`); this plugin's `.dev/CONTRACTS.md` §2 for the mock format.
 <https://code.claude.com/docs/en/plugins/manifest-reference#mcpservers>
 (`requestTimeout`), <https://code.claude.com/docs/en/permission-modes>
-(`dontAsk`'s always-denied list).
+(`dontAsk`'s always-denied list), <https://code.claude.com/docs/en/permissions#mcp>
+(rule syntax, `_` normalisation, plugin form), <https://code.claude.com/docs/en/env-vars>
+(`CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`),
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 rule
+scoping and protocol negotiation, 2.1.302 fix).
 The `is_error is None`, ambient-connector and `tools=["Read"]` observations were
 measured by this plugin on 2026-09-30. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
+claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

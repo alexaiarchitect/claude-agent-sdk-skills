@@ -69,10 +69,22 @@ Two figures to date rather than quote. `max_budget_usd` is a **soft** cap: the
 running estimate can pass the value before the query stops, so the instance
 budget needs headroom above it. And the cache-read price depends on which CLI
 the image carries — the platform list price for a Sonnet 5.5 cache read is
-**$0.10/Mtok** from Claude Code **2.1.296**, while the CLI bundled with
-`claude-agent-sdk` 0.2.165 is **2.1.294** and its estimate still charges
+**$0.10/Mtok**, which the CLI 2.1.301 bundled with `claude-agent-sdk` 0.2.168
+charges (measured 2026-10-17), while the 2.1.294 bundled with 0.2.165 charged
 **$0.20/Mtok** (measured 2026-10-11). Pin the SDK version in the image and
 record it beside any cost figure.
+
+A host that embeds Claude Code and routes the model provider itself sets
+`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`: Claude Code then ignores the provider,
+endpoint and credential variables (`CLAUDE_CODE_USE_BEDROCK`,
+`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`) in settings files and the
+model-selection keys in managed settings, so neither can override the host's
+routing. Large requests to api.anthropic.com are gzip-compressed even with
+telemetry off from 2.1.300; `CLAUDE_CODE_GZIP_REQUEST_BODIES=0` turns that off
+for a proxy that cannot decompress. Resuming a headless or SDK session after a
+compaction lost recent messages or brought back pre-compaction history in two
+cases fixed in 2.1.300 — another reason to pin a CLI at least that new when a
+`SessionStore` resumes sessions across containers.
 
 ## Known limitations worth planning around
 
@@ -82,8 +94,9 @@ record it beside any cost figure.
   **2.1.285+**), and `BASH_DEFAULT_TIMEOUT_MS`/`BASH_MAX_TIMEOUT_MS` above their
   defaults raise both. Size the container's lifetime and its token budget for
   that, not for the 600000 ms foreground cap.
-- `permission_mode` left unset can start a headless session in **`auto`** from
-  2.1.285, where broad allow rules are dropped. Pass it explicitly.
+- `permission_mode` left unset starts a headless session that fetches no
+  feature flags in **`auto`** on 2.1.285–2.1.301 (in `default` from 2.1.302),
+  where broad allow rules are dropped. Pass it explicitly.
 - A session pinned to a container dies with it unless a `SessionStore` is
   configured.
 - `SessionStore` mirror writes are best-effort: when a batch cannot be
@@ -108,9 +121,14 @@ the bundled binary),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
 limit), <https://code.claude.com/docs/en/permission-modes>,
 <https://platform.claude.com/docs/en/about-claude/models/overview> (cache-read
-percentages); `claude-agent-sdk` 0.2.165
-`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2096`
-(`cwd`), `:2403` (`session_store`), `:2056` (`max_budget_usd`), `:2025`
-(`permission_mode`). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
-was measured by this plugin on 2026-10-11. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+percentages); `claude-agent-sdk` 0.2.168
+`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2451`
+(`cwd`), `:2758` (`session_store`), `:2411` (`max_budget_usd`), `:2380`
+(`permission_mode`); <https://code.claude.com/docs/en/env-vars>
+(`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300 gzip
+and resume fixes, 2.1.302 unset-mode default). The $0.20/Mtok cache-read price
+of the bundled CLI 2.1.294 was measured by this plugin on 2026-10-11 and the
+$0.10/Mtok of 2.1.301 on 2026-10-17. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
+claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

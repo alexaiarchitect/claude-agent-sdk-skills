@@ -87,8 +87,10 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
   pre-approved call — and setting both raises `CanUseToolShadowedWarning`.
 - **`return {}` is the safe hook return.** It means allow, unchanged. Only
   reach for `hookSpecificOutput` when the hook is meant to change something.
-- **`Stop`, `SubagentStop` and `PreCompact` have no `hookSpecificOutput` type.**
-  They use `decision`/`reason`/`continue_`. Do not generate one for them.
+- **Only `PreCompact` has no `hookSpecificOutput` type.** `Stop` and
+  `SubagentStop` take `hookSpecificOutput.additionalContext` (typed from
+  0.2.166), but blocking a stop is still the top-level `decision: "block"` +
+  `reason`. Do not generate `hookSpecificOutput` for `PreCompact`.
 - **Probability belongs inside the callback.** `HookMatcher` has no
   `probability` field; matchers on one event are dispatched concurrently.
 - **Prefer in-process MCP tools.** No subprocess, no network, testable

@@ -66,9 +66,11 @@ case files, before the runner is even reached.
    `permission_mode="dontAsk"` when the agent left the mode unset — recorded in
    the trace `init` event as `permission_mode_source: "runner-default"` (or
    `"agent"` when the agent set it). The runner resolves the mode itself because
-   a headless session that does not fetch feature flags can start in `auto` from
-   Claude Code 2.1.285, where broad allow rules are dropped; an explicit mode in
-   the options or in a case's `overrides` always wins;
+   the CLI's choice varies: a session that fetches feature flags starts in
+   `default`, but on Claude Code 2.1.285–2.1.301 one that fetches none (gateway,
+   telemetry off, first run after an upgrade) starts in `auto`, where broad allow
+   rules are dropped, and 2.1.302 starts those in `default` again; an explicit
+   mode in the options or in a case's `overrides` always wins;
 3. the model: case override, then config `model` (with `${CLAUDE_MODEL:-...}`
    expansion), then the agent's own; none of these set means a refusal;
 4. the case's `overrides`, validated by name before anything starts;
@@ -90,6 +92,9 @@ SDK behaviour per `https://code.claude.com/docs/en/agent-sdk/python` (`query`,
 `ClaudeSDKClient`, `ClaudeAgentOptions`),
 `https://code.claude.com/docs/en/agent-sdk/configuration` (model selection,
 `setting_sources`) and `https://code.claude.com/docs/en/permission-modes` (the
-headless starting-mode table). Re-read 2026-10-11 against claude-agent-sdk
-0.2.165 / Claude Code 2.1.296 docs; the `runs` precedence and the session
-arithmetic re-checked 2026-10-13 against `cli.py`.
+headless starting-mode table), with
+`https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` for the
+2.1.302 change the table does not show yet. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; the `runs` precedence and
+the session arithmetic re-checked 2026-10-13 against `cli.py`; re-read
+2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

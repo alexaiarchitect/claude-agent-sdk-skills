@@ -46,18 +46,19 @@ table. Two consequences:
   other, which is what you want either way.
 * **Each `model_usage` row carries its own `costBasis`**: `list` (the public
   price list), `managed` (an organisation's negotiated rate) or `unknown`,
-  needing Claude Code 2.1.246+. It is not on the 0.2.165 `ModelUsage`
+  needing Claude Code 2.1.246+. It is not on the 0.2.168 `ModelUsage`
   TypedDict, so read it with `.get()`; measured 2026-10-11 it was `"list"` on
   every row of an API-key run. Two runs with different bases are not
   comparable, however close the numbers look.
 * **`model_usage` holds more than one model.** Measured 2026-10-11, a Sonnet
   5.5 session also billed `claude-haiku-5-5` for the CLI's background work. A
   per-model ceiling has to allow it, and a total must sum the rows.
-* **One price is moving.** A Sonnet 5.5 cache read is $0.10/Mtok on the
-  platform list and in Claude Code **2.1.296**; the CLI bundled with
-  `claude-agent-sdk` 0.2.165 is **2.1.294** and still charges **$0.20/Mtok**
-  (measured). A cache-heavy series will step when the bundled CLI crosses
-  2.1.296, so record the CLI version with the series.
+* **One price moved.** A Sonnet 5.5 cache read is $0.10/Mtok on the platform
+  list, and the CLI 2.1.301 bundled with `claude-agent-sdk` 0.2.168 charges
+  that (measured 2026-10-17); the 2.1.294 bundled with 0.2.165 charged
+  **$0.20/Mtok** (measured 2026-10-11). A cache-heavy series recorded on the
+  older CLI steps down on the newer one, so record the CLI version with the
+  series.
 
 ## `informational: true`
 
@@ -124,5 +125,6 @@ counts), https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom
 https://platform.claude.com/docs/en/about-claude/models/overview (cache-read
 percentages). `costBasis`, `thinkingTokens`, the two-model `model_usage` and the
 $0.20/Mtok cache read of the bundled CLI 2.1.294 were measured by this plugin on
-2026-10-11. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
-2.1.296 docs.
+2026-10-11, the $0.10/Mtok of 2.1.301 on 2026-10-17. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
+claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

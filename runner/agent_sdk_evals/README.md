@@ -59,14 +59,17 @@ number of sessions is not `cases x tier.runs`.
   `allowed_warning` is recorded and the suite keeps going. The cost is also not
   all the agent's: the trace's `models_billed` lists every model in
   `model_usage`, and the CLI bills its own background work to a cheap model
-  nobody asked for (measured `claude-haiku-5-5` on CLI 2.1.294).
+  nobody asked for (measured `claude-haiku-5-5` on CLI 2.1.294 and 2.1.301).
 - **The permission mode is decided, never inherited.** An agent that leaves
   `permission_mode` unset gets `dontAsk`, and the trace `init` event says who
-  chose it (`permission_mode_source`: `"agent"` or `"runner-default"`). An unset
-  mode is not `default` — a headless session without the interactive feature
-  flags can start in `auto` on CLI 2.1.285+, where a classifier reviews each
-  tool call and a bare allow rule no longer settles it. `--dry-run` prints the
-  resolved mode and its source for every case.
+  chose it (`permission_mode_source`: `"agent"` or `"runner-default"`). Left
+  unset, the mode is whatever the CLI picks: a headless session that fetches
+  feature flags starts in `default`; on CLI 2.1.285–2.1.301 one that does not
+  (third-party provider, telemetry off, first run after an install or upgrade)
+  starts in `auto`, where a classifier reviews each tool call and a bare allow
+  rule no longer settles it; 2.1.302+ starts those in `default` too. The runner
+  forces `dontAsk` either way. `--dry-run` prints the resolved mode and its
+  source for every case.
 
 ## This is a copy
 

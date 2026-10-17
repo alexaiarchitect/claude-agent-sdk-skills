@@ -23,7 +23,7 @@ INIT_DATA = {
     "session_id": "s-1", "tools": ["Read", "StructuredOutput"],
     "mcp_servers": [{"name": "library", "status": "connected"}],
     "model": "claude-sonnet-5-5", "permissionMode": "dontAsk",
-    "apiKeySource": "none", "claude_code_version": "2.1.294",
+    "apiKeySource": "none", "claude_code_version": "2.1.301",
     "agents": ["Explore"], "skills": [], "plugins": [],
 }
 
@@ -69,7 +69,7 @@ def test_init_records_the_cli_version_and_the_api_key_source():
     cap = Capture(run_id="r", case="c")
     cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
     init = events_of(cap, "init")[0]
-    assert init["cli_version"] == "2.1.294", "the measured field is the CLI version, not the SDK's"
+    assert init["cli_version"] == "2.1.301", "the measured field is the CLI version, not the SDK's"
     assert init["api_key_source"] == "none", "the in-band credential proof"
     assert init["permission_mode"] == "dontAsk"
     assert init["occurrence"] == 1
@@ -411,3 +411,45 @@ def test_no_model_usage_at_all_is_vacuously_list_priced():
     cap.add(result_message(model_usage={}))
     result = events_of(cap, "result")[0]
     assert result["models_billed"] == [] and result["cost_basis_list"] is True
+
+
+# -- CLI 2.1.301 init (measured 2026-10-17) ----------------------------------
+
+def _script_2_1_301():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_301.script.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def test_init_records_capabilities_and_fast_mode_when_present():
+    cap = Capture(run_id="r", case="c")
+    for entry in _script_2_1_301():
+        cap.add(sdk.build_message(entry))
+    init = events_of(cap, "init")[0]
+    assert init["cli_version"] == "2.1.301"
+    assert len(init["capabilities"]) == 11 and "msg_lifecycle_v1" in init["capabilities"]
+    assert init["fast_mode_state"] == "off"
+    assert init["fast_mode_disabled_reason"] == "sdk_opt_in_required"
+    assert init["permission_mode"] == "default", "unset mode, flags fetched: the CLI's default"
+    for undeclared in ("original_cwd", "memory_paths", "view_mode", "messaging_socket_path"):
+        assert undeclared not in init, "undeclared init keys are tolerated, not copied"
+    assert all("source" in p and "version" not in p for p in init["plugins"]), \
+        "2.1.301 plugin entries carry `source`, not `version`"
+
+
+def test_commands_changed_becomes_a_system_event():
+    cap = Capture(run_id="r", case="c")
+    for entry in _script_2_1_301():
+        cap.add(sdk.build_message(entry))
+    assert [e["type"] for e in cap.events] == ["init", "system", "assistant_text", "result"]
+    assert cap.events[1]["subtype"] == "commands_changed"
+    assert events_of(cap, "result")[0]["total_cost_usd"] == pytest.approx(0.035674)
+
+
+def test_an_init_without_the_new_fields_records_none_of_them():
+    """Absent before CLI 2.1.205 (capabilities) and on older SDKs: never required."""
+    cap = Capture(run_id="r", case="c")
+    cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
+    init = events_of(cap, "init")[0]
+    for key in ("capabilities", "fast_mode_state", "fast_mode_disabled_reason"):
+        assert key not in init

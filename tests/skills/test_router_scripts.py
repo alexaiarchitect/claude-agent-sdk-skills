@@ -13,7 +13,7 @@ def test_discover_prints_a_report_and_exits_clean_on_the_good_fixture(run_script
     assert result.returncode in (0, 1), result.stderr
     doc = result.json()
     assert doc["schema"] == "agent-sdk-skills.gap-report/1"
-    assert doc["discovered"]["environment"]["sdk_version"] == "0.2.165", "the fake interpreter answered the probe"
+    assert doc["discovered"]["environment"]["sdk_version"] == "0.2.168", "the fake interpreter answered the probe"
     assert doc["discovered"]["environment"]["cost_basis"] == "subscription"
 
 
@@ -41,7 +41,7 @@ def test_check_env_is_ready_with_a_token_and_the_fake_sdk(run_script, isolated_a
                         "--json", "--no-cli", env={"CLAUDE_CODE_OAUTH_TOKEN": "tok"})
     doc = result.json()
     assert result.returncode == 0 and doc["ready"], doc["blockers"]
-    assert doc["runner"]["sdk_version"] == "0.2.165"
+    assert doc["runner"]["sdk_version"] == "0.2.168"
     assert doc["model"]["grade"] == "current", "Sonnet 5.5 is a current id, not just a pinned one"
 
 

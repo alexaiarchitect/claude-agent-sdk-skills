@@ -26,7 +26,7 @@ money rather than plan quota, so it is opt-in on top of `AGENT_SDK_LIVE=1`:
 
     set -a; source ../.env; set +a
     AGENT_SDK_LIVE=1 AGENT_SDK_LIVE_CREDENTIAL=api_key PYTHONPATH=runner \\
-        /tmp/casdk-venv-0.2.165/bin/python -m pytest tests/runner/test_live.py -q
+        /tmp/casdk-venv-0.2.168/bin/python -m pytest tests/runner/test_live.py -q
 
 The CLI prints one stderr notice on every API-key run ("claude.ai connectors are
 disabled because ANTHROPIC_API_KEY … takes precedence"), which is not a failure.
@@ -151,12 +151,19 @@ def test_the_pr_tier_passes_against_the_real_backend(project, tmp_path_factory):
     assert init["cli_version"], "the CLI version is reported from the session itself"
     assert init["permission_mode"] == "dontAsk"
     assert init["permission_mode_source"] == "agent", "the fixture sets the mode itself"
+    # Recorded when the CLI sends them (2.1.205+ for capabilities), never required.
+    assert isinstance(init.get("capabilities", []), list)
 
     # The cost is spread over every model the CLI billed, not just the agent's.
     result = next(e for e in events if e["type"] == "result")
     assert result["cost_basis"] == EXPECTED_BASIS
     assert result["models_billed"], "model_usage names at least the agent's model"
     assert result["cost_basis_list"] is True, "no negotiated rate on a first-party account"
+    print(f"\nLIVE pr tier totals: {json.dumps(totals)}")
+    print(f"LIVE echo-ready: cli={init['cli_version']} cost={result.get('total_cost_usd')} "
+          f"models_billed={result['models_billed']} "
+          f"capabilities={len(init.get('capabilities') or [])} "
+          f"fast_mode={init.get('fast_mode_state')}/{init.get('fast_mode_disabled_reason')}")
 
     if ON_API_KEY:
         # An API key has no plan windows, and no `RateLimitEvent` arrived on
@@ -183,3 +190,5 @@ def test_the_structured_output_case_shows_the_synthetic_tool_call(project, tmp_p
     assert all(e["tool"] == "StructuredOutput" for e in calls)
     result = next(e for e in events if e["type"] == "result")
     assert result["structured_output"], result
+    print(f"\nLIVE structured-answer: cost={result.get('total_cost_usd')} "
+          f"models_billed={result.get('models_billed')}")

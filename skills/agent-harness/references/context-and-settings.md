@@ -93,6 +93,16 @@ an object). Whatever you pass **overrides** user, project and local filesystem
 settings; only managed policy ranks higher. It is the way to supply one known
 configuration rather than to suppress the machine's.
 
+Compaction keys are a common reason to pass `settings`, so know their reach.
+`idleCompaction` (default `true`; Claude Code 2.1.299 added it to the terminal)
+compacts a 200K+ token conversation left idle about 54 minutes, just before its
+one-hour prompt cache expires — but only in an **interactive terminal session**
+that fetches feature flags, so an SDK run never idle-compacts.
+`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` moves the 200000 threshold (floor
+100000), and `DISABLE_AUTO_COMPACT=1` now turns off idle compaction along with
+auto-compaction and overrides `autoCompactEnabled`. The `settings-reference`
+page lists every key with its scope.
+
 ## What this means for each situation
 
 | Situation | `setting_sources` |
@@ -134,9 +144,12 @@ and its "What settingSources does not control" table,
 <https://code.claude.com/docs/en/agent-sdk/migration-guide>
 (the 0.1.59 empty-list behaviour), <https://code.claude.com/docs/en/memory>;
 <https://code.claude.com/docs/en/env-vars> (the scrub table, and that `env`
-values are not shell-expanded), <https://code.claude.com/docs/en/settings>;
-`claude-agent-sdk` 0.2.165 `types.py:2297` (`setting_sources`), `:2105`
-(`settings`), `:2018` (`strict_mcp_config`), `:2096` (`cwd`). The 17x cost figure
+values are not shell-expanded, `DISABLE_AUTO_COMPACT`,
+`CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS`), <https://code.claude.com/docs/en/settings>,
+<https://code.claude.com/docs/en/settings-reference#idlecompaction>;
+`claude-agent-sdk` 0.2.168 `types.py:2652` (`setting_sources`), `:2460`
+(`settings`), `:2373` (`strict_mcp_config`), `:2451` (`cwd`). The 17x cost figure
 and the list of what still loaded under `setting_sources=[]` were measured by
 this plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
-Claude Code 2.1.296 docs.
+Claude Code 2.1.296 docs. Re-read 2026-10-17 against claude-agent-sdk
+0.2.168 / Claude Code 2.1.302 docs.

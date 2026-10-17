@@ -43,8 +43,8 @@ except ImportError:                      # pragma: no cover - older library copy
 DOCS = "https://code.claude.com/docs/en/agent-sdk"
 SRC_HOOKS = f"{DOCS}/hooks#available-hooks"
 SRC_HOOKS_OUTPUT = f"{DOCS}/hooks#outputs"
-SRC_HOOK_TYPES = "claude-agent-sdk 0.2.165 types.py:284 (HookEvent), :507-581 (HookJSONOutput)"
-SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.165 types.py:606 (HookMatcher)"
+SRC_HOOK_TYPES = "claude-agent-sdk 0.2.168 types.py:284 (HookEvent), :728-815 (HookJSONOutput)"
+SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.168 types.py:840 (HookMatcher)"
 SRC_PERMISSIONS = f"{DOCS}/permissions#how-permissions-are-evaluated"
 SRC_PERMISSION_RULES = f"{DOCS}/permissions#allow-and-deny-rules"
 SRC_TOOL_ACCESS = f"{DOCS}/custom-tools#control-tool-access"
@@ -58,7 +58,8 @@ SRC_SETTINGS = f"{DOCS}/claude-code-features#control-filesystem-settings-with-se
 SRC_DEPRECATIONS = "https://platform.claude.com/docs/en/about-claude/model-deprecations"
 SRC_PERMISSION_MODES = "https://code.claude.com/docs/en/permission-modes"
 SRC_NETWORK_PATHS = "https://code.claude.com/docs/en/permissions#network-paths"
-SRC_PERMISSION_MODE_FIELD = "claude-agent-sdk 0.2.165 types.py:2025 (permission_mode)"
+SRC_PERMISSION_MODE_FIELD = "claude-agent-sdk 0.2.168 types.py:2380 (permission_mode)"
+SRC_CHANGELOG = "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"
 #: Hooks that `onFailure: "block"` cannot rescue, so the advice is wrong there.
 ON_FAILURE_EXEMPT_EVENTS = ("Stop", "SubagentStop", "TaskCompleted", "TeammateIdle")
 
@@ -208,7 +209,7 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             message='"Skill" in allowed_tools is deprecated',
             fix="use the `skills` option instead: it configures everything, including "
                 "allowing the Skill tool. Pass exact skill names.",
-            source="claude-agent-sdk 0.2.165 types.py:1991; " + SRC_OPTIONS,
+            source="claude-agent-sdk 0.2.168 types.py:2346; " + SRC_OPTIONS,
         ))
 
     mode = primary.get("permission_mode")
@@ -217,15 +218,17 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
         findings.append(Finding(
             id="OPT013", severity="warn", area="options", path=path, locator=line,
             message="`permission_mode` is unset, so the mode is whatever the CLI picks. A "
-                    "headless session without the interactive feature flags can start in "
-                    "`auto` on CLI 2.1.285 and later, where a classifier reviews each tool "
-                    "call and a bare allow rule no longer settles it",
+                    "session that fetches feature flags starts in `default`; on CLI "
+                    "2.1.285–2.1.301 one that fetches none (third-party provider, "
+                    "telemetry off, first run after an install or upgrade) starts in "
+                    "`auto`, where a classifier reviews each tool call and a bare allow "
+                    "rule no longer settles it; CLI 2.1.302+ starts those in `default` too",
             fix='set permission_mode explicitly ("dontAsk" for unattended runs, "default" '
-                "to keep prompting). A session that does not fetch feature flags — a "
-                "third-party provider, telemetry off, a gateway token — is the one that "
-                "gets `auto`. This plugin's runner forces \"dontAsk\" when the agent "
-                "leaves the mode unset, but the agent also runs outside the runner.",
-            source=f"{SRC_PERMISSION_MODE_FIELD}; {SRC_PERMISSION_MODES}",
+                'to keep prompting, "auto" if you want the classifier), so the agent '
+                "behaves the same on every CLI version and environment. This plugin's "
+                "runner forces \"dontAsk\" when the agent leaves the mode unset, but the "
+                "agent also runs outside the runner.",
+            source=f"{SRC_PERMISSION_MODE_FIELD}; {SRC_PERMISSION_MODES}; {SRC_CHANGELOG} (2.1.302)",
         ))
     if mode_value == "bypassPermissions":
         findings.append(Finding(
@@ -243,7 +246,7 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             id="OPT060", severity="error", area="options", path=path, locator=line,
             message=f'permission_mode="{mode_value}" is not one of the six the SDK accepts',
             fix="one of: " + ", ".join(PERMISSION_MODES),
-            source="claude-agent-sdk 0.2.165 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
+            source="claude-agent-sdk 0.2.168 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
         ))
     return findings
 
@@ -291,7 +294,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     message=f"hook callback {name}() is a plain `def`; the SDK awaits it",
                     fix="make it `async def cb(input_data, tool_use_id, context)`. A "
                         "synchronous callback raises as soon as the event fires.",
-                    source="claude-agent-sdk 0.2.165 types.py:594 (HookCallback)",
+                    source="claude-agent-sdk 0.2.168 types.py:828 (HookCallback)",
                 ))
             if callback.param_count != 3 and not any(p.startswith("*") for p in callback.params):
                 findings.append(Finding(
@@ -300,7 +303,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     message=f"hook callback {name}() takes {callback.param_count} "
                             "parameter(s); the SDK always passes three",
                     fix="the signature is (input_data, tool_use_id, context).",
-                    source="claude-agent-sdk 0.2.165 types.py:594 (HookCallback)",
+                    source="claude-agent-sdk 0.2.168 types.py:828 (HookCallback)",
                 ))
             needs_specific = registration.event not in HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT
             if (needs_specific and callback.returns_nonempty_dict
@@ -313,11 +316,12 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                                 "hookSpecificOutput, and keys that are not common "
                                 f"fields, so nothing in it reaches {registration.event}",
                         fix='return {"hookSpecificOutput": {"hookEventName": '
-                            f'"{registration.event}", ...}}. Only Stop, SubagentStop and '
-                            "PreCompact have no hookSpecificOutput type; they use the "
-                            "common fields alone (`continue_`, `stopReason`, `decision`, "
-                            "`reason`, `systemMessage`), which are accepted on every "
-                            "event. `return {}` allows without changes.",
+                            f'"{registration.event}", ...}}. Only PreCompact has no '
+                            "hookSpecificOutput type (Stop and SubagentStop take "
+                            "`additionalContext`, typed from 0.2.166). The common fields "
+                            "(`continue_`, `stopReason`, `decision`, `reason`, "
+                            "`systemMessage`) are accepted on every event. `return {}` "
+                            "allows without changes.",
                         source=f"{SRC_HOOKS_OUTPUT}; {SRC_HOOK_TYPES}",
                     ))
                 elif (callback.hook_event_names
@@ -368,6 +372,8 @@ def mcp_findings(facts: ProjectFacts, *, check_path: bool = True) -> list[Findin
     """MCP001, MCP002, MCP010: do the tool names the agent names exist?"""
     findings: list[Finding] = []
     known = set(facts.server_names)
+    # A key's `.` and spaces become `_` in the tool name the model sees.
+    known |= {re.sub(r"[. ]", "_", name) for name in known}
     primary = facts.primary
     if primary is not None:
         for entry in primary.str_list("allowed_tools"):
@@ -384,8 +390,11 @@ def mcp_findings(facts: ProjectFacts, *, check_path: bool = True) -> list[Findin
                         f'"{server}" is configured, so the rule can never match',
                 fix="configured servers: " + (", ".join(sorted(known)) or "(none)")
                     + ". Tool names are mcp__<server>__<tool>, where <server> is the key "
-                      "in mcp_servers.",
-                source=SRC_MCP_NAMING,
+                      "in mcp_servers with `.` and spaces turned into `_`. To approve a "
+                      "whole server write mcp__<server>__*: from Claude Code 2.1.299 an "
+                      "MCP rule reaches only the server it names, and a server whose name "
+                      "contains `__` needs that wildcard form.",
+                source=f"{SRC_MCP_NAMING}; https://code.claude.com/docs/en/permissions",
             ))
     for server in facts.mcp_servers:
         if server.kind != "stdio" or not server.command:
@@ -432,7 +441,7 @@ def mcp_findings(facts: ProjectFacts, *, check_path: bool = True) -> list[Findin
                 locator=f"@tool {tool.tool_name or tool.func_name} line {tool.lineno}",
                 message=f"{tool.tool_name or tool.func_name} is not `async def`",
                 fix="`SdkMcpTool.handler` is awaited; a synchronous handler raises.",
-                source="claude-agent-sdk 0.2.165 __init__.py:241 (SdkMcpTool)",
+                source="claude-agent-sdk 0.2.168 __init__.py:267 (SdkMcpTool)",
             ))
     return findings
 

@@ -11,19 +11,19 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.1.2"
+RUNNER_VERSION = "0.1.3"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the
 #: mcp 2.x transport arrived in 0.2.140). The SDK bundles its own CLI, so the
 #: CLI version is reported separately (`cli_version`), never derived.
-SDK_TARGET = "0.2.165"
+SDK_TARGET = "0.2.168"
 SDK_MIN_SUPPORTED = "0.2.140"
-CLI_BUNDLED_WITH_TARGET = "2.1.294"
+CLI_BUNDLED_WITH_TARGET = "2.1.301"
 
 #: Model policy. Ids from platform.claude.com/docs/en/models/overview and
 #: .../about-claude/model-deprecations (read 2026-10-11). Four grades, in order
@@ -58,8 +58,8 @@ RETIRED_MODELS = (
 #: Aliases the CLI resolves at run time; they never go stale but do move.
 ALIAS_MODELS = ("sonnet", "opus", "haiku", "fable", "best", "default", "opusplan")
 
-#: `ClaudeAgentOptions` field names in declaration order (`types.py:1971` of
-#: claude-agent-sdk 0.2.165, 49 fields). "Is this even an option?" (EVC003).
+#: `ClaudeAgentOptions` field names in declaration order (`types.py:2326` of
+#: claude-agent-sdk 0.2.168, 49 fields). "Is this even an option?" (EVC003).
 OPTION_NAMES = (
     "tools", "allowed_tools", "system_prompt", "mcp_servers", "strict_mcp_config",
     "permission_mode", "continue_conversation", "resume", "session_id", "max_turns",
@@ -90,10 +90,15 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: measured with and without; see CONTRACTS §1.2).
 #: The runner also resolves one *conditional* default that is not a key here,
 #: because it only applies when the agent leaves the field `None`:
-#: `permission_mode="dontAsk"`. A headless session that never sets the mode can
-#: start in `auto` on CLI 2.1.285+, where a classifier reviews each tool call
-#: and a bare allow rule no longer settles it. The trace `init` event records
-#: which way it went as `permission_mode_source` ("agent" or "runner-default").
+#: `permission_mode="dontAsk"`. With the mode unset the CLI picks it: a
+#: headless session that fetches feature flags starts in `default` (measured on
+#: CLI 2.1.292 and 2.1.301, direct API key, telemetry on); on CLI 2.1.285-2.1.301
+#: one that does not (third-party provider, telemetry off, first run after an
+#: install or upgrade) starts in `auto`, where a classifier reviews each tool
+#: call and a bare allow rule no longer settles it; 2.1.302+ starts those in
+#: `default` too. The runner forces `dontAsk` for unattended runs either way.
+#: The trace `init` event records which way it went as `permission_mode_source`
+#: ("agent" or "runner-default").
 ISOLATION_DEFAULTS = {"setting_sources": [], "strict_mcp_config": True}
 
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "bypassPermissions", "dontAsk", "auto")
@@ -106,8 +111,12 @@ PYTHON_HOOK_EVENTS = (
     "PreToolUse", "PostToolUse", "PostToolUseFailure", "UserPromptSubmit", "Stop",
     "SubagentStop", "PreCompact", "Notification", "SubagentStart", "PermissionRequest",
 )
-#: Events whose hook output has no `hookSpecificOutput` type at all.
-HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT = ("Stop", "SubagentStop", "PreCompact")
+#: Events whose hook output has no `hookSpecificOutput` type at all. Since
+#: 0.2.166 the SDK types 21 `*HookSpecificOutput` classes; of the 10 Python events
+#: only `PreCompact` lacks one (`Stop`/`SubagentStop` take `additionalContext`;
+#: blocking a stop is still the top-level `decision: "block"`). The CLI reads the
+#: dict shape on older SDKs too, so this is not version-gated.
+HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT = ("PreCompact",)
 
 #: Tool names the CLI synthesizes; trajectory-style graders skip them unless
 #: named explicitly. `output_format` results arrive as a `StructuredOutput` call.

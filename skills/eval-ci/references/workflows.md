@@ -86,8 +86,9 @@ carry **the provider's own variables** in the same `env:` block — the AWS,
 Google Cloud or Azure credentials the backend mints from the job's OIDC token —
 because the suite inherits them from the job environment and nothing else
 supplies them. And because such a job never receives the interactive feature
-flags, a session whose `permission_mode` is unset starts in **`auto`** from
-Claude Code **2.1.285**, where broad allow rules are dropped; the agent should
+flags, a session whose `permission_mode` is unset starts in **`auto`** on
+Claude Code **2.1.285–2.1.301** (in `default` from 2.1.302), where broad allow
+rules are dropped; the agent should
 pass `permission_mode="dontAsk"`, and the runner forces it when the options do
 not.
 
@@ -161,3 +162,6 @@ table); `https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom`
 (the soft budget cap); this plugin's
 `skills/eval-run/references/running-in-ci.md` and `assets/templates/workflows/`.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+The 2.1.302 unset-mode change is from
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
+2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

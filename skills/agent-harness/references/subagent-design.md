@@ -81,12 +81,26 @@ replaces it). The parent's `max_turns` does **not** cap a subagent — that is
 what `maxTurns` on the definition is for.
 
 A long-running subagent also has a context window to manage: `autoCompactWindow`
-sets where auto-compaction kicks in, and from Claude Code **2.1.288** a value
+lowers where auto-compaction kicks in (100000–1000000 tokens) — but only as
+`.claude/agents/*.md` frontmatter (Claude Code **2.1.296+**) or on the
+**TypeScript** SDK's agent definition (v0.3.296+); the Python `AgentDefinition`
+has no such field, and `CLAUDE_CODE_AUTO_COMPACT_WINDOW` overrides it. From
+Claude Code **2.1.288** a value
 given to `/autocompact` is saved **per model** under `modelSettings` rather than
 as one global top-level setting (2.1.296 is the release the current wording
 describes). Where a model-switching request would normally prompt, **in a
 subagent no prompt is shown** — the flagged request simply re-runs on the
 fallback model.
+
+**Two defaults changed in 2.1.302** for `claude -p` and the Agent SDK. Fork
+subagents (`subagent_type: "fork"`, a copy of the current conversation) are
+**on by default**, as they already were in the terminal;
+`CLAUDE_CODE_FORK_SUBAGENT=0` in `env` turns them off, which an eval that
+asserts on the set of `subagent_type` values may want. And a subagent's own
+Agent calls now run in the **foreground** by default, so a nested delegation
+blocks its parent subagent rather than returning at once. Since 2.1.299 an
+agent's `tools:` list that names an MCP server takes only **that server's**
+tools; list a server whose name contains `__` as `mcp__<whole name>__*`.
 
 Opus 5 delegates more readily than earlier models, so these matter most there.
 With the `claude_code` system-prompt preset, Claude Code adds a line telling
@@ -117,8 +131,8 @@ The **TypeScript** Agent SDK additionally puts `agent_id` on a subagent's
 assistant and user messages from v0.3.292, equal to the `task_id` of that
 subagent's task events, which is the reliable way to attribute interleaved
 parallel subagents. **Python has no such field** on `AssistantMessage` or
-`UserMessage` at 0.2.165 — `parent_tool_use_id` is what a Python reader
-correlates on. (On the SDK's `main`, `agent_id` does appear on the four
+`UserMessage` at 0.2.168 — `parent_tool_use_id` is what a Python reader
+correlates on. (From 0.2.166, `agent_id` does appear on the four
 tool-lifecycle *hook inputs*; that is a 0.2.166+ fact and a different surface.)
 
 Before v2.1.210 the parent read the subagent's final message verbatim; since
@@ -142,9 +156,13 @@ Opus 5, output scanning), <https://code.claude.com/docs/en/sub-agents>
 <https://code.claude.com/docs/en/agent-sdk/permissions#available-modes>
 (subagent mode inheritance), <https://code.claude.com/docs/en/env-vars>;
 <https://code.claude.com/docs/en/model-config> (effort after a fallback,
-per-model `autoCompactWindow`);
-`claude-agent-sdk` 0.2.165 `types.py:2291` (`agents`), `:2207-2217`
-(`parent_tool_use_id` and subagent text), `:1466` (`HookEventMessage`). The
+per-model `autoCompactWindow`),
+<https://code.claude.com/docs/en/sub-agents#subagent-auto-compact-window>,
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 MCP
+`tools:` scoping, 2.1.302 fork and foreground defaults);
+`claude-agent-sdk` 0.2.168 `types.py:2646` (`agents`), `:2562-2572`
+(`parent_tool_use_id` and subagent text), `:1821` (`HookEventMessage`). The
 `Task` / `Agent` naming difference was measured by this plugin on 2026-09-30
 from the CLI's own `init.tools` list. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
+claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

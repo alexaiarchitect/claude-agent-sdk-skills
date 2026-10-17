@@ -6,8 +6,8 @@ whole point of the plugin is that it works before the project's environment does
 `PYTHONPATH=tests/fixtures/stubs:runner`.
 
 Faithfulness is the contract. Every public name, every dataclass field and every
-field *order* here was read from the installed wheel (`claude-agent-sdk` 0.2.165,
-bundled CLI 2.1.294); `ClaudeAgentOptions` carries all 49 fields in declaration
+field *order* here was read from the installed wheel (`claude-agent-sdk` 0.2.168,
+bundled CLI 2.1.301; the stub mirrors a subset of the wheel's 159 exports); `ClaudeAgentOptions` carries all 49 fields in declaration
 order, so a test can compare the runner's pinned option list against
 `__dataclass_fields__` exactly as the runner does at run time.
 
@@ -30,10 +30,10 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncIterator, Awaitable, Callable, Generic, Literal, TypeVar
+from typing import Any, AsyncIterator, Awaitable, Callable, Generic, Literal, TypedDict, TypeVar
 
-__version__ = "0.2.165"
-__cli_version__ = "2.1.294"
+__version__ = "0.2.168"
+__cli_version__ = "2.1.301"
 
 T = TypeVar("T")
 
@@ -55,6 +55,207 @@ HookEvent = Literal[
     "SubagentStop", "PreCompact", "Notification", "SubagentStart", "PermissionRequest",
 ]
 TERMINAL_TASK_STATUSES = {"completed", "failed", "stopped", "killed"}
+
+
+
+# -- exported in 0.2.166 (typed shapes only; `total=False` marks NotRequired) --
+# Mirrors `types.py` of 0.2.168: hook-input extras (`HookEffort` 299,
+# `BackgroundTaskSummary` 391, `SessionCronSummary` 417), the 17 newly exported
+# `*HookSpecificOutput` classes (511-725), `SystemInitData` and its parts
+# (1404-1461), `FastModeState`/`FastModeDisabledReason` (1443/1447). Nothing in
+# the stub constructs them; they exist so the export list can be compared.
+
+FastModeState = Literal["off", "cooldown", "on"]
+FastModeDisabledReason = Literal[
+    "free", "preference", "extra_usage_disabled", "network_error", "unknown",
+    "not_first_party", "disabled_by_env", "model_not_allowed", "sdk_opt_in_required", "pending",
+]
+
+
+class HookEffort(TypedDict):
+    level: str
+
+
+class _BackgroundTaskSummaryRequired(TypedDict):
+    id: str
+    type: str
+    status: str
+    description: str
+
+
+class BackgroundTaskSummary(_BackgroundTaskSummaryRequired, total=False):
+    command: str
+    agent_type: str
+    server: str
+    tool: str
+    name: str
+
+
+class SessionCronSummary(TypedDict):
+    id: str
+    schedule: str
+    recurring: bool
+    prompt: str
+
+
+class _SystemInitMcpServerRequired(TypedDict):
+    name: str
+    status: str
+
+
+class SystemInitMcpServer(_SystemInitMcpServerRequired, total=False):
+    source: str
+
+
+class _SystemInitPluginRequired(TypedDict):
+    name: str
+    path: str
+
+
+class SystemInitPlugin(_SystemInitPluginRequired, total=False):
+    version: str
+
+
+class _SystemInitPluginErrorRequired(TypedDict):
+    plugin: str
+    type: str
+    message: str
+
+
+class SystemInitPluginError(_SystemInitPluginErrorRequired, total=False):
+    path: str
+
+
+class _SystemInitDataRequired(TypedDict):
+    type: Literal["system"]
+    subtype: Literal["init"]
+    uuid: str
+    session_id: str
+    apiKeySource: str
+    claude_code_version: str
+    cwd: str
+    tools: list[str]
+    mcp_servers: list[SystemInitMcpServer]
+    model: str
+    permissionMode: PermissionMode
+    slash_commands: list[str]
+    output_style: str
+    skills: list[str]
+    plugins: list[SystemInitPlugin]
+
+
+class SystemInitData(_SystemInitDataRequired, total=False):
+    agents: list[str]
+    betas: list[str]
+    terminal_slash_commands: list[str]
+    plugin_errors: list[SystemInitPluginError]
+    fast_mode_state: FastModeState
+    fast_mode_disabled_reason: FastModeDisabledReason
+    capabilities: list[str]
+
+
+class PreToolUseHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["PreToolUse"]
+    permissionDecision: Literal["allow", "deny", "ask", "defer"]
+    permissionDecisionReason: str
+    updatedInput: dict[str, Any]
+    additionalContext: str
+
+
+class PostToolUseHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["PostToolUse"]
+    additionalContext: str
+    updatedToolOutput: Any
+    updatedMCPToolOutput: Any
+
+
+class UserPromptSubmitHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["UserPromptSubmit"]
+    additionalContext: str
+    sessionTitle: str
+    suppressOriginalPrompt: bool
+
+
+class UserPromptExpansionHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["UserPromptExpansion"]
+    additionalContext: str
+    suppressOriginalPrompt: bool
+
+
+class SessionStartHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["SessionStart"]
+    additionalContext: str
+    initialUserMessage: str
+    sessionTitle: str
+    watchPaths: list[str]
+    reloadSkills: bool
+
+
+class PostToolBatchHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["PostToolBatch"]
+    additionalContext: str
+
+
+class StopHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["Stop"]
+    additionalContext: str
+
+
+class SubagentStopHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["SubagentStop"]
+    additionalContext: str
+
+
+class PermissionDeniedHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["PermissionDenied"]
+    retry: bool
+
+
+class PreModelSwitchHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["PreModelSwitch"]
+    permissionDecision: Literal["allow", "deny", "ask"]
+    permissionDecisionReason: str
+
+
+class PostModelSwitchHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["PostModelSwitch"]
+    additionalContext: str
+
+
+class ElicitationHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["Elicitation"]
+    action: Literal["accept", "decline", "cancel"]
+    content: dict[str, Any]
+
+
+class ElicitationResultHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["ElicitationResult"]
+    action: Literal["accept", "decline", "cancel"]
+    content: dict[str, Any]
+
+
+class CwdChangedHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["CwdChanged"]
+    watchPaths: list[str]
+
+
+class FileChangedHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["FileChanged"]
+    watchPaths: list[str]
+
+
+class _WorktreeCreateRequired(TypedDict):
+    hookEventName: Literal["WorktreeCreate"]
+    worktreePath: str
+
+
+class WorktreeCreateHookSpecificOutput(_WorktreeCreateRequired):
+    pass
+
+
+class MessageDisplayHookSpecificOutput(TypedDict, total=False):
+    hookEventName: Literal["MessageDisplay"]
+    displayContent: str
 
 
 # -- exceptions -------------------------------------------------------------
@@ -653,4 +854,17 @@ __all__ = [
     "RateLimitStatus", "RateLimitType", "ServerToolName", "HookEvent",
     "set_script", "push_script", "load_script_file", "build_message", "calls", "reset",
     "project_key_for_directory", "get_session_messages", "list_sessions",
+    # exported in 0.2.166
+    "SystemInitData", "SystemInitMcpServer", "SystemInitPlugin", "SystemInitPluginError",
+    "FastModeState", "FastModeDisabledReason", "HookEffort", "BackgroundTaskSummary",
+    "SessionCronSummary",
+    "PreToolUseHookSpecificOutput", "PostToolUseHookSpecificOutput",
+    "UserPromptSubmitHookSpecificOutput", "UserPromptExpansionHookSpecificOutput",
+    "SessionStartHookSpecificOutput", "PostToolBatchHookSpecificOutput",
+    "StopHookSpecificOutput", "SubagentStopHookSpecificOutput",
+    "PermissionDeniedHookSpecificOutput", "PreModelSwitchHookSpecificOutput",
+    "PostModelSwitchHookSpecificOutput", "ElicitationHookSpecificOutput",
+    "ElicitationResultHookSpecificOutput", "CwdChangedHookSpecificOutput",
+    "FileChangedHookSpecificOutput", "WorktreeCreateHookSpecificOutput",
+    "MessageDisplayHookSpecificOutput",
 ]

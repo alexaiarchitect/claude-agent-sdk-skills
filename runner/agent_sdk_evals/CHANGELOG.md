@@ -3,6 +3,46 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.1.3 — 2026-10-17
+
+Re-checked against `claude-agent-sdk` 0.2.168 with its bundled CLI 2.1.301
+(docs and changelog read at Claude Code 2.1.302); minimum supported SDK stays
+0.2.140. The 49 options, 6 permission modes, 10 Python hook events, 5 effort
+levels and the 19 `ResultMessage` fields are unchanged and re-verified against
+the installed wheel.
+
+- **`HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT` is `("PreCompact",)`.** SDK 0.2.166
+  types 21 `*HookSpecificOutput` classes; of the 10 Python events only
+  `PreCompact` has none. A `Stop` or `SubagentStop` hook may now return
+  `hookSpecificOutput.additionalContext`; blocking a stop is still the
+  top-level `decision: "block"`. The CLI reads that dict shape on older SDKs
+  too, so the constant is not version-gated.
+- **The `init` event records `capabilities`, `fast_mode_state` and
+  `fast_mode_disabled_reason` when the CLI sends them** (11 capability strings
+  and `off`/`sdk_opt_in_required` measured on 2.1.301). They are read with
+  `.get()`, never required, and nothing grades on them. The capture tolerates
+  the `system`/`commands_changed` message 2.1.301 sends right after `init`
+  (a plain `system` event), the undeclared `init` keys (`original_cwd`,
+  `additional_directories`, `memory_paths`, `messaging_socket_path`,
+  `per_turn_effort_active`, `view_mode`, `analytics_disabled`,
+  `product_feedback_disabled`) and `plugins[]` entries that carry `source`
+  instead of `version`.
+- **The permission-default rationale is version-ranged.** With
+  `permission_mode` unset the CLI picks the mode: a headless session that
+  fetches feature flags starts in `default` (measured on CLI 2.1.292 and
+  2.1.301, direct API key, telemetry on); on CLI 2.1.285–2.1.301 one that does
+  not (third-party provider, telemetry off, first run after an install or
+  upgrade) starts in `auto`; 2.1.302+ starts those in `default` too. The runner
+  still forces `dontAsk` when the agent leaves the mode unset, and
+  `permission_mode_source` keeps its two values.
+- **`sandbox` literals accept the released shapes.** `ignoreViolations` is
+  `dict[str, list[str]]` (command-pattern substring, `"*"` for all, mapped to
+  violation-text substrings; reporting only), and the forwarded-but-undeclared
+  `failIfUnavailable` and `filesystem` (`denyWrite`, ...) keys are accepted
+  (plugin library `options_ast.sandbox_problems`).
+- Cost note: the bundled CLI 2.1.301 estimates Sonnet 5.5 cache reads at the
+  list $0.10/Mtok (measured); CLI 2.1.294 used $0.20 (2026-10-11, history).
+
 ## 0.1.2 — 2026-10-11
 
 The runner's behaviour changed, so a project copy at 0.1.1 is reported as older

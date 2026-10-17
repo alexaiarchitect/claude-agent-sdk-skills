@@ -52,10 +52,11 @@ failure.**
 
 A second, quieter consequence of the credential choice. A session that holds a
 **gateway token**, runs against a **third-party provider**, or has telemetry
-turned off never receives the interactive feature flags — and from Claude Code
-**2.1.285** that is exactly the session that starts in **`auto`** permission
-mode when `permission_mode` is left unset, where broad allow rules such as a
-bare `Bash` are dropped. Pass `permission_mode="dontAsk"` (unattended) or
+turned off never receives the interactive feature flags — and on Claude Code
+**2.1.285–2.1.301** that is exactly the session that starts in **`auto`**
+permission mode when `permission_mode` is left unset, where broad allow rules
+such as a bare `Bash` are dropped (2.1.302 starts it in `default`; a session
+that fetches the flags starts in `default` on every version). Pass `permission_mode="dontAsk"` (unattended) or
 `"default"` explicitly; the lint reports the omission as `OPT013`, and this
 plugin's runner supplies `"dontAsk"` itself. Note too that settings-file and
 option `env` values are **not shell-expanded**: write absolute paths, because
@@ -140,3 +141,6 @@ https://code.claude.com/docs/en/env-vars (`env` values are not shell-expanded;
 the subprocess scrub list). The stderr connectors notice was measured by this
 plugin on 2026-10-11 against SDK 0.2.165 with bundled CLI 2.1.294. Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+The 2.1.302 unset-mode change is from
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
+2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

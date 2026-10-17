@@ -84,8 +84,9 @@ meaning is given first.
   `tool.check` handler answers after the permission rules and hooks. Out of
   scope for these skills except as the seventh step of the permission model.
 - **Unset permission mode** — not the same as `"default"`. The CLI resolves it,
-  and a headless session without the interactive feature flags can land in
-  `auto` from 2.1.285, where broad allow rules are dropped (`OPT013`).
+  and on CLI 2.1.285–2.1.301 a headless session that fetches no feature flags
+  lands in `auto`, where broad allow rules are dropped; 2.1.302 starts it in
+  `default` (`OPT013`).
 
 ---
 
@@ -94,3 +95,6 @@ Sources: this plugin; SDK terms from `https://code.claude.com/docs/en/agent-sdk/
 (the budget headroom note); `https://code.claude.com/docs/en/permission-modes`
 and `https://code.claude.com/docs/en/permissions` (the unset mode, mods). Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+The 2.1.302 unset-mode change is from
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
+2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

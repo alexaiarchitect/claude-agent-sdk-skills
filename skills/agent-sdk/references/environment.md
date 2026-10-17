@@ -59,10 +59,10 @@ is retiring). Haiku 5.5 is `current` in this plugin's policy and is the cheap
 judge option; the judge default stays `claude-sonnet-5-5`.
 
 `permission_mode` deserves the same deliberate treatment as the model. Left
-unset, a headless session that does not fetch the interactive feature flags — a
-gateway token, a third-party provider, telemetry off — can start in **`auto`**
-from Claude Code 2.1.285, where a classifier reviews each call and broad allow
-rules are dropped. Pass `"dontAsk"` for unattended work or `"default"` to keep
+unset, a headless session that fetches no feature flags — a gateway or
+third-party provider, telemetry off, the first run after an upgrade — starts in
+**`auto`** on Claude Code 2.1.285–2.1.301, where a classifier reviews each call
+and broad allow rules are dropped; 2.1.302 starts it in `default`. Pass `"dontAsk"` for unattended work or `"default"` to keep
 prompting; `lint_agent.py` reports the omission as `OPT013`, and this plugin's
 runner forces `"dontAsk"` when the options leave it unset.
 
@@ -112,9 +112,9 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/check_env.py <project-dir>
 reports the credential and its source, the cost basis, the interpreter and SDK
 version, and the model with its policy grade, and exits 1 with the blockers
 listed when a run would fail. It also prints which versions the plugin was
-checked against — `claude-agent-sdk` **0.2.165** with its bundled Claude Code
-**2.1.294** — and raises **`ENV003`** at info level when the installed SDK is
-*newer* than that target. `ENV003` is never an error: 0.2.166+ is expected to
+checked against — `claude-agent-sdk` **0.2.168** with its bundled Claude Code
+**2.1.301** — and raises **`ENV003`** at info level when the installed SDK is
+*newer* than that target. `ENV003` is never an error: a newer SDK is expected to
 work, and the note exists so a surprising behaviour can be attributed to the
 version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
 
@@ -129,5 +129,8 @@ provider switches, the third-party note), `https://code.claude.com/docs/en/env-v
 model, the `haiku` alias from 2.1.293),
 `https://code.claude.com/docs/en/permission-modes` (the headless starting-mode
 table), `https://code.claude.com/docs/en/plugins/mods/overview` (the mod class);
-this plugin's `lib/agent_sdk_skills/env.py`. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+this plugin's `lib/agent_sdk_skills/env.py`,
+`https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` (2.1.302
+unset-mode default). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
+Claude Code 2.1.296 docs; re-read 2026-10-17 against claude-agent-sdk 0.2.168 /
+Claude Code 2.1.302 docs.

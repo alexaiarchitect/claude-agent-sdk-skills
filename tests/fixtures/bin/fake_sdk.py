@@ -11,14 +11,14 @@ Output shapes follow the real runner (`runner/agent_sdk_evals/cli.py`, and
 What it answers:
 
 * ``-c <source>`` — the version probe prints ``FAKE_SDK_VERSION`` (default
-  0.2.165); the load probe (source mentions ``build_options``) reads the
+  0.2.168); the load probe (source mentions ``build_options``) reads the
   target ``agent.py`` textually and prints a JSON summary; anything else is
   executed with the stub ``claude_agent_sdk`` on ``sys.path``.
 * ``-m agent_sdk_evals version|whoami|list-tools|run|replay`` — mimics the
   runner: prints one JSON line last and writes result files, controlled by:
 
-    FAKE_SDK_VERSION          reported SDK version (default 0.2.165)
-    FAKE_SDK_CLI_VERSION      reported bundled CLI version (default 2.1.294)
+    FAKE_SDK_VERSION          reported SDK version (default 0.2.168)
+    FAKE_SDK_CLI_VERSION      reported bundled CLI version (default 2.1.301)
     FAKE_SDK_RUNNER_VERSION   reported runner version (default: the plugin's)
     FAKE_SDK_PASSED/FAILED/NOT_EVALUATED   per-case statuses for `run`, in order
     FAKE_SDK_COST             est. USD per run (default 0.0123)
@@ -41,8 +41,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 STUBS = HERE.parent / "stubs"
-VERSION = os.environ.get("FAKE_SDK_VERSION", "0.2.165")
-CLI_VERSION = os.environ.get("FAKE_SDK_CLI_VERSION", "2.1.294")
+VERSION = os.environ.get("FAKE_SDK_VERSION", "0.2.168")
+CLI_VERSION = os.environ.get("FAKE_SDK_CLI_VERSION", "2.1.301")
 RESET_EPOCH = 1790784000
 
 
@@ -54,7 +54,7 @@ def _runner_version() -> str:
     try:
         return version_file.read_text(encoding="utf-8").strip()
     except OSError:
-        return "0.1.2"
+        return "0.1.3"
 
 
 def _probe(code: str, args: list[str]) -> int:

@@ -12,16 +12,20 @@ error — it is simply never called (`HOK020`).
 | `UserPromptSubmit` | a user turn is submitted — **and a turn Claude Code starts on its own**: a scheduled task or `/loop` iteration firing, a background subagent reporting back to its parent, a cross-session message arriving in the main conversation | the prompt | `additionalContext` |
 | `Notification` | the agent emits a status message | `message` | `additionalContext` |
 | `SubagentStart` | a subagent begins | `agent_id`, `agent_type` (required here) | `additionalContext` |
-| `SubagentStop` | a subagent finishes | `agent_id`, `agent_type` | **none** |
-| `Stop` | the agent is about to stop | — | **none** |
+| `SubagentStop` | a subagent finishes | `agent_id`, `agent_type`, `stop_hook_active` | `additionalContext` (typed from 0.2.166) |
+| `Stop` | the agent is about to stop | `stop_hook_active` | `additionalContext` (typed from 0.2.166) |
 | `PreCompact` | compaction is about to run | — | **none** |
 | `PermissionRequest` | a call needs a permission decision | `tool_name`, `tool_input` | `decision` (a dict) |
 
-`Stop`, `SubagentStop` and `PreCompact` have no `hookSpecificOutput` **type at
-all**. They use the common fields only: `decision: "block"` with `reason` sends
-the agent back to work; `continue_: False` with `stopReason` ends the turn;
-`systemMessage` shows the user a line. A generator or a check that demands
-`hookSpecificOutput` on those three is wrong.
+`PreCompact` is the only Python event with no `hookSpecificOutput` **type at
+all**; it uses the common fields only. `Stop` and `SubagentStop` gained one in
+0.2.166 (`StopHookSpecificOutput`, `SubagentStopHookSpecificOutput`:
+`hookEventName` plus `additionalContext`), and the dict shape is what the CLI
+reads, so it works on older SDKs too. **Blocking a stop is still a common
+field**: `decision: "block"` with `reason` sends the agent back to work;
+`continue_: False` with `stopReason` ends the turn; `systemMessage` shows the
+user a line. A check that demands `hookSpecificOutput` on `PreCompact`, or
+rejects it on `Stop`, is wrong.
 
 `updatedToolOutput` has to match the tool's own output shape; a mismatch is
 rejected and the original output is kept. `WorktreeRemove` (a TypeScript-side
@@ -122,9 +126,11 @@ It defaults to `"continue"`, and it has **no effect at all** on `Stop`,
 `SubagentStop`, `TaskCompleted`, `TeammateIdle` or background
 (`async`/`asyncRewake`) command hooks, so do not promise it there.
 
-## 0.2.166+ (on the SDK's `main`, not in 0.2.165)
+## Released in 0.2.166 (gate as "0.2.166+")
 
-Version-gate anything from this list; none of it exists in the pinned release.
+The pinned 0.2.168 has all of this; the plugin still supports 0.2.140, so code
+that must run on 0.2.140–0.2.165 reads these fields with `.get()` and imports
+the new names behind a version check.
 
 - Richer hook inputs: `prompt_id` (the UUID of the prompt being processed,
   matching the OpenTelemetry `prompt.id` attribute, absent until the first user
@@ -136,21 +142,55 @@ Version-gate anything from this list; none of it exists in the pinned release.
   `session_crons` (`SessionCronSummary`: a cron expression and a prompt) on
   `Stop` and `SubagentStop`. `agent_id`/`agent_type` move onto the four
   tool-lifecycle inputs.
-- **17 newly exported `*HookSpecificOutput` types**, taking the total from 4 to
-  21. **12 of the 17 are for events that are still not registrable from
-  Python** — `UserPromptExpansion`, `SessionStart`, `PostToolBatch`,
-  `PermissionDenied`, `PreModelSwitch`, `PostModelSwitch`, `Elicitation`,
-  `ElicitationResult`, `CwdChanged`, `FileChanged`, `WorktreeCreate`,
-  `MessageDisplay` — so the type existing is not the event existing, and
-  `HOK020` still fires on all of them. The other five belong to `PreToolUse`,
-  `PostToolUse`, `UserPromptSubmit`, `Stop` and `SubagentStop`.
+- **21 `*HookSpecificOutput` types, all exported** (8 existed in 0.2.165, only 4
+  of them exported; 13 are new). **12 are for events that are still not
+  registrable from Python** — `UserPromptExpansion`, `SessionStart`,
+  `PostToolBatch`, `PermissionDenied` (`retry: bool`), `PreModelSwitch`,
+  `PostModelSwitch`, `Elicitation`, `ElicitationResult`, `CwdChanged`,
+  `FileChanged`, `WorktreeCreate`, `MessageDisplay` — so the type existing is
+  not the event existing, and `HOK020` still fires on all of them. Of the
+  existing classes, `SessionStart` gained `initialUserMessage`, `sessionTitle`,
+  `watchPaths`, `reloadSkills` and `UserPromptSubmit` gained `sessionTitle`,
+  `suppressOriginalPrompt`. (`"defer"` and `updatedMCPToolOutput` were already
+  in 0.2.165.)
 - `SystemInitData`, the documented shape of `SystemMessage.data` for
   `system`/`init`, with a `capabilities` list for feature detection instead of
-  comparing `claude_code_version`.
+  comparing `claude_code_version` (see `options-reference.md`).
 
 `ClaudeAgentOptions`, the six permission modes, the five effort levels and the
-ten `HookEvent` literals are **unchanged** on `main`, so nothing above widens
-what you may register.
+ten `HookEvent` literals are **unchanged**, so nothing above widens what you may
+register. After 0.2.168 (repository head `f93e29cc`), the `include_hook_events`
+docstring adds that `SessionStart` and `Setup` hook events are emitted
+regardless of the setting.
+
+## Claude Code changes that reach hook authors (2.1.299–2.1.302)
+
+- **`updatedInput` is validated like Claude's own input (2.1.300)** for
+  `PreToolUse` and `PermissionRequest`: unknown keys are dropped, and input the
+  tool rejects **denies the call**.
+- **`UserPromptSubmit` runs before a skill or slash command expands (2.1.299)**:
+  it sees the typed `/skill …` line, and a hook that blocks the prompt also stops
+  the skill's embedded shell commands. A skill's own front-matter
+  `UserPromptSubmit` hook first runs on the prompt after the one that invoked it.
+- **A hook that cannot answer now refuses (2.1.299)**: an action a plugin hook
+  can block is refused when the hook cannot be handed it or cannot hand back its
+  answer; a tool that already ran has its result withheld.
+- **Hooks that start a background process**: a deny printed after the hook's
+  process exits is not read. Print the decision first and redirect the
+  background process's stdout and stderr, or the call is blocked with
+  `refusing to honor the suspect capture`.
+- **Windows without Git Bash (2.1.299)**: a shell-form `PreToolUse` or
+  `PermissionRequest` hook with no `shell` that fails now blocks the call
+  instead of failing open; set `"shell": "powershell"` or install Git for
+  Windows.
+- **At most 12 prompt or agent hooks of one event run at a time (2.1.302)**;
+  the rest wait their turn. Agent hooks honour their `model` (2.1.300): aliases
+  such as `haiku` resolve, and an unavailable model falls back to the caller's
+  instead of allowing the action.
+- **`@` mentions bypass `PreToolUse`**: a file referenced with `@` is inserted
+  without a tool call. A `Read` deny rule blocks the path;
+  `CLAUDE_CODE_DISABLE_FILE_MENTIONS=1` (2.1.299+, ignored in project and local
+  settings) makes Claude read it with its tools so the hooks run.
 
 ## The one thing hooks are uniquely good for
 
@@ -178,14 +218,23 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/hooks>
 (available hooks, matchers, callback inputs and outputs, asynchronous output,
 hook timeout), <https://code.claude.com/docs/en/hooks> (matcher patterns,
 JSON output, per-event sections),
-<https://code.claude.com/docs/en/agent-sdk/permissions#how-permissions-are-evaluated>;
-`claude-agent-sdk` 0.2.165 `types.py:284-297` (`HookEvent`, ten literals),
-`:299-435` (hook input types), `:437-500` (`hookSpecificOutput` per event),
-`:507-581` (`HookJSONOutput`), `:584` (`HookContext`), `:594`
-(`HookCallback`), `:606` (`HookMatcher`), `:2176-2187` (concurrent dispatch),
-`:2199` (`include_hook_events`), `:1835-1924`
-(`CanUseToolShadowedWarning`). The "emits nothing without a registered hook"
-observation was measured by this plugin on 2026-09-30. The 0.2.166+ list was
-read from the SDK's `main` at `b6e9d12f` on 2026-10-11 and is not in the pinned
-wheel. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
+<https://code.claude.com/docs/en/agent-sdk/permissions#how-permissions-are-evaluated>,
+<https://code.claude.com/docs/en/hooks#hooks-that-start-a-background-process>,
+<https://code.claude.com/docs/en/hooks#failed-hooks-on-windows-without-git-bash>,
+<https://code.claude.com/docs/en/hooks#pretooluse> (`@` mentions),
+<https://code.claude.com/docs/en/env-vars>,
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299,
+2.1.300, 2.1.302 entries);
+`claude-agent-sdk` 0.2.168 `types.py:284-297` (`HookEvent`, ten literals),
+`:299-509` (hook input types), `:511-725` (`hookSpecificOutput` per event),
+`:728-815` (`HookJSONOutput`), `:818` (`HookContext`), `:828`
+(`HookCallback`), `:840` (`HookMatcher`), `:2531-2542` (concurrent dispatch),
+`:2554` (`include_hook_events`), `:2190-2279`
+(`CanUseToolShadowedWarning`), `:614` (`StopHookSpecificOutput`), `:625`
+(`SubagentStopHookSpecificOutput`), `:299` (`HookEffort`). The "emits nothing
+without a registered hook" observation was measured by this plugin on
+2026-09-30. The 0.2.166+ list was first read from the SDK repository at
+`b6e9d12f` on 2026-10-11 and checked against the 0.2.168 wheel on 2026-10-17.
+Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
+docs; re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302
 docs.

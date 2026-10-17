@@ -37,7 +37,7 @@ def write_run_dir(root: Path, name: str, statuses: dict[str, list[str]], *, cost
     (directory / "aggregate.json").write_text(json.dumps({
         "schema": "agent-sdk-skills.aggregate/1", "tier": tier, "started": name, "finished": name,
         "cases": [], "totals": totals, "exit_code": 1 if totals["failed"] else 0,
-        "runner_version": "0.1.2", "sdk_version": "0.2.165", "cli_version": "2.1.294",
+        "runner_version": "0.1.3", "sdk_version": "0.2.168", "cli_version": "2.1.301",
         "credential": {"kind": "subscription", "subscription_type": "max"},
     }))
     return directory
@@ -49,7 +49,7 @@ def test_results_are_read_by_schema_and_statuses_kept_apart(tmp_path):
     assert run is not None and run.aggregate and run.aggregate.ok
     assert run.status_counts() == {"PASSED": 1, "FAILED": 1, "NOT_EVALUATED": 0 + 1, "INFORMATIONAL": 0}
     assert not run.is_clean
-    assert run.aggregate.cost_basis == "subscription" and run.aggregate.cli_version == "2.1.294"
+    assert run.aggregate.cost_basis == "subscription" and run.aggregate.cli_version == "2.1.301"
     assert "judge" in not_evaluated_cause(run.cases["c"].runs[0])
 
 

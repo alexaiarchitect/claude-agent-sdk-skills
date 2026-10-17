@@ -321,6 +321,11 @@ def load_session(path: Path | str) -> list[TraceEvent]:
     3. keep lines with no `uuid` (`ai-title`, `queue-operation`, `atis-latch`,
        `last-prompt`) in file order, interleaved at the position they appeared.
 
+    Hook inputs are not parsed field by field, so the fields SDK 0.2.166 added
+    (`prompt_id`, `effort`, `duration_ms`, `last_assistant_message`,
+    `background_tasks`, `session_crons`) pass through bookkeeping lines and
+    `hook` events untouched; nothing here requires or rejects them.
+
     `init` is synthesized from the first line that carries `version`/`cwd`,
     because a session file has no init line of its own but every consumer needs
     to know which CLI produced it and where it ran.
@@ -774,6 +779,11 @@ def to_summary(events: Sequence[TraceEvent]) -> dict[str, Any]:
             "entrypoint": init.get("entrypoint"),
             "occurrences": len(events_of(events, "init")),
         }
+        # Recorded by the 0.1.3 runner when the CLI sends them (CONTRACTS 14.4);
+        # absent on older traces and imported sessions, never required.
+        for key in ("capabilities", "fast_mode_state", "fast_mode_disabled_reason"):
+            if init.get(key) is not None:
+                summary["init"][key] = init.get(key)
     if result is not None:
         usage = result.get("usage") or {}
         summary["result"] = {

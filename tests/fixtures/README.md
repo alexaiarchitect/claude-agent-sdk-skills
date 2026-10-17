@@ -72,7 +72,7 @@ entry the CLI bills for its own internal work, which nobody asked for — the
 `RateLimitEvent` payload verbatim (`allowed_warning`, 7-day window at 83 %,
 `surpassedThreshold` 0.75 and the `unifiedWindows` sub-object), the `init`
 fields (`apiKeySource: "none"`, and `claude_code_version`, which is re-pinned to
-the bundled CLI at each sync — `2.1.294` today, `2.1.285` when they were
+the bundled CLI at each sync — `2.1.301` today, `2.1.285` when they were
 recorded), and the
 synthetic `StructuredOutput` tool call that `output_format` results arrive as.
 The prompts, tool names, arguments and reply text are this plugin's own library
@@ -93,6 +93,22 @@ deterministic placeholders, the timestamps became a flat one-per-second clock,
 and the trailing hook events past the fourth were dropped because they repeat
 two phases per tool and no test reads them. The prompt, the mock tool names and
 the reply text are this plugin's own library domain.
+
+**`traces/init_2_1_301.script.jsonl`** and **`traces/init_2_1_301.trace.jsonl`**
+come from one live `query()` on 2026-10-17 (SDK 0.2.168, bundled CLI 2.1.301,
+`permission_mode` unset, API key; `.dev/measured/0.2.168/live-6a-bundled-2.1.301.json`).
+The script is the four messages as the stub replays them: the `init` whose data
+carries `capabilities` (11), `fast_mode_state`/`fast_mode_disabled_reason`, the
+undeclared keys (`original_cwd`, `additional_directories`, `memory_paths`,
+`messaging_socket_path`, `per_turn_effort_active`, `view_mode`,
+`analytics_disabled`, `product_feedback_disabled`) and `plugins[]` entries with
+`source` instead of `version`; the new `system`/`commands_changed` message; the
+reply; the result. The trace is what the 0.1.3 `Capture` writes from that script
+(no runner was involved, so `permission_mode_source` is absent and the mode is
+the CLI's own `default`). Scrubbed: paths became `/tmp/eval/run-1` and
+`/home/user/...`, the socket path, session id, uuids and message id became
+placeholders, `commands_changed` keeps three of its commands, and the trace
+clock is one tick per second.
 
 **`sessions/sdk_with_tool.jsonl`** is derived from a real session the runner
 itself produced (`.dev/measured/session_with_tool.jsonl`, 37 lines, three MCP

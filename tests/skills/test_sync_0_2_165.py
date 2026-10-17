@@ -92,7 +92,7 @@ def test_opt013_fires_when_permission_mode_is_never_passed():
     assert "2.1.285" in finding["message"], "and the release the behaviour starts at"
     assert "dontAsk" in finding["fix"] and "default" in finding["fix"], \
         "the fix offers both explicit modes"
-    assert "types.py:2025" in finding["source"], "cite the field it read"
+    assert "types.py:2380" in finding["source"], "cite the field it read"
     assert "permission-modes" in finding["source"], "and the page for the auto default"
 
 
@@ -237,20 +237,33 @@ def test_every_reference_touched_by_this_sync_carries_the_reread_note():
 
 
 def test_a_0_2_166_claim_always_carries_its_gate():
-    """Nothing from the SDK's `main` may read as current behaviour.
+    """A 0.2.166 name carries its version gate and reads as released.
 
-    The names below exist only on `main`. Wherever a reference mentions one, the
-    same file has to say "0.2.166+" somewhere, so a reader cannot take it for a
-    field the pinned wheel has.
+    The names below shipped in claude-agent-sdk 0.2.166 (2026-10-14). The plugin
+    still supports 0.2.140, so wherever a reference mentions one the same file
+    has to say "0.2.166" (the gate), and no paragraph that names one may call it
+    unreleased or `main`-only any more. (`defer` and `updatedMCPToolOutput`
+    already existed in 0.2.165, so nothing here asks for them to be called new.)
     """
-    main_only = ("HookEffort", "SystemInitData", "BackgroundTaskSummary",
-                 "SessionCronSummary", "last_assistant_message", "prompt_id")
-    offenders: list[str] = []
+    released = ("HookEffort", "SystemInitData", "BackgroundTaskSummary",
+                "SessionCronSummary", "last_assistant_message", "prompt_id")
+    stale = ("unreleased", "on `main`", "not yet released", "main-only", "only on main")
+    ungated: list[str] = []
+    stale_wording: list[str] = []
     for path in REFERENCES:
         text = path.read_text(encoding="utf-8")
-        if any(name in text for name in main_only) and "0.2.166+" not in text:
-            offenders.append(str(path.relative_to(PLUGIN_ROOT)))
-    assert offenders == [], f"ungated 0.2.166+ claims in {offenders}"
+        if not any(name in text for name in released):
+            continue
+        name = str(path.relative_to(PLUGIN_ROOT))
+        if "0.2.166" not in text:
+            ungated.append(name)
+        for paragraph in text.split("\n\n"):
+            if any(n in paragraph for n in released) and \
+                    any(w in paragraph.lower() for w in stale):
+                stale_wording.append(name)
+                break
+    assert ungated == [], f"0.2.166 names without their version gate in {ungated}"
+    assert stale_wording == [], f"released names still described as unreleased in {stale_wording}"
 
 
 # -- plugin eval rubrics ---------------------------------------------------

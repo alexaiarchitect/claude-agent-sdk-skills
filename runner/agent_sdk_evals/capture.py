@@ -242,6 +242,20 @@ class Capture:
             data = {"value": data}
         if subtype == "init":
             self.init_count += 1
+            # Recorded when present, never required (CONTRACTS section 14.4):
+            # `capabilities` (CLI 2.1.205+; 11 strings on 2.1.301) is for feature
+            # detection instead of version comparison, and the fast-mode pair is
+            # declared on `SystemInitData` from SDK 0.2.166. Undeclared keys the
+            # CLI also sends (`original_cwd`, `memory_paths`, `view_mode`, ...)
+            # are ignored, and `plugins[]` entries are copied as they come
+            # (2.1.301 sends `source`, not `version`).
+            extras: dict[str, Any] = {}
+            capabilities = data.get("capabilities")
+            if isinstance(capabilities, list):
+                extras["capabilities"] = [str(c) for c in capabilities]
+            for key in ("fast_mode_state", "fast_mode_disabled_reason"):
+                if data.get(key) is not None:
+                    extras[key] = data.get(key)
             self.emit(
                 "init",
                 model=data.get("model"),
@@ -257,8 +271,11 @@ class Capture:
                 plugins=list(data.get("plugins") or []),
                 agents=list(data.get("agents") or []),
                 occurrence=self.init_count,
+                **extras,
             )
             return
+        # Anything else (`commands_changed`, sent right after `init` by CLI
+        # 2.1.301, among them) falls through to a plain `system` event below.
         if subtype in ("hook_started", "hook_response") or hasattr(message, "hook_event_name"):
             event_name = getattr(message, "hook_event_name", "") or data.get("hook_event") or ""
             self.emit(
@@ -368,13 +385,13 @@ class Capture:
             "usage_raw": usage_raw,
             "model_usage": model_usage,
             # Every model the session was billed for, not just the agent's:
-            # measured 2026-10-11, CLI 2.1.294 bills its own background work to
-            # `claude-haiku-5-5` without being asked, so a cost read that takes
-            # the first entry is wrong about the total.
+            # measured 2026-10-11 on CLI 2.1.294 and again 2026-10-17 on 2.1.301,
+            # the CLI bills its own background work to `claude-haiku-5-5` unasked,
+            # so a cost read that takes the first entry is wrong about the total.
             "models_billed": sorted(model_usage),
             # True when no model reported a negotiated rate: `costBasis` is
-            # `list | managed | unknown` and is absent from the 0.2.165
-            # `ModelUsage` TypedDict though the wire carries it, so it is read
+            # `list | managed | unknown` and is absent from the `ModelUsage`
+            # TypedDict (still on 0.2.168) though the wire carries it, so it is read
             # with `.get()` and absent counts as list pricing.
             "cost_basis_list": all(
                 (entry or {}).get("costBasis", "list") == "list"

@@ -41,6 +41,15 @@ Allow rules accept a tool-name glob **only after a literal `mcp__<server>__`
 prefix**: `mcp__github__get_*` works, `mcp__*` and `*` are ignored with a
 startup warning and approve nothing.
 
+**MCP rules name one server exactly (2.1.299+).** `mcp__<server>__*` approves a
+whole server; from 2.1.299 a rule reaches only the server it names, so `mcp__a`
+no longer allows a server named `a__b` or `a_`. `<server>` is the normalised
+name: `.` and spaces become `_` (`my.server` → `mcp__my_server__*`), a plugin's
+server takes the scoped form (`mcp__plugin_<plugin>_<server>__*`), and a name
+that contains `__` or ends in `_` must use the wildcard form with the whole name
+(`mcp__reports__v2__*`) — the bare form reads as a rule for `reports`. Deny and
+ask rules on such names were also fixed in 2.1.299.
+
 **Network paths (2.1.292+).** A network path is a Windows UNC path
 (`\\server\share\file`) or a macOS/Linux `/net` automount path. Reading one
 gets a permission check of its own, outside the allow system: an allow rule, an
@@ -73,20 +82,31 @@ means the session's working directory.
 for an answer that will not come, and it fails closed. `bypassPermissions`
 fails open, which is `OPT002`.
 
-**Leaving `permission_mode` unset is a decision too, and not the one most
-authors think.** With the mode `None` the CLI resolves it: `permissions.defaultMode`
-from a settings file where one applies, otherwise the built-in default — and from
-Claude Code **2.1.285** the built-in default for a session that does **not** fetch
-the interactive feature flags is **`auto`**, not `default`. A third-party
-provider, telemetry turned off and a gateway token are each enough to make a
-headless session one of those, and an organisation policy can withhold the `auto`
-default separately. In `auto`, broad allow rules are dropped, so an app that
-relies on a bare `Bash` entry quietly stops being pre-approved. Pass `"default"`
-or `"dontAsk"` explicitly; `lint_agent.py`/`lint_harness.py` report the omission
-as **`OPT013`**, and this plugin's runner forces `"dontAsk"` when the agent's
+**Leaving `permission_mode` unset is a decision too, and its answer depends on
+the CLI version.** With the mode `None` the CLI resolves it:
+`permissions.defaultMode` from a settings file where one applies, otherwise the
+built-in default. A `-p`/SDK session that fetches the feature flags starts in
+**`default`** (measured 2026-10-17 on CLI 2.1.292 and 2.1.301, direct API key,
+telemetry on). On Claude Code **2.1.285–2.1.301** a session that fetches **no**
+feature flags — a third-party provider or gateway, telemetry turned off, the
+first run after an install or upgrade — starts in **`auto`** instead; from
+**2.1.302** those start in `default` too, and `--permission-mode auto` keeps
+`auto` (2.1.302 changelog; the docs' "which mode a session starts in" table has
+not caught up yet). An organisation policy can withhold the `auto` default
+separately. In `auto`, broad allow rules are dropped, so an app that relies on a
+bare `Bash` entry quietly stops being pre-approved. Pass `"default"` or
+`"dontAsk"` explicitly; `lint_agent.py`/`lint_harness.py` report the omission as
+**`OPT013`** (a warn, because the outcome depends on CLI version and
+environment), and this plugin's runner forces `"dontAsk"` when the agent's
 options leave it unset. For an organisation with a HIPAA configuration the `auto`
 default does not apply at all, and managed settings can block the mode outright
 with `permissions.disableAutoMode: "disable"`.
+
+**Leaving `auto` without asking (2.1.299+).** A session in `auto` that switches,
+through `set_model()`, to a model without auto-mode support changes to
+`default` and emits a `system`/`status` message carrying
+`permissionMode: "default"`; `set_permission_mode("auto")` returns to it once
+the model supports it. Before 2.1.299 such a session stayed in `auto`.
 
 **Subagent inheritance:** a subagent runs in the parent's mode unless its
 `AgentDefinition` sets `permissionMode` *and* the parent is in `default`,
@@ -111,7 +131,17 @@ raises a `CanUseToolShadowedWarning` at connect.
 
 To see or gate **every** call, use a `PreToolUse` hook. (A hook that returns
 `allow` skips `can_use_tool` for that call, so the two are alternatives, not
-layers.)
+layers.) The docs' "Precedence among rules, hooks, and mods" section is the
+table above in prose: hooks answer first, deny and ask rules still apply after
+a hook's `allow`, and a mod's `tool.check` answers last.
+
+**Hook approvals in plan mode (2.1.299+).** In `plan`, apart from
+`ExitPlanMode`, a `PreToolUse` hook's `"allow"` has **no effect** on a file
+edit or any other call that is not read-only: the call gets the prompt, block or
+approval it would get with no hook, and the hook's `updatedInput` still
+applies. A mod's `tool.check` likewise cannot approve such a call (it can still
+block it). Before 2.1.299 plan mode ran a write a hook allowed. Approving the
+plan or switching mode lifts the limit.
 
 ## Choosing, in one paragraph
 
@@ -134,9 +164,19 @@ allow and deny rules, permission modes, subagent inheritance),
 <https://code.claude.com/docs/en/permission-modes>,
 <https://code.claude.com/docs/en/permissions#bash-rule-limits>,
 <https://code.claude.com/docs/en/permissions#network-paths> (the network-path
-check and the mod precedence rules);
-`claude-agent-sdk` 0.2.165 `types.py:25` (`PermissionMode`), `:259`
+check and the mod precedence rules),
+<https://code.claude.com/docs/en/permissions#precedence-among-rules-hooks-and-mods>,
+<https://code.claude.com/docs/en/permissions#hook-approvals-in-plan-mode>,
+<https://code.claude.com/docs/en/permissions#mcp> (MCP rule syntax),
+<https://code.claude.com/docs/en/agent-sdk/permissions> ("Auto mode", the
+`set_model()` drop to `default`),
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 MCP
+rule scoping and plan-mode hook fix; 2.1.302 unset-mode default);
+`claude-agent-sdk` 0.2.168 `types.py:25` (`PermissionMode`), `:259`
 (`PermissionResultAllow`), `:268` (`PermissionResultDeny`), `:278`
-(`CanUseTool`), `:1835-1924` (`CanUseToolShadowedWarning`), `:1974-1993`
-(`tools` and `allowed_tools` docstrings), `:2025` (`permission_mode`). Re-read
-2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+(`CanUseTool`), `:2190-2279` (`CanUseToolShadowedWarning`), `:2329-2348`
+(`tools` and `allowed_tools` docstrings), `:2380` (`permission_mode`). Re-read
+2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs. The
+unset-mode `default` on CLI 2.1.292 and 2.1.301 was measured by this plugin on
+2026-10-17; re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code
+2.1.302 docs.

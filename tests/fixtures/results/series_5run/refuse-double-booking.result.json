@@ -14,8 +14,8 @@
       "strict_mcp_config": true
     },
     "cost_basis": "subscription",
-    "sdk_version": "0.2.165",
-    "cli_version": "2.1.294"
+    "sdk_version": "0.2.168",
+    "cli_version": "2.1.301"
   },
   "runs": [
     {

@@ -11,7 +11,8 @@ import textwrap
 import pytest
 
 from agent_sdk_skills.options_ast import (
-    DYNAMIC, ENV, LITERAL, extract_module, extract_project, resolve,
+    DYNAMIC, ENV, LITERAL, SANDBOX_DECLARED_KEYS, SANDBOX_FORWARDED_KEYS, extract_module,
+    extract_project, resolve, sandbox_problems,
 )
 
 
@@ -347,3 +348,40 @@ def test_to_dict_is_json_serialisable_for_every_fixture(agent_dir):
                  "external_mcp", "subagents", "hooks_bad", "deploy_ready"):
         payload = extract_project(agent_dir(name)).to_dict()
         assert json.loads(json.dumps(payload))["summary"]["agent_modules"] >= 1
+
+
+# -- sandbox (0.2.168 shape) ---------------------------------------------
+
+def test_a_sandbox_with_the_released_ignore_violations_shape_is_accepted(tmp_path):
+    """`ignoreViolations` is `dict[str, list[str]]` from SDK 0.2.166; `failIfUnavailable`
+    and `filesystem` are forwarded without being declared, and are accepted too."""
+    module = tmp_path / "a.py"
+    module.write_text(textwrap.dedent('''
+        from claude_agent_sdk import ClaudeAgentOptions
+        options = ClaudeAgentOptions(sandbox={
+            "enabled": True,
+            "ignoreViolations": {"*": ["/usr/bin"], "npm test": ["network"]},
+            "failIfUnavailable": True,
+            "filesystem": {"denyWrite": ["~/.ssh"]},
+        })
+    '''))
+    sandbox = extract_module(module).options_calls[0].kwargs["sandbox"]
+    assert sandbox.kind == LITERAL
+    assert sandbox_problems(sandbox.value) == []
+
+
+@pytest.mark.parametrize("sandbox, needle", [
+    ({"ignoreViolations": ["file"]}, "dict[str, list[str]]"),
+    ({"ignoreViolations": {"*": "network"}}, "ignoreViolations['*']"),
+    ({"filesystem": ["~/.ssh"]}, "`filesystem` must be a dict"),
+    ({"denyWrite": ["~/.ssh"]}, "'denyWrite'"),
+])
+def test_a_sandbox_of_the_wrong_shape_is_named(sandbox, needle):
+    problems = sandbox_problems(sandbox)
+    assert len(problems) == 1 and needle in problems[0]
+
+
+def test_a_computed_sandbox_claims_nothing():
+    assert sandbox_problems(None) == [] and sandbox_problems("dynamic") == []
+    assert set(SANDBOX_FORWARDED_KEYS) == {"failIfUnavailable", "filesystem"}
+    assert "ignoreViolations" in SANDBOX_DECLARED_KEYS

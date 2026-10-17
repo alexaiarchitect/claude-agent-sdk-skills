@@ -17,7 +17,8 @@ of eight grades. The grade decides the finding, not the string.
 | `unknown` | anything else: a string that is not a Claude id at all — a typo, or another provider's name | none, but the review says it could not grade it |
 
 The lists live in `lib/agent_sdk_skills/__init__.py` and are re-pinned at each
-upstream sync from the deprecations page. **As of 2026-10-11:**
+upstream sync from the deprecations page. **As of 2026-10-17** (the model pages
+are byte-identical to 2026-10-11):
 
 | Id | Status |
 |---|---|
@@ -26,7 +27,7 @@ upstream sync from the deprecations page. **As of 2026-10-11:**
 | `claude-fable-5-1` | current. $10 / $50, 1M, `high` |
 | `claude-haiku-5-5` | current, and the **cheap judge option**. From $0.10 / from $0.50, 1M by default on every plan (no `[1m]` suffix), default effort `medium`, adaptive reasoning that cannot be turned off. The `haiku` alias resolves to it on the Anthropic API from Claude Code **2.1.293** (Bedrock, Vertex, Foundry and Claude Platform on AWS still get Haiku 4.5). "From" is literal: **it costs more per token once a prompt passes 100K tokens** |
 | `claude-sonnet-4-5-20250929` | **deprecated 2026-09-30, retires 2026-11-30**, replacement `claude-sonnet-5-5` → `deprecated` |
-| `claude-haiku-4-5-20251001` | retirement not sooner than 2026-10-15 → `retiring` |
+| `claude-haiku-4-5-20251001` | retirement not sooner than 2026-10-15 → `retiring`. The date has passed, but the deprecations page still lists it **Active** with that "not sooner than" date, so it stays `retiring` rather than `retired` until the page says otherwise |
 | `claude-opus-4-5-20251101` | retirement not sooner than 2026-11-24 → `retiring` |
 | every `claude-3-*`, `claude-opus-4-*` (4.0/4.1), `claude-sonnet-4-20250514` | `retired` |
 
@@ -82,8 +83,12 @@ CLI bills its own background work there. On the 2026-09-30 runs (bundled CLI
 not something the agent asked for. Re-measured 2026-10-11 on SDK 0.2.165 with
 bundled CLI **2.1.294**, the second row is `claude-haiku-5-5`: 1192 input and 26
 output tokens, `costUSD` $0.0001322, which is exactly $0.10 and $0.50 per Mtok.
-So 2.1.294 already routes background work to Haiku 5.5. Consequences for a
-review and for graders:
+So 2.1.294 already routes background work to Haiku 5.5, and 2.1.301 does too
+(measured 2026-10-17: 1179 in / 19 out, again exactly $0.10 and $0.50 per
+Mtok). The agent's own Sonnet 5.5 cache reads are priced at the list
+**$0.10/Mtok** by the 2.1.301 estimate; 2.1.294 charged $0.20 (history, see
+`agent-deploy/references/cost-controls.md`). Consequences for a review and for
+graders:
 
 - a retiring or deprecated id appearing in `model_usage` is **not** a finding;
   only an explicitly configured one is;
@@ -93,7 +98,7 @@ review and for graders:
   never `next(iter(...))`, and a per-model budget assertion has to allow the
   background model;
 - each row also carries `costBasis` (`list` | `managed` | `unknown`, Claude Code
-  2.1.246+) and `thinkingTokens`, neither of which is on the 0.2.165
+  2.1.246+) and `thinkingTokens`, neither of which is on the 0.2.168
   `ModelUsage` TypedDict — read both with `.get()`.
 
 ## Subagent models
@@ -129,10 +134,12 @@ Sources:
 <https://code.claude.com/docs/en/agent-sdk/subagents#agentdefinition-configuration>,
 <https://code.claude.com/docs/en/agent-sdk/cost-tracking#break-down-usage-per-model>;
 <https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricing>;
-`claude-agent-sdk` 0.2.165 `types.py:2070` (`model`), `:2076`
-(`fallback_model`), `:2372` (`effort`), `:1314` (`ModelUsage`). The cost table
+`claude-agent-sdk` 0.2.168 `types.py:2425` (`model`), `:2431`
+(`fallback_model`), `:2727` (`effort`), `:1669` (`ModelUsage`). The cost table
 was measured by this plugin on 2026-09-30 against SDK 0.2.162 (bundled CLI
 2.1.285) and system CLI 2.1.274, on a Claude Max subscription with no API key
 set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165
-(bundled CLI 2.1.294) with `ANTHROPIC_API_KEY` set. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+(bundled CLI 2.1.294) with `ANTHROPIC_API_KEY` set, and again on 2026-10-17 on
+SDK 0.2.168 (bundled CLI 2.1.301). Re-read 2026-10-11 against claude-agent-sdk
+0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
+claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.

@@ -91,9 +91,9 @@ auth failure inside the first session, not as a configuration error.
 
 A provider switch has a second effect worth knowing in CI: a session on a
 third-party provider, or one holding a gateway token, never receives the
-interactive feature flags, so from Claude Code **2.1.285** it starts in
+interactive feature flags, so on Claude Code **2.1.285–2.1.301** it starts in
 **`auto`** permission mode when `permission_mode` is unset — and `auto` drops
-broad allow rules. Set the mode explicitly in the agent's options (`dontAsk` for
+broad allow rules (2.1.302 starts it in `default`). Set the mode explicitly in the agent's options (`dontAsk` for
 an unattended suite); this plugin's runner forces `"dontAsk"` when the options
 leave it unset, and the lint reports the omission as `OPT013`.
 
@@ -124,4 +124,6 @@ guidance that an OAuth token is tied to one subscription, federation inputs,
 `https://code.claude.com/docs/en/permission-modes` (the headless starting-mode
 table); `https://code.claude.com/docs/en/plugin-evals` (cloud-provider
 variables in CI). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
-Code 2.1.296 docs.
+Code 2.1.296 docs. The 2.1.302 unset-mode change is from
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
+2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
