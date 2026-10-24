@@ -3,6 +3,48 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.1.4 — 2026-10-24
+
+Re-checked against `claude-agent-sdk` 0.2.174 with its bundled CLI 2.1.310
+(docs and changelog read at Claude Code 2.1.310); minimum supported SDK stays
+0.2.140. No SDK API change since 0.2.168: the 49 options, 6 permission modes,
+10 Python hook events and the 19 `ResultMessage` fields are re-verified against
+the installed wheel. The runner's behaviour changed, so a project copy at 0.1.3
+is reported as older (`DEP001`) and offered the upgrade.
+
+- **A refusal is not an error result.** The Python SDK docs now say
+  `ResultMessage.is_error` can be `True` with `subtype="success"`: when
+  `stop_reason` is `"refusal"` (the model declined) or
+  `"tool_deferred_unavailable"` (a deferred tool was missing on resume), and for
+  any other `stop_reason` as an error reported in place of a model response; read
+  `stop_reason` first, then `terminal_reason`, then `subtype`. The new
+  `RESULT_STOP_REASON_OUTCOMES` maps the two to the outcomes `refusal` and
+  `tool_deferred`, and `capture.result_outcome()` classifies a result that way.
+  The trace `result` event already carried `subtype`, `is_error`,
+  `terminal_reason` and `stop_reason` together (0.1.3, measured on 2.1.310);
+  the per-run block of `<case>.result.json` now carries `stop_reason` and
+  `is_error` too.
+- **Limit wording in a refusal is not a usage limit.** The capture and the
+  `ResultError` mapping no longer search a refusal's or a deferred tool's
+  result text for limit words, so such a run is never marked NOT_EVALUATED as a
+  usage-limit hit. A `ResultError` whose `data["stop_reason"]` is `refusal` or
+  `tool_deferred_unavailable` is reported with the error kind `refusal` or
+  `tool_deferred` (exit hint 1) instead of `result_error`, and a `terminal`
+  grader that does not set `allow_error` names which of the two it saw.
+- **The permission-default rationale cites the docs.** "In Claude Code v2.1.302
+  or later, `claude -p` and Agent SDK runs with no permission mode set start in
+  Manual mode" (`default`; measured again on 2.1.310), and "Before v2.1.302,
+  these runs could start in auto mode if they didn't fetch feature flags"
+  (`permission-modes#which-mode-a-non-interactive-run-starts-in`). The measured
+  2.1.285–2.1.301 detail stays; the runner still forces `dontAsk` when the
+  agent leaves the mode unset.
+- `init.capabilities` is recorded, never required: 13 strings on 2.1.310
+  (`interrupt_requeue_taken_v1` and `lifecycle_wakeup_source_v1` are new). The
+  `system`/`commands_changed` message 2.1.301 sent after `init` was not seen on
+  2.1.310 and is still tolerated either way.
+- Cost note: the bundled CLI 2.1.310 still estimates Sonnet 5.5 cache reads at
+  $0.10/Mtok (measured).
+
 ## 0.1.3 — 2026-10-17
 
 Re-checked against `claude-agent-sdk` 0.2.168 with its bundled CLI 2.1.301

@@ -90,12 +90,18 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 - **An unset `permission_mode` is not the same as `"default"`.** The CLI
   resolves it: a session that fetches feature flags starts in `default`, but on
   Claude Code 2.1.285–2.1.301 one that fetches none — a gateway or third-party
-  provider, telemetry off, the first run after an install or upgrade — starts
-  in `auto`, where broad allow rules such as a bare `Bash` are dropped; 2.1.302
-  starts those in `default` too. Behaviour that depends on the CLI version is
+  provider, telemetry off — could start in `auto`, where broad allow rules such
+  as a bare `Bash` are dropped. The docs now say "In Claude Code v2.1.302 or
+  later, `claude -p` and Agent SDK runs with no permission mode set start in
+  Manual mode" (`default`). Behaviour that depends on the CLI version is
   why `OPT013` stays a warn; the fix is to pass `"dontAsk"` or `"default"`
   explicitly. The plugin's runner forces `"dontAsk"`, but the
   agent also runs outside the runner, so the finding stands either way.
+- **Result handling reads `stop_reason` first.** A refusal or a deferred tool
+  missing on resume reports `is_error=True` with `subtype="success"`; code that
+  treats every `is_error` as an API error to retry is wrong. No lint id checks
+  it — read the result-handling code by hand (`references/review-checklist.md`,
+  "Read by hand").
 - **Options built inside `main()` are a structural finding, not a style note.**
   Until there is a builder, no eval can override anything and this review can
   only see literals. Say what the review could not see.

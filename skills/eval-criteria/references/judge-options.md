@@ -132,4 +132,4 @@ https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricin
 (Haiku 5.5's price, context window and the 2.1.293 alias);
 https://code.claude.com/docs/en/plugin-evals (the `--judge-model` default).
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
-Re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
                    fix="set include_hook_events=True when you want hook activity in the "
                        "trace. On its own it emits nothing: a hook has to be registered "
                        "as well, which it is here.",
-                   source="claude-agent-sdk 0.2.168 types.py:2554")
+                   source="claude-agent-sdk 0.2.174 types.py:2554")
 
     # Gaps: things absent rather than wrong.
     if not facts.hooks:

@@ -48,6 +48,24 @@ its own: find the loop, oscillation or stall that consumed the budget. Note
 that `max_turns` is not a hard cap on `num_turns` (a cap of 1 measured two
 turns), so read the terminal reason, not the count.
 
+## refusal
+
+The result has `is_error` set on `subtype: success` with
+`stop_reason: refusal`; its `terminal_reason` can read `completed` or even
+`api_error`, and it is still **not an API error** (the signature reads `stop_reason`
+first). Layer: prompt. Read the refusal text before blaming the agent: either
+the case asks for something the model declines — then assert the refusal with a
+`final_text` grader and `terminal: {allow_error: true}` — or the prompt makes
+an ordinary request read as one it should decline.
+
+## tool_deferred
+
+The result has `is_error` set with `stop_reason: tool_deferred_unavailable`: a
+`PreToolUse` hook deferred a call, and when the session resumed the tool was
+gone (typically its MCP server was not connected). `deferred_tool_use` names the
+call. Not an API error and not the agent's fault. Layer: eval. Resume with the
+tools the deferring session had; the harness lost the tool.
+
 ## wrong_path_right_answer (Q3)
 
 Not a signature; a verdict. The answer graders pass and a trajectory grader
@@ -66,4 +84,7 @@ pass@1, never one green run.
 
 Sources: this plugin's `lib/agent_sdk_skills/trajectory.py`; result fields per
 `https://code.claude.com/docs/en/agent-sdk/python` (`ResultMessage`,
-`permission_denials`); the `max_turns` measurement in `.dev/VERIFIED-FACTS.md`.
+`permission_denials`, `is_error` and the `stop_reason`-first order),
+`https://code.claude.com/docs/en/hooks` (`tool_deferred_unavailable` on resume),
+re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs;
+the `max_turns` measurement in `.dev/VERIFIED-FACTS.md`.

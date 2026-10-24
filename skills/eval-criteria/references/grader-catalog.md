@@ -90,11 +90,17 @@ find:
 * **A deferred tool ends the turn with `stop_reason: "tool_deferred"`.** A
   `PreToolUse` hook returning `permissionDecision: "defer"` is not a quieter
   deny: it stops the turn, and `deferred_tool_use` on the result names the call.
-  Assert it with `terminal` on `stop_reason: tool_deferred`, not with a text
-  match on the reply.
+  The trace's `result` event records `stop_reason` beside `subtype`, `is_error`
+  and `terminal_reason`; `terminal` matches only `subtype`/`terminal_reason`, so
+  read `stop_reason` there rather than text-matching the reply.
+* **`is_error` on `subtype: success` is not always an API error.** A refusal
+  (`stop_reason: "refusal"`) and a deferred tool gone on resume
+  (`"tool_deferred_unavailable"`) both set it. Check `stop_reason` first, then
+  `terminal_reason`, then `subtype`. A `terminal` grader without `allow_error`
+  fails such a run, and from runner 0.1.4 its reason says which of the two it was.
 * **A cost figure has a basis.** Each `model_usage` row carries `costBasis`
   (`list` | `managed` | `unknown`, Claude Code 2.1.246+) and `thinkingTokens`,
-  neither of them on the 0.2.168 `ModelUsage` TypedDict — read both with
+  neither of them on the 0.2.174 `ModelUsage` TypedDict — read both with
   `.get()`. Comparing a `list`-basis run with a `managed`-basis one compares two
   price lists.
 
@@ -123,4 +129,4 @@ https://platform.claude.com/docs/en/about-claude/models/overview (Haiku 5.5's
 price). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
 SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
-Re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

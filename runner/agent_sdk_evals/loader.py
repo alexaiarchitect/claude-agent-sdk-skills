@@ -415,13 +415,18 @@ def validate_overrides(overrides: dict[str, Any], live_fields: Any = None) -> Ov
 
 #: The mode the runner resolves when nobody else does (CONTRACTS section 13.1).
 #: With `permission_mode` unset the CLI picks the mode, and which one depends on
-#: its version and environment: a headless session that fetches feature flags
-#: starts in `default` (measured on CLI 2.1.292 and 2.1.301); on CLI
-#: 2.1.285-2.1.301 one that does not (third-party provider, telemetry off, first
-#: run after an install or upgrade) starts in `auto`, where a classifier reviews
-#: each tool call and a bare allow rule no longer settles it; 2.1.302+ starts
-#: those in `default` too. An eval has to know which rules were in force, so the
-#: runner decides: `dontAsk` for unattended runs either way.
+#: its version and environment. Documented
+#: (`permission-modes#which-mode-a-non-interactive-run-starts-in`, read at
+#: 2.1.310): "In Claude Code v2.1.302 or later, `claude -p` and Agent SDK runs
+#: with no permission mode set start in Manual mode" (`default`; measured on
+#: 2.1.310), and "Before v2.1.302, these runs could start in auto mode if they
+#: didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a headless
+#: session that fetches feature flags starts in `default` (CLI 2.1.292 and
+#: 2.1.301); one that does not (third-party provider, telemetry off, first run
+#: after an install or upgrade) starts in `auto`, where a classifier reviews each
+#: tool call and a bare allow rule no longer settles it. An eval has to know
+#: which rules were in force, so the runner decides: `dontAsk` for unattended
+#: runs either way.
 PERMISSION_MODE_DEFAULT = "dontAsk"
 
 

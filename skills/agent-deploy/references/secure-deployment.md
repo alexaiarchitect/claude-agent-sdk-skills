@@ -115,8 +115,8 @@ every container's environment; the same file is where
 `permissions.disableAutoMode: "disable"` and
 `permissions.disableBypassPermissionsMode: "disable"` block the two modes a
 deployment usually does not want. Two related facts for a headless fleet:
-`permission_mode` left unset starts a session that fetches no feature flags in
-**`auto`** on 2.1.285–2.1.301, in `default` from 2.1.302 (see
+`permission_mode` left unset could start a session that fetches no feature
+flags in **`auto`** on 2.1.285–2.1.301, and starts it in `default` from 2.1.302 (see
 `../../agent-harness/references/permission-model.md`), and a read from a network
 path is never approved by an allow rule, so a mounted UNC share is not reachable
 unattended unless it is mapped and passed with `--add-dir`.
@@ -131,7 +131,32 @@ that routes the provider itself sets `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`, and
 then provider, endpoint and credential variables in settings files are ignored.
 Project and local settings cannot set storage-location variables such as
 `CLAUDE_CONFIG_DIR`, nor (2.1.282+) the OpenTelemetry exporter variables; put
-those in the job's environment or managed settings.
+those in the job's environment or managed settings. Three newer variables are
+honoured **only** from the environment that launches Claude Code (a settings
+`env` block is ignored): `CLAUDE_CODE_WARN_DISK_FREE_GIB` and, on Linux/WSL,
+`CLAUDE_CODE_WARN_MEMORY_FREE_GIB` (2.1.304+, a whole number of GiB; below it
+Claude gets a system reminder saying how much is free — useful in a small
+container), and `CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT` (2.1.304+, turns
+off the mounted-drive `rm` prompt; leave it unset on a host with mounted
+volumes).
+
+**Sandbox changes in 2.1.305–2.1.310.** `sandbox.allowNestedUserNamespaces`
+(2.1.305+, user or managed scope; a `true` in project settings, or anywhere
+under `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`, is ignored) lets sandboxed Linux/WSL2
+commands create user namespaces for Chromium, Electron or a nested bubblewrap —
+and "If you set this key to `true`, you turn off a security boundary: code from
+a sandboxed command can end up running outside the sandbox." The SDK's
+`SandboxSettings` does not declare it, so it reaches the CLI only as an
+undeclared key; keep it off in a multi-tenant host. 2.1.309 closed several
+gaps: sandboxed Bash on macOS and Linux no longer runs the shell's startup files
+outside the sandbox before each command; macOS `denyWrite` globs apply at a
+path's real location when reached through a symlink; sandboxed commands and
+auto-accepted edits can no longer modify the `--mcp-config` file; Linux write
+denies no longer lift when a background command outlives the session; and
+commands the settings exclude from the sandbox now ask before writing to its
+write-list paths when the sandbox is enabled but cannot run, with the
+unsandboxed fallback refused. From 2.1.310 `/sandbox` and the startup warning
+name Ubuntu's AppArmor user-namespace restriction when it stops bubblewrap.
 
 And none of it controls **egress**. A container with a shell can connect
 wherever its network policy allows. Apply per-tenant egress rules at the proxy —
@@ -167,15 +192,16 @@ HIPAA configuration and the mode-disabling settings),
 <https://www.anthropic.com/engineering/how-we-contain-claude> ("How we contain
 Claude across products", 2026-10-12, for the containment model this checklist
 sits inside);
-`claude-agent-sdk` 0.2.168 `types.py:2652` (`setting_sources`), `:2373`
+`claude-agent-sdk` 0.2.174 `types.py:2653` (`setting_sources`), `:2373`
 (`strict_mcp_config`), `:2380` (`permission_mode`),
 `_internal/session_resume.py:352-380` (credential handling and `apiKeyHelper`);
 <https://code.claude.com/docs/en/settings-reference> (variables ignored in
-project `env`), <https://code.claude.com/docs/en/permissions#hook-approvals-in-plan-mode>,
+project `env`, `sandbox.allowNestedUserNamespaces`),
+<https://code.claude.com/docs/en/permission-modes> ("The mounted drive prompt"), <https://code.claude.com/docs/en/permissions#hook-approvals-in-plan-mode>,
 <https://code.claude.com/docs/en/env-vars> (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299,
-2.1.300, 2.1.302).
+2.1.300, 2.1.302, 2.1.304, 2.1.305, 2.1.309, 2.1.310).
 The list of what still loaded under `setting_sources=[]` was measured by this
 plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
-Claude Code 2.1.296 docs. Re-read 2026-10-17 against claude-agent-sdk
-0.2.168 / Claude Code 2.1.302 docs.
+Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk
+0.2.174 / Claude Code 2.1.310 docs.

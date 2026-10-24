@@ -56,11 +56,17 @@ five-hour and seven-day windows), and `stopped` when the run ended early
 `error_max_budget_usd`. `terminal_reason`: `completed`, `max_turns`,
 `aborted_streaming`, `aborted_tools`, `api_error`, or null. `max_turns` is not
 a hard cap on `num_turns` (a cap of 1 measured two turns); assert on
-`terminal_reason`, not on the count.
+`terminal_reason`, not on the count. The trace's `result` event also carries
+`is_error` and `stop_reason`: on `subtype: success`, `is_error: true` with
+`stop_reason` `refusal` (the model declined) or `tool_deferred_unavailable` (a
+deferred tool gone on resume) is not an API error, so read `stop_reason` first,
+then `terminal_reason`, then `subtype`.
 
 ---
 
 Sources: this plugin's `.dev/CONTRACTS.md` §5–§7 and
 `lib/agent_sdk_skills/results.py`; SDK fields per
-`https://code.claude.com/docs/en/agent-sdk/python` (`ResultMessage`) and
+`https://code.claude.com/docs/en/agent-sdk/python` (`ResultMessage`,
+`is_error` and the `stop_reason`-first order; re-read 2026-10-24 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs) and
 `https://code.claude.com/docs/en/agent-sdk/cost-tracking`.

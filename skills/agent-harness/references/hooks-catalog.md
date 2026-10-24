@@ -32,9 +32,14 @@ rejected and the original output is kept. `WorktreeRemove` (a TypeScript-side
 event) is narrower than its name suggests: it fires only when a worktree that a
 `WorktreeCreate` hook created is being removed, not on every worktree teardown.
 
-`permissionDecision: "defer"` is not a quieter deny. It ends the turn, and the
-`ResultMessage` then carries **`stop_reason: "tool_deferred"`** — assert on that,
-not on the text, and expect `deferred_tool_use` to be populated.
+`permissionDecision: "defer"` is not a quieter deny, and it "requires
+non-interactive mode with the `-p` flag" (an interactive session ignores it, as
+does a turn with several tool calls). It ends the turn with **`stop_reason:
+"tool_deferred"`** and `deferred_tool_use` populated — assert on those, not the
+text. If the tool is gone on resume (its MCP server not connected), the first
+result has `stop_reason: "tool_deferred_unavailable"`, `is_error: true`,
+`subtype: "success"`, and the hook does not fire; a prompt sent with the resume
+is answered without the tool's result. Branch on `stop_reason` before `is_error`.
 
 ## The callback contract
 
@@ -77,7 +82,8 @@ options = ClaudeAgentOptions(
 seeded RNG if a run has to be reproducible.
 
 The matcher is compared against a different value per event: the tool name for
-tool events, the notification type for `Notification`. It follows the same rules
+tool events, the notification type for `Notification` (`permission_prompt`,
+`idle_prompt`, …, and `plugin_notification` when a mod calls `$.ui.notify`). It follows the same rules
 as matchers in settings files (exact string or regular expression), so an
 invalid pattern is a real error (`HOK003`). Omitting it fires on every
 occurrence of the event, which is what an audit hook wants.
@@ -97,7 +103,8 @@ callback must not assume another has already run.
   `UserPromptSubmit`. Set `timeout=` on the `HookMatcher` to change it.
 - What a timeout does depends on the event. On `PreToolUse`, an Agent SDK
   callback that exceeds its timeout **blocks the tool call** and Claude gets an
-  error result naming the timeout. On `PostToolUse` the result is kept and the
+  error result naming the timeout; from 2.1.304 that timeout no longer replaces
+  another `PreToolUse` hook's deny reason. On `PostToolUse` the result is kept and the
   turn continues. On `Stop`/`SubagentStop` the timed-out callback counts as no
   decision, and the agent stops as if it had allowed.
 
@@ -128,9 +135,8 @@ It defaults to `"continue"`, and it has **no effect at all** on `Stop`,
 
 ## Released in 0.2.166 (gate as "0.2.166+")
 
-The pinned 0.2.168 has all of this; the plugin still supports 0.2.140, so code
-that must run on 0.2.140–0.2.165 reads these fields with `.get()` and imports
-the new names behind a version check.
+The pinned 0.2.174 has all of this; code that must run on 0.2.140–0.2.165 reads
+these fields with `.get()` and imports the new names behind a version check.
 
 - Richer hook inputs: `prompt_id` (the UUID of the prompt being processed,
   matching the OpenTelemetry `prompt.id` attribute, absent until the first user
@@ -159,11 +165,10 @@ the new names behind a version check.
 
 `ClaudeAgentOptions`, the six permission modes, the five effort levels and the
 ten `HookEvent` literals are **unchanged**, so nothing above widens what you may
-register. After 0.2.168 (repository head `f93e29cc`), the `include_hook_events`
-docstring adds that `SessionStart` and `Setup` hook events are emitted
-regardless of the setting.
+register. From 0.2.169 the `include_hook_events` docstring says `SessionStart`
+and `Setup` hook events are emitted regardless of it: `False` does not suppress them.
 
-## Claude Code changes that reach hook authors (2.1.299–2.1.302)
+## Claude Code changes that reach hook authors (2.1.299–2.1.310)
 
 - **`updatedInput` is validated like Claude's own input (2.1.300)** for
   `PreToolUse` and `PermissionRequest`: unknown keys are dropped, and input the
@@ -179,14 +184,20 @@ regardless of the setting.
   process exits is not read. Print the decision first and redirect the
   background process's stdout and stderr, or the call is blocked with
   `refusing to honor the suspect capture`.
-- **Windows without Git Bash (2.1.299)**: a shell-form `PreToolUse` or
-  `PermissionRequest` hook with no `shell` that fails now blocks the call
-  instead of failing open; set `"shell": "powershell"` or install Git for
-  Windows.
+- **Windows and PowerShell fail closed (2.1.299, 2.1.309, 2.1.310)**: a
+  shell-form `PreToolUse`/`PermissionRequest` hook with no `shell` that fails
+  blocks the call; hooks run in PowerShell now block on exit 2 and no longer
+  fail open without Git for Windows (2.1.309), nor does a command that is only
+  quoted strings when Git Bash is missing (2.1.310). For a PowerShell guard set
+  `"onFailure": "block"` and `"shell": "powershell"`.
 - **At most 12 prompt or agent hooks of one event run at a time (2.1.302)**;
-  the rest wait their turn. Agent hooks honour their `model` (2.1.300): aliases
+  the rest wait, and each one's `timeout` starts when it starts. Agent hooks honour their `model` (2.1.300): aliases
   such as `haiku` resolve, and an unavailable model falls back to the caller's
   instead of allowing the action.
+- **Skill hooks are capped per source (2.1.304+)**: the skills of one source
+  (project, personal folder, each plugin) register at most 1,024 hooks and
+  16,384 matcher characters per session; past it the debug log says
+  `registers none of its hooks`.
 - **`@` mentions bypass `PreToolUse`**: a file referenced with `@` is inserted
   without a tool call. A `Read` deny rule blocks the path;
   `CLAUDE_CODE_DISABLE_FILE_MENTIONS=1` (2.1.299+, ignored in project and local
@@ -221,20 +232,19 @@ JSON output, per-event sections),
 <https://code.claude.com/docs/en/agent-sdk/permissions#how-permissions-are-evaluated>,
 <https://code.claude.com/docs/en/hooks#hooks-that-start-a-background-process>,
 <https://code.claude.com/docs/en/hooks#failed-hooks-on-windows-without-git-bash>,
-<https://code.claude.com/docs/en/hooks#pretooluse> (`@` mentions),
+<https://code.claude.com/docs/en/hooks#pretooluse> (`@` mentions, `"defer"`),
 <https://code.claude.com/docs/en/env-vars>,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299,
-2.1.300, 2.1.302 entries);
-`claude-agent-sdk` 0.2.168 `types.py:284-297` (`HookEvent`, ten literals),
+2.1.300, 2.1.302, 2.1.304, 2.1.309, 2.1.310 entries), the SDK `CHANGELOG.md`
+(0.2.169); `claude-agent-sdk` 0.2.174 `types.py:284-297` (`HookEvent`, ten literals),
 `:299-509` (hook input types), `:511-725` (`hookSpecificOutput` per event),
 `:728-815` (`HookJSONOutput`), `:818` (`HookContext`), `:828`
 (`HookCallback`), `:840` (`HookMatcher`), `:2531-2542` (concurrent dispatch),
-`:2554` (`include_hook_events`), `:2190-2279`
+`:2554-2560` (`include_hook_events`), `:2190-2279`
 (`CanUseToolShadowedWarning`), `:614` (`StopHookSpecificOutput`), `:625`
 (`SubagentStopHookSpecificOutput`), `:299` (`HookEffort`). The "emits nothing
 without a registered hook" observation was measured by this plugin on
 2026-09-30. The 0.2.166+ list was first read from the SDK repository at
-`b6e9d12f` on 2026-10-11 and checked against the 0.2.168 wheel on 2026-10-17.
+`b6e9d12f` on 2026-10-11 and checked against the 0.2.174 wheel on 2026-10-24.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
-docs; re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302
-docs.
+docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

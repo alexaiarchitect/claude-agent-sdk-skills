@@ -21,6 +21,7 @@ from agent_sdk_skills.trace import (
     project_key_for_directory,
     rate_limit_events,
     result_event,
+    result_outcome,
     to_summary,
     tool_calls,
     tool_errors,
@@ -174,7 +175,7 @@ def test_a_summary_reports_what_happened(happy):
     assert summary["has_result"] is True
     assert summary["result"]["terminal_reason"] == "completed"
     assert summary["result"]["cost_basis"] == "subscription"
-    assert summary["init"]["cli_version"] == "2.1.301"
+    assert summary["init"]["cli_version"] == "2.1.310"
     assert summary["init"]["api_key_source"] == "none"
     assert summary["rate_limit"]["status"] == "allowed_warning"
 
@@ -359,7 +360,7 @@ def test_the_encoding_agrees_with_the_sdks_own_answer(sdk_python):
     """A reimplemented encoding nobody checks is a way to read the wrong directory.
 
     The interpreter comes from the `sdk_python` fixture, which resolves the
-    0.2.168 venv first and the older paths as fallbacks.
+    0.2.174 venv first and the older paths as fallbacks.
     """
     cases = ["/a/b c", "/tmp/my_app.v2", "/", "/Users/x/Café", "/" + "x" * 300]
     probe = (
@@ -444,3 +445,119 @@ def test_new_hook_input_fields_ride_along_in_an_imported_session(tmp_path):
     attachment, summary_line = events_of(events, "system")
     assert "session_crons" in attachment.get("data")["attachment_keys"]
     assert summary_line.get("data")["prompt_id"] == "p-1"
+
+
+# -- CLI 2.1.310 init (measured 2026-10-24) --------------------------------
+
+def test_a_2_1_310_trace_summarizes_thirteen_capabilities(traces):
+    events = load_trace(traces / "init_2_1_310.trace.jsonl")
+    summary = to_summary(events)
+    assert summary["init"]["cli_version"] == "2.1.310"
+    assert summary["init"]["permission_mode"] == "default", "unset mode on 2.1.302+"
+    capabilities = summary["init"]["capabilities"]
+    assert len(capabilities) == 13
+    assert {"interrupt_requeue_taken_v1", "lifecycle_wakeup_source_v1"} <= set(capabilities)
+    assert events_of(events, "system") == [], "no commands_changed on 2.1.310"
+    assert summary["result"]["stop_reason"] == "end_turn"
+    assert summary["result"]["outcome"] == "success"
+
+
+# -- is_error on a success subtype (Python SDK docs, Claude Code 2.1.310) ----
+
+def test_a_refusal_summarizes_as_a_refusal_not_an_error(traces):
+    summary = to_summary(load_trace(traces / "refusal_success.trace.jsonl"))
+    result = summary["result"]
+    assert (result["subtype"], result["is_error"], result["stop_reason"]) == \
+        ("success", True, "refusal")
+    assert result["outcome"] == "refusal"
+
+
+@pytest.mark.parametrize("fields, outcome", [
+    ({"subtype": "success", "is_error": False, "stop_reason": "end_turn"}, "success"),
+    ({"subtype": "success", "is_error": True, "stop_reason": "refusal",
+      "terminal_reason": "api_error"}, "refusal"),
+    ({"subtype": "success", "is_error": True, "stop_reason": "tool_deferred_unavailable"},
+     "tool_deferred"),
+    ({"subtype": "success", "is_error": True, "stop_reason": "end_turn"}, "error"),
+    ({"subtype": "success", "is_error": False, "terminal_reason": "api_error"}, "error"),
+    ({"subtype": "error_max_turns", "is_error": True, "stop_reason": None}, "error"),
+    ({"subtype": "error_during_execution", "is_error": False}, "error"),
+])
+def test_result_outcome_reads_stop_reason_first(fields, outcome):
+    assert result_outcome(fields) == outcome
+    assert result_outcome(TraceEvent(type="result", data=fields)) == outcome
+
+
+def test_no_result_has_no_outcome():
+    assert result_outcome(None) is None
+
+
+def test_an_imported_cost_result_has_no_outcome(fixtures):
+    summary = to_summary(load_session(fixtures / "sessions" / "sdk_with_tool.jsonl"))
+    assert summary["result"]["outcome"] is None, "a cost-state line says nothing about how it ended"
+
+
+# -- a parallel-tool turn (claude-agent-sdk 0.2.170 `get_session_messages`) ---
+
+PARALLEL_EXPECTED = [
+    ("user", "read them"),
+    ("tool_use", "toolu_0"), ("tool_use", "toolu_1"), ("tool_use", "toolu_2"),
+    ("tool_result", "toolu_0"), ("tool_result", "toolu_1"), ("tool_result", "toolu_2"),
+    ("assistant_text", "done"), ("user", "thanks"), ("assistant_text", "bye"),
+]
+
+
+def _shape(events):
+    out = []
+    for event in events:
+        if event.type == "init":
+            continue
+        key = event.get("id") or event.get("tool_use_id") or event.get("text")
+        out.append((event.type, key))
+    return out
+
+
+def test_a_parallel_tool_turn_imports_whole_and_in_order(fixtures):
+    """Calls, then results in timestamp order, then the continuation — the order
+    0.2.174's `get_session_messages` returns (measured on the same file)."""
+    events = load_session(fixtures / "sessions" / "sdk_parallel_tools.jsonl")
+    assert _shape(events) == PARALLEL_EXPECTED
+    assert [e.get("turn") for e in events_of(events, "user")] == [1, 2], \
+        "a line of tool results is not a user turn"
+    assert to_summary(events)["turns"] == 2
+
+
+@pytest.mark.parametrize("written", [(0, 1, 2), (2, 1, 0), (1, 2, 0), (0, 2, 1)])
+def test_a_parallel_tool_turn_keeps_every_result_whatever_order_they_were_written(
+    fixtures, tmp_path, written,
+):
+    """The SDK's own test writes the results in these four orders
+    (`test_parallel_tool_calls_keep_every_call_and_result`); the conversation
+    continues from the last one written."""
+    lines = [json.loads(line) for line in
+             (fixtures / "sessions" / "sdk_parallel_tools.jsonl").read_text().splitlines()]
+    head = [line for line in lines if not line["uuid"].startswith("result-")]
+    results = {line["uuid"]: line for line in lines if line["uuid"].startswith("result-")}
+    rewritten = head[:4]
+    for slot, index in enumerate(written):
+        line = dict(results[f"result-{index}"])
+        line["timestamp"] = f"2026-01-01T00:00:02.00{slot}Z"
+        rewritten.append(line)
+    for line in head[4:]:
+        line = dict(line)
+        if line["uuid"] == "answer":
+            line["parentUuid"] = f"result-{written[-1]}"
+        rewritten.append(line)
+    path = tmp_path / "parallel.jsonl"
+    path.write_text("\n".join(json.dumps(line) for line in rewritten) + "\n")
+    shape = _shape(load_session(path))
+    assert shape[1:4] == [("tool_use", f"toolu_{i}") for i in range(3)], "calls first, in order"
+    assert shape[4:7] == [("tool_result", f"toolu_{i}") for i in written], "results by timestamp"
+    assert shape[7:] == PARALLEL_EXPECTED[7:]
+
+
+def test_a_sequential_tool_session_keeps_its_order(fixtures):
+    """One call per response: nothing to regroup, the plain walk is unchanged."""
+    events = load_session(fixtures / "sessions" / "sdk_with_tool.jsonl")
+    kinds = [e.type for e in events if e.type in ("tool_use", "tool_result")]
+    assert kinds == ["tool_use", "tool_result"] * (len(kinds) // 2)

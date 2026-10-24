@@ -113,6 +113,26 @@ negotiates it but omits `resultType`, `ttlMs` or `cacheScope` showed no tools
 until the 2.1.302 fix. A `"failed"` HTTP or SSE server can now reconnect on its
 own in the background.
 
+Fixes since then that an SDK agent can feel (Claude Code 2.1.305–2.1.310):
+
+- a server passed with the SDK's `setMcpServers` (TypeScript; the Python
+  client has no such call at 0.2.174) is no longer replaced later in the session
+  by a same-named server from the user's settings (2.1.305);
+- an HTTP MCP tool call is no longer sent twice when the connection closes
+  mid-call: only read-only or idempotent tools are retried (2.1.307), so mark a
+  tool's annotations honestly; and a turn no longer starts without an SDK MCP
+  server's latest tools while a background task runs (2.1.307);
+- a disabled MCP server is no longer reconnected by a later permission prompt in
+  print and SDK sessions (2.1.309);
+- a call that times out in a non-interactive session while the server's
+  elicitation goes unanswered now tells Claude "that no answer came and not to
+  repeat the call" (2.1.310) — an unattended agent cannot answer elicitations,
+  so mock such a tool rather than wait.
+
+A `claude -p` run does not wait for MCP work in the background when it ends: a
+remote MCP task goes on (resume the session to follow it), and the result of a
+call that automatic backgrounding moved is lost.
+
 ## Mocks, for evals
 
 An eval that calls a real external server is testing the server. Replace it:
@@ -145,7 +165,7 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/mcp> (naming, transports,
 allowing tools, connection timing, error handling),
 <https://code.claude.com/docs/en/agent-sdk/custom-tools> (the `@tool`
 contract, content types, error handling);
-`claude-agent-sdk` 0.2.168 `__init__.py:267` (`SdkMcpTool`), `:277` (`tool`),
+`claude-agent-sdk` 0.2.174 `__init__.py:267` (`SdkMcpTool`), `:277` (`tool`),
 `:477-515` (content-item handling), `:517` (`create_sdk_mcp_server`),
 `types.py:1218` (`ToolResultBlock`), `:2365` (`mcp_servers`), `:2373`
 (`strict_mcp_config`), `client.py:471` (`get_mcp_status`), `:540`
@@ -156,8 +176,10 @@ contract, content types, error handling);
 (rule syntax, `_` normalisation, plugin form), <https://code.claude.com/docs/en/env-vars>
 (`CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 rule
-scoping and protocol negotiation, 2.1.302 fix).
+scoping and protocol negotiation, 2.1.302 fix, 2.1.305, 2.1.307, 2.1.309 and
+2.1.310 MCP entries), <https://code.claude.com/docs/en/headless> ("MCP work when
+a non-interactive run ends").
 The `is_error is None`, ambient-connector and `tools=["Read"]` observations were
 measured by this plugin on 2026-09-30. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
-claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

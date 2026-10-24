@@ -44,7 +44,7 @@ from .report import Finding
 _SRC_CATALOG = "this plugin's grader catalog (CONTRACTS §2)"
 _SRC_SEMANTICS = "measured: .dev/VERIFIED-FACTS.md §5, §8 (CONTRACTS §2.1)"
 _SRC_HOOKS = "claude_agent_sdk types.py HookEvent literal (10 values)"
-_SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.168)"
+_SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.174)"
 
 TIER_FREE = "free"
 TIER_JUDGE = "judge"
@@ -336,9 +336,9 @@ SEMANTICS_NOTES: tuple[dict[str, str], ...] = (
                 "`model_usage.keys()`; to read the cost, loop over every entry.",
         "why": "Every measured run also billed a model nobody asked for for CLI-internal "
                "work (`claude-haiku-4-5-20251001` in 2026-09; `claude-haiku-5-5` on CLI "
-               "2.1.294 and 2.1.301, measured 2026-10-11 and 2026-10-17), so `model_usage` names extra models and the "
+               "2.1.294, 2.1.301 and 2.1.310, measured 2026-10-11, 2026-10-17 and 2026-10-24), so `model_usage` names extra models and the "
                "first entry is not the total.",
-        "source": "measured: VERIFIED-FACTS §8.3 and the 0.2.165 and 0.2.168 re-measurements",
+        "source": "measured: VERIFIED-FACTS §8.3 and the 0.2.165, 0.2.168 and 0.2.174 re-measurements",
     },
 )
 

@@ -6,8 +6,8 @@ whole point of the plugin is that it works before the project's environment does
 `PYTHONPATH=tests/fixtures/stubs:runner`.
 
 Faithfulness is the contract. Every public name, every dataclass field and every
-field *order* here was read from the installed wheel (`claude-agent-sdk` 0.2.168,
-bundled CLI 2.1.301; the stub mirrors a subset of the wheel's 159 exports); `ClaudeAgentOptions` carries all 49 fields in declaration
+field *order* here was read from the installed wheel (`claude-agent-sdk` 0.2.174,
+bundled CLI 2.1.310; the stub mirrors a subset of the wheel's 159 exports); `ClaudeAgentOptions` carries all 49 fields in declaration
 order, so a test can compare the runner's pinned option list against
 `__dataclass_fields__` exactly as the runner does at run time.
 
@@ -32,8 +32,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Generic, Literal, TypedDict, TypeVar
 
-__version__ = "0.2.168"
-__cli_version__ = "2.1.301"
+__version__ = "0.2.174"
+__cli_version__ = "2.1.310"
 
 T = TypeVar("T")
 
@@ -59,7 +59,7 @@ TERMINAL_TASK_STATUSES = {"completed", "failed", "stopped", "killed"}
 
 
 # -- exported in 0.2.166 (typed shapes only; `total=False` marks NotRequired) --
-# Mirrors `types.py` of 0.2.168: hook-input extras (`HookEffort` 299,
+# Mirrors `types.py` of 0.2.174: hook-input extras (`HookEffort` 299,
 # `BackgroundTaskSummary` 391, `SessionCronSummary` 417), the 17 newly exported
 # `*HookSpecificOutput` classes (511-725), `SystemInitData` and its parts
 # (1404-1461), `FastModeState`/`FastModeDisabledReason` (1443/1447). Nothing in

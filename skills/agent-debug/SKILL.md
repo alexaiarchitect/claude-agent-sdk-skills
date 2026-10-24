@@ -66,6 +66,7 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 | unknown_tool | a call to a name the session did not have | MCP wiring; a mock named differently |
 | error_cascade | consecutive error results (`is_error` truthy; `null` on success) | tool error text; "on error" rule in the prompt |
 | max_turns / max_budget | a ceiling fired; the answer proves nothing | find the loop before raising the cap |
+| refusal / tool_deferred | `is_error` on `subtype` success with `stop_reason` `refusal` / `tool_deferred_unavailable`; not an API error | the request or prompt / the resume's tool set |
 
 Full descriptions and fixes: [failure-shapes.md](references/failure-shapes.md).
 The layer table by evidence: [triage.md](references/triage.md).

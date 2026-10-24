@@ -4,10 +4,11 @@
 a small library's book reservations — was invented for it, and so were the
 catalog, the three tools, the system prompt's rules and every case, grader,
 mock, persona and fault. Nothing is copied from the Claude Agent SDK, the
-cookbooks, `claude plugin eval`'s own tests, or any other project. Two files are
-*derived* from measurements taken on this machine; the provenance paragraph at
-the bottom says exactly how, and those measurements are of the SDK's output
-shape, not of anyone's content.
+cookbooks, `claude plugin eval`'s own tests, or any other project. Some files
+are *derived* from measurements taken on this machine, and one session file is
+written by hand in the transcript shape the SDK's own (MIT) tests use; the
+provenance paragraphs at the bottom say exactly how, and what they carry is the
+SDK's output shape, not anyone's content.
 
 The domain is deliberately small and deterministic:
 
@@ -42,6 +43,9 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `eval_configs/` | `pr.json` and `nightly.json` (clean), `judge_retiring.json` (CFG010), `no_isolation.json` (CFG041 + CFG042), `bad.json` (thirteen ids at once, on purpose), `invalid_json.json` (CFG002). |
 | `traces/*.trace.jsonl` | One run each, schema `agent-sdk-skills.trace/1`: `happy`, `loop`, `oscillation`, `stall`, `unknown_tool`, `budget_exceeded`, `max_turns`, `import_failed`, `structured_output`, `rate_limited`. Each produces exactly the failure signature its name claims. `two_models` is the odd one out: it is a whole measured run, not a shaped one. |
 | `sessions/one_turn.jsonl` | A real `claude -p` session file, scrubbed. The shape `load_session` must survive, and it has no cost line. |
+| `traces/refusal_success.trace.jsonl` | A refusal: `subtype: "success"` with `is_error: true` and `stop_reason: "refusal"`, whose text names a quota. Reports must call it a refusal, never an API error or a usage-limit hit. |
+| `traces/init_2_1_301.*`, `traces/init_2_1_310.*` | A measured `init` per bundled CLI (11 and 13 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). |
+| `sessions/sdk_parallel_tools.jsonl` | One response that ran three tools in parallel: the transcript forks, and `load_session` must still emit every call, then every result, then the continuation. |
 | `sessions/sdk_with_tool.jsonl` | A real `entrypoint: "sdk-py"` session with three tool calls, scrubbed. It carries the `cost-state` and `system`/`stop_hook_summary` lines, which is what makes an imported cost testable. |
 | `results/series_5run/` | Three cases × five runs, with a judge grader that flips between runs — enough to tell pass@k from pass^k, and to show an `INFORMATIONAL` budget grader. |
 | `results/failure_only/` | Every run FAILED: consistent failure, not flakiness. |
@@ -72,7 +76,7 @@ entry the CLI bills for its own internal work, which nobody asked for — the
 `RateLimitEvent` payload verbatim (`allowed_warning`, 7-day window at 83 %,
 `surpassedThreshold` 0.75 and the `unifiedWindows` sub-object), the `init`
 fields (`apiKeySource: "none"`, and `claude_code_version`, which is re-pinned to
-the bundled CLI at each sync — `2.1.301` today, `2.1.285` when they were
+the bundled CLI at each sync — `2.1.310` today, `2.1.285` when they were
 recorded), and the
 synthetic `StructuredOutput` tool call that `output_format` results arrive as.
 The prompts, tool names, arguments and reply text are this plugin's own library
@@ -109,6 +113,46 @@ the CLI's own `default`). Scrubbed: paths became `/tmp/eval/run-1` and
 `/home/user/...`, the socket path, session id, uuids and message id became
 placeholders, `commands_changed` keeps three of its commands, and the trace
 clock is one tick per second.
+
+**`traces/init_2_1_310.script.jsonl`** and **`traces/init_2_1_310.trace.jsonl`**
+come from one live `query()` on 2026-10-24 (SDK 0.2.174, bundled CLI 2.1.310,
+`permission_mode` unset, API key, `setting_sources=[]`;
+`.dev/measured/0.2.174/live/init_2_1_310.jsonl`). Three messages this time: the
+`init` (`permissionMode: "default"`, 13 `capabilities` including the new
+`interrupt_requeue_taken_v1` and `lifecycle_wakeup_source_v1`, the same undeclared
+keys as 2.1.301), the reply and the result — 2.1.310 sent no
+`commands_changed`. The trace is what the 0.1.4 `Capture` writes from that
+script, and a test regenerates it to prove so. Scrubbed as for 2.1.301: paths
+became `/tmp/eval/run-1` and `/home/user/...`, the socket path, session id,
+uuids and message id became placeholders, the trace clock is one tick per
+second. No key material was in the measurement (`sk-ant` absent).
+
+**`traces/refusal_success.trace.jsonl`** is the `happy` trace cut down to
+`init`, the user turn, the reply and the result, with the result rewritten to the
+shape the Python SDK docs (read at Claude Code 2.1.310) give for a refusal:
+`subtype: "success"`, `is_error: true`, `stop_reason: "refusal"`,
+`terminal_reason: "completed"`, the refusal as `result_text`. A refusal was
+**not** produced live (the measurement budget did not cover one); the SDK
+passes these fields through from the CLI unchanged, so the docs' shape is what a
+runner would record.
+
+**`sessions/sdk_parallel_tools.jsonl`** is written by hand, ten lines, in the
+transcript shape the CLI writes for a response with parallel tool calls and that
+`claude-agent-sdk`'s MIT-licensed `tests/test_sessions.py` (`_parallel_tool_turn`)
+builds: three `assistant` lines sharing `message.id`, chained `call-0 → call-1 →
+call-2`, each `tool_result` line parented on its own call (with
+`sourceToolAssistantUUID`), and the reply continuing from the last result. No
+SDK code or data is copied. Measured on it with the 0.2.174 wheel:
+`get_session_messages`'s chain builder returns every call, then every result in
+timestamp order, then the reply — the order `load_session` now produces, and the
+test also replays the SDK test's four result orders.
+
+**The SDK venv.** `tests/lib/test_sdk_surface_live.py` and the encoding test in
+`test_trace.py` need the real wheel. `tests/conftest.py` looks for it at
+`$AGENT_SDK_TEST_PYTHON`, then at `../tmp/venvs/casdk-venv-0.2.174/bin/python`
+next to the repo (`/Users/alex/Documents/Business/adk-evanl-skills/tmp/venvs/` on
+the machine that syncs it), then at the old `/tmp/casdk-venv-*` paths, and skips
+without one. It moved out of `/tmp` because macOS cleared it on 2026-10-22.
 
 **`sessions/sdk_with_tool.jsonl`** is derived from a real session the runner
 itself produced (`.dev/measured/session_with_tool.jsonl`, 37 lines, three MCP

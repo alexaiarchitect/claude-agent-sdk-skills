@@ -11,16 +11,21 @@ has a green suite. At a sync it must **run**: that is how the option names, the
 literals, the `ResultMessage` fields and the version pin get re-verified rather
 than re-asserted.
 
-Measured 2026-10-17 against `claude-agent-sdk` 0.2.168 (bundled CLI 2.1.301):
-every answer below matched the pins. (History: the 2026-10-11 run against
-0.2.165 / CLI 2.1.294 matched the five checks that existed then.)
+Measured 2026-10-24 against `claude-agent-sdk` 0.2.174 (bundled CLI 2.1.310),
+installed in `../tmp/venvs/casdk-venv-0.2.174`: every answer below matched the
+pins, and every `types.py:<line>` the plugin cites is checked by
+:data:`TYPES_PY_LINES`. (History: the 2026-10-17 run against 0.2.168 / CLI
+2.1.301 and the 2026-10-11 run against 0.2.165 / CLI 2.1.294 matched the checks
+that existed then.)
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from agent_sdk_skills import (
@@ -33,7 +38,42 @@ from agent_sdk_skills import (
     SDK_TARGET,
 )
 
-#: The 19 `ResultMessage` fields, in declaration order (`types.py:1695` of 0.2.168).
+#: The release and bundled CLI this sync measured. Literal on purpose: a pin
+#: moved without re-reading the wheel fails here, not just in the equality below.
+MEASURED_SDK = "0.2.174"
+MEASURED_CLI = "2.1.310"
+
+#: Where each symbol the plugin cites by line number sits in the 0.2.174
+#: `types.py` (2901 lines; lines 1-2557 as in 0.2.168, 2558+ moved by one when
+#: the `include_hook_events` docstring grew in 0.2.169). symbol -> (line, the
+#: text that line starts with, stripped). A future shift fails loudly here
+#: before a reference cites a wrong line.
+TYPES_PY_LINES = {
+    "PermissionMode": (25, "PermissionMode = Literal["),
+    "HookEvent": (284, "HookEvent = ("),
+    "HookSpecificOutput": (728, "HookSpecificOutput = ("),
+    "HookCallback": (828, "HookCallback = Callable["),
+    "SandboxIgnoreViolations": (1126, "SandboxIgnoreViolations: TypeAlias = dict[str, list[str]]"),
+    "SandboxSettings": (1141, "class SandboxSettings("),
+    "SystemInitData": (1461, "class SystemInitData("),
+    "ModelUsage": (1669, "class ModelUsage("),
+    "ResultMessage": (1695, "class ResultMessage:"),
+    "RateLimitType": (1747, "RateLimitType = Literal["),
+    "RateLimitInfo": (1753, "class RateLimitInfo:"),
+    "ClaudeAgentOptions": (2326, "class ClaudeAgentOptions:"),
+    "permission_mode": (2380, "permission_mode:"),
+    "include_hook_events": (2554, "include_hook_events:"),
+    "forward_subagent_text": (2563, "forward_subagent_text:"),
+    "agents": (2647, "agents:"),
+    "setting_sources": (2653, "setting_sources:"),
+    "skills": (2665, "skills:"),
+    "max_thinking_tokens": (2706, "max_thinking_tokens:"),
+    "effort": (2728, "effort:"),
+    "session_store": (2759, "session_store:"),
+    "task_budget": (2786, "task_budget:"),
+}
+
+#: The 19 `ResultMessage` fields, in declaration order (`types.py:1695` of 0.2.174).
 RESULT_MESSAGE_FIELDS = (
     "subtype", "duration_ms", "duration_api_ms", "is_error", "num_turns", "session_id",
     "stop_reason", "total_cost_usd", "usage", "result", "structured_output", "model_usage",
@@ -95,6 +135,7 @@ print(json.dumps({
     ],
     "ignore_violations": str(typing.get_type_hints(types.SandboxSettings)["ignoreViolations"]),
     "system_init_data": list(typing.get_type_hints(types.SystemInitData)),
+    "types_path": types.__file__,
 }))
 """
 
@@ -109,6 +150,7 @@ def surface(sdk_python) -> dict:
 
 def test_the_installed_wheel_is_the_release_the_plugin_was_checked_against(surface):
     """Not an equality the plugin controls: it is the fact every other pin rests on."""
+    assert (SDK_TARGET, CLI_BUNDLED_WITH_TARGET) == (MEASURED_SDK, MEASURED_CLI)
     assert surface["version"] == SDK_TARGET
     assert surface["cli_version"] == CLI_BUNDLED_WITH_TARGET, (
         "the SDK bundles its own CLI; CLI_BUNDLED_WITH_TARGET records which one"
@@ -144,7 +186,8 @@ def test_the_result_message_fields_are_the_nineteen_the_graders_read(surface):
 
 
 def test_the_export_list_is_the_one_the_stub_mirrors(surface):
-    """159 names on 0.2.168; `HookEvent` is not among them (import it from `.types`)."""
+    """159 names on 0.2.174 (as on 0.2.168); `HookEvent` is not among them (import it
+    from `.types`)."""
     live = surface["all"]
     assert len(live) == 159
     assert len(NEW_IN_0_2_166) == 26 and set(NEW_IN_0_2_166) <= set(live)
@@ -165,8 +208,34 @@ def test_ignore_violations_maps_a_command_pattern_to_violation_substrings(surfac
 
 
 def test_system_init_data_declares_capabilities_and_fast_mode(surface):
+    """Declared, not counted: 13 capability strings on CLI 2.1.310 (11 on 2.1.301) is a
+    CLI fact measured live, not something the wheel says."""
     keys = surface["system_init_data"]
     assert {"capabilities", "fast_mode_state", "fast_mode_disabled_reason"} <= set(keys)
+
+
+@pytest.mark.parametrize("symbol", sorted(TYPES_PY_LINES))
+def test_every_cited_types_py_line_is_where_the_plugin_says(surface, symbol):
+    line_no, starts = TYPES_PY_LINES[symbol]
+    lines = Path(surface["types_path"]).read_text(encoding="utf-8").splitlines()
+    actual = lines[line_no - 1].strip() if line_no <= len(lines) else "<past the end>"
+    assert actual.startswith(starts), (
+        f"types.py:{line_no} should be `{symbol}` ({starts!r}) but reads {actual!r}; "
+        "re-pin every reference that cites it"
+    )
+
+
+def test_claude_agent_options_ends_at_task_budget(surface):
+    """The references cite the dataclass as `types.py:2326-2786`: no field follows."""
+    lines = Path(surface["types_path"]).read_text(encoding="utf-8").splitlines()
+    assert lines[2785].strip().startswith("task_budget:")
+    after = []
+    for line in lines[2786:]:
+        if line and not line[0].isspace():
+            break                          # the next top-level statement ends the class
+        if re.match(r"^    [a-z_]+: ", line):
+            after.append(line.strip())
+    assert after == [], f"fields after task_budget: {after[:3]}"
 
 
 def test_the_stub_exports_what_0_2_166_added():

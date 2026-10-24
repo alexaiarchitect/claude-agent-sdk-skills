@@ -101,7 +101,8 @@ class RunRecord:
     def models_billed(self) -> list[str]:
         """Every model this run was billed for, not the model that ran.
 
-        Measured 2026-10-11 (CLI 2.1.294) and 2026-10-17 (CLI 2.1.301): the CLI
+        Measured 2026-10-11 (CLI 2.1.294), 2026-10-17 (CLI 2.1.301) and 2026-10-24
+        (CLI 2.1.310): the CLI
         bills its own background work to
         `claude-haiku-5-5` unasked, so the cost is spread over more than one
         model and a reader must loop rather than take the first entry.

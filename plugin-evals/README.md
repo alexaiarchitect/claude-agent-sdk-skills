@@ -20,9 +20,16 @@ case can fail for a reason that is not in the plugin. From **2.1.299** a run tha
 ends on an API error scores 0 without grading and the suite exits 1 (before, such
 a run was graded on whatever it had produced), and `--disallow-tools <tools...>`
 keeps built-in tools such as `Agent` out of every case (listed in the 2.1.301
-help). The changelog also names a `disallowed_tools` case field; it is not in
+help, and still in the 2.1.310 help on 2026-10-24). The changelog also names a `disallowed_tools` case field; it is not in
 the plugin-evals docs yet and no case here uses it until a local run has
 accepted it.
+
+**Run from a folder whose ancestors can all be examined (measured 2026-10-24).**
+On 2.1.310 `--scaffold` stats every ancestor of the suite first and refuses the
+whole suite if one fails: `✗ /Users/alex/Documents: Documents could not be
+examined (EPERM) — refusing to treat that as the suite`, exit 1, `cases: []`.
+Here the terminal lacked macOS Documents access; run from a copy outside the
+protected folder or grant access. 2.1.302 did not do this; the changelog is silent.
 
 **Three flags, and none of them is a default.**
 

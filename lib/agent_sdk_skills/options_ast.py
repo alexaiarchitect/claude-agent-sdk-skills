@@ -84,7 +84,7 @@ HOOK_COMMON_KEYS = (
 )
 
 #: `SandboxSettings` keys the SDK declares (`types.py:1141` of claude-agent-sdk
-#: 0.2.168), and the keys it forwards to the CLI without declaring them
+#: 0.2.174), and the keys it forwards to the CLI without declaring them
 #: (`failIfUnavailable`, `filesystem` with `denyWrite` and friends; Python SDK
 #: docs and `settings-reference`, read 2026-10-17). Both sets are accepted.
 SANDBOX_DECLARED_KEYS = (
@@ -98,7 +98,7 @@ def sandbox_problems(sandbox: Any) -> list[str]:
     """What is wrong with a literal `sandbox` dict, as plain sentences.
 
     `ignoreViolations` is `dict[str, list[str]]` from SDK 0.2.166
-    (`SandboxIgnoreViolations`, `types.py:1126` of 0.2.168): a command-pattern
+    (`SandboxIgnoreViolations`, `types.py:1126` of 0.2.174): a command-pattern
     substring (`"*"` for every command) mapped to substrings of the violation
     text. It changes which violations are *reported*, not what the sandbox
     blocks. The earlier `{file, network}` TypedDict shape is gone. Keys the SDK

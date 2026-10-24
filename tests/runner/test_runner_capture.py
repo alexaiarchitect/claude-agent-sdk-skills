@@ -23,7 +23,7 @@ INIT_DATA = {
     "session_id": "s-1", "tools": ["Read", "StructuredOutput"],
     "mcp_servers": [{"name": "library", "status": "connected"}],
     "model": "claude-sonnet-5-5", "permissionMode": "dontAsk",
-    "apiKeySource": "none", "claude_code_version": "2.1.301",
+    "apiKeySource": "none", "claude_code_version": "2.1.310",
     "agents": ["Explore"], "skills": [], "plugins": [],
 }
 
@@ -69,7 +69,7 @@ def test_init_records_the_cli_version_and_the_api_key_source():
     cap = Capture(run_id="r", case="c")
     cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
     init = events_of(cap, "init")[0]
-    assert init["cli_version"] == "2.1.301", "the measured field is the CLI version, not the SDK's"
+    assert init["cli_version"] == "2.1.310", "the measured field is the CLI version, not the SDK's"
     assert init["api_key_source"] == "none", "the in-band credential proof"
     assert init["permission_mode"] == "dontAsk"
     assert init["occurrence"] == 1
@@ -453,3 +453,98 @@ def test_an_init_without_the_new_fields_records_none_of_them():
     init = events_of(cap, "init")[0]
     for key in ("capabilities", "fast_mode_state", "fast_mode_disabled_reason"):
         assert key not in init
+
+
+# -- CLI 2.1.310 init (measured 2026-10-24) ----------------------------------
+
+def _script_2_1_310():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_310.script.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def test_a_2_1_310_init_records_thirteen_capabilities():
+    cap = Capture(run_id="r", case="c")
+    for entry in _script_2_1_310():
+        cap.add(sdk.build_message(entry))
+    init = events_of(cap, "init")[0]
+    assert init["cli_version"] == "2.1.310"
+    assert init["permission_mode"] == "default", "unset mode starts in default on 2.1.302+"
+    assert len(init["capabilities"]) == 13
+    assert {"interrupt_requeue_taken_v1", "lifecycle_wakeup_source_v1"} <= set(init["capabilities"])
+    assert init["fast_mode_disabled_reason"] == "sdk_opt_in_required"
+    assert [e["type"] for e in cap.events] == ["init", "assistant_text", "result"], \
+        "no commands_changed on 2.1.310, and none is required"
+
+
+def test_the_2_1_310_trace_fixture_is_what_capture_writes_from_its_script():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_310.trace.jsonl"
+    stored = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    cap = Capture(run_id="1", case="echo-ready")
+    for entry in _script_2_1_310():
+        cap.add(sdk.build_message(entry))
+    strip = lambda e: {k: v for k, v in e.items() if k != "t"}  # noqa: E731
+    assert [strip(e) for e in cap.events] == [strip(e) for e in stored]
+    assert "sk-ant" not in path.read_text() and "/Users/" not in path.read_text()
+
+
+# -- the result event's four fields, and is_error on success ----------------
+
+def test_the_result_event_carries_subtype_is_error_terminal_and_stop_reason_together():
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message())
+    result = events_of(cap, "result")[0]
+    assert {k: result[k] for k in ("subtype", "is_error", "terminal_reason", "stop_reason")} == {
+        "subtype": "success", "is_error": False, "terminal_reason": "completed",
+        "stop_reason": "end_turn"}
+
+
+def test_a_refusal_result_is_recorded_whole_and_is_not_a_usage_limit():
+    """`is_error=True` on `subtype="success"` with `stop_reason="refusal"`: the
+    Python SDK docs (2.1.310) say check `stop_reason` first. The text names a
+    quota, which an error result would have turned into a usage-limit hit."""
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(is_error=True, stop_reason="refusal",
+                           result="I can't help get around the quota on someone else's account."))
+    result = events_of(cap, "result")[0]
+    assert (result["subtype"], result["is_error"], result["stop_reason"]) == \
+        ("success", True, "refusal")
+    assert cap.rejected_rate_limit is None
+    assert events_of(cap, "rate_limit") == []
+
+
+def test_a_missing_deferred_tool_is_not_a_usage_limit_either():
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(is_error=True, stop_reason="tool_deferred_unavailable",
+                           result="rate limit tool unavailable"))
+    assert cap.rejected_rate_limit is None
+
+
+def test_an_error_in_place_of_a_response_still_reads_limit_wording():
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(is_error=True, stop_reason=None, terminal_reason="api_error",
+                           result="API Error: usage limit reached"))
+    assert cap.rejected_rate_limit is not None
+
+
+@pytest.mark.parametrize("subtype, is_error, stop_reason, outcome", [
+    ("success", False, "end_turn", "success"),
+    ("success", True, "refusal", "refusal"),
+    ("success", True, "tool_deferred_unavailable", "tool_deferred"),
+    ("success", True, "end_turn", "error"),
+    ("error_max_turns", True, None, "error"),
+    ("error_during_execution", False, None, "error"),
+])
+def test_result_outcome_reads_stop_reason_before_is_error(subtype, is_error, stop_reason, outcome):
+    from agent_sdk_evals.capture import result_outcome
+    assert result_outcome(subtype, is_error, stop_reason) == outcome
+
+
+def test_the_result_projection_carries_stop_reason_and_is_error():
+    from agent_sdk_evals.results import result_projection
+    cap = Capture(run_id="r", case="c")
+    cap.add(result_message(is_error=True, stop_reason="refusal"))
+    projected = result_projection(cap.results[-1])
+    assert projected["stop_reason"] == "refusal" and projected["is_error"] is True
+    assert projected["subtype"] == "success"

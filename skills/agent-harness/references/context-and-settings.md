@@ -103,6 +103,23 @@ that fetches feature flags, so an SDK run never idle-compacts.
 auto-compaction and overrides `autoCompactEnabled`. The `settings-reference`
 page lists every key with its scope.
 
+**`CLAUDE_CODE_AUTO_COMPACT_WINDOW`** sets how full the context gets before
+compaction, "from `100000` to `1000000` tokens". From 2.1.304 it takes `k`/`M`
+suffixes (`200k`, `1M`) and warns on a bad value: "reads as <N> tokens, so
+Claude Code treats it as the 100k minimum", "is too large, so Claude Code treats
+it as the 1M maximum", or "isn't a usable size, so Claude Code ignores it".
+Before 2.1.304 `200k` silently set a 100K window. A bare number is tokens:
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW=200` means 200 tokens (clamped to 100k), though
+`/autocompact 200` means 200,000. After a compaction Claude is sent the skill
+list again (2.1.304), and from 2.1.310 `-p` and Agent SDK sessions use less
+memory compacting a very large transcript file.
+
+Two settings keys arrived since the last read: `sandbox.allowNestedUserNamespaces`
+(2.1.305+, user or managed scope; lets sandboxed Linux/WSL2 commands create user
+namespaces, and "you turn off a security boundary" — see `secure-deployment.md`)
+and `sshHostCommands` (Desktop's SSH-from-a-command connections; irrelevant to
+an SDK agent).
+
 ## What this means for each situation
 
 | Situation | `setting_sources` |
@@ -147,9 +164,13 @@ and its "What settingSources does not control" table,
 values are not shell-expanded, `DISABLE_AUTO_COMPACT`,
 `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS`), <https://code.claude.com/docs/en/settings>,
 <https://code.claude.com/docs/en/settings-reference#idlecompaction>;
-`claude-agent-sdk` 0.2.168 `types.py:2652` (`setting_sources`), `:2460`
+<https://code.claude.com/docs/en/model-config> (values and warnings for
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW`),
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.304,
+2.1.305, 2.1.310 entries);
+`claude-agent-sdk` 0.2.174 `types.py:2653` (`setting_sources`), `:2460`
 (`settings`), `:2373` (`strict_mcp_config`), `:2451` (`cwd`). The 17x cost figure
 and the list of what still loaded under `setting_sources=[]` were measured by
 this plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
-Claude Code 2.1.296 docs. Re-read 2026-10-17 against claude-agent-sdk
-0.2.168 / Claude Code 2.1.302 docs.
+Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk
+0.2.174 / Claude Code 2.1.310 docs.

@@ -26,7 +26,7 @@ Four measured facts shape :func:`check_budget`, and each one is a bug if ignored
   inconclusive. Only `rejected` stops anything: see :func:`rate_limit_verdict`.
 
 Two more, measured on 0.2.165 / CLI 2.1.294 (2026-10-11) and still so on
-0.2.168 / CLI 2.1.301 (2026-10-17):
+0.2.168 / CLI 2.1.301 (2026-10-17) and 0.2.174 / CLI 2.1.310 (2026-10-24):
 
 * **`max_budget_usd` is a soft cap.** It refuses the *next* request once the
   estimate has passed the ceiling, so a session can and does finish over it.
@@ -50,12 +50,14 @@ from typing import Any, Iterable, Sequence
 
 from .graders import BUDGET_CEILINGS, BUDGET_USAGE_KEYS
 from .report import Finding
-from .trace import TraceEvent
+from .trace import TraceEvent, result_outcome
 
-_SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.168) + measured VERIFIED-FACTS §2.2"
+_SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.174) + measured VERIFIED-FACTS §2.2"
 _SRC_TURNS = "measured: VERIFIED-FACTS §8.1 — max_turns=1 produced num_turns=2"
 _SRC_COST = "measured: VERIFIED-FACTS §8.2 — total_cost_usd is a session running total"
 _SRC_RATE = "measured: VERIFIED-FACTS §9 — RateLimitEvent on every run at allowed_warning"
+_SRC_STOP = ("code.claude.com/docs/en/agent-sdk/python (ResultMessage.is_error, read at Claude "
+             "Code 2.1.310): on subtype=\"success\" check stop_reason first")
 
 #: Statuses a rate-limit event may carry, and what each one means for a run.
 RATE_LIMIT_VERDICTS = {
@@ -295,7 +297,7 @@ def model_usage_of(result_event: TraceEvent | dict[str, Any] | None) -> dict[str
     """`model_usage` as a dict of dicts, defensively.
 
     The wire carries two keys the `ModelUsage` TypedDict (0.2.165, still on
-    0.2.168) does not declare — `costBasis` and `thinkingTokens`, both measured 2026-10-11 — so
+    0.2.174) does not declare — `costBasis` and `thinkingTokens`, both measured 2026-10-11 — so
     every read of this mapping goes through `.get()` and never indexes a key.
     """
     data = _as_dict(result_event) or {}
@@ -311,7 +313,7 @@ def models_billed(result_event: TraceEvent | dict[str, Any] | None) -> list[str]
     """Every model the session was billed for, sorted.
 
     Not "the model that ran": measured 2026-10-11 (CLI 2.1.294) and 2026-10-17
-    (CLI 2.1.301), the CLI bills its own
+    (CLI 2.1.301) and again 2026-10-24 (CLI 2.1.310), the CLI bills its own
     background work to `claude-haiku-5-5` without being asked, so a cost note
     about "the agent's model" is wrong about the total. The runner records the
     same list on the `result` event as `models_billed`; this reads it back, and
@@ -518,9 +520,16 @@ def usage_limit_from_result(result_event: TraceEvent | dict[str, Any] | None) ->
 
     Returns None when the result is not a usage-limit hit, so a caller can treat
     "not recognized" as "this is an ordinary failure" without a second check.
+
+    `stop_reason` is read before any of that: a refusal or a deferred tool missing
+    on resume sets `is_error` on a `success` subtype without an API error (Python
+    SDK docs, Claude Code 2.1.310), and a refusal's own text may well name a
+    limit, so neither is ever read as a usage-limit hit.
     """
     data = _as_dict(result_event)
     if data is None:
+        return None
+    if result_outcome(data) in ("refusal", "tool_deferred"):
         return None
     is_error = bool(data.get("is_error")) or str(data.get("subtype") or "").startswith("error")
     status_code = data.get("api_error_status")
@@ -579,6 +588,28 @@ def budget_findings(
             message=f"a usage or rate limit stopped this run ({limit['confidence']}: "
                     + ", ".join(limit["matched"][:2]) + ")",
             path=path, fix=limit["reason"], source=limit["source"],
+        ))
+    outcome = result_outcome(data)
+    if outcome == "refusal":
+        out.append(Finding(
+            id="RES012", severity="warn", area="results",
+            message="the model refused this run (stop_reason=refusal; is_error is set on "
+                    f"subtype={data.get('subtype')!r}, but it is not an API error)",
+            path=path,
+            fix="read the refusal text before blaming the agent or the API: either the case "
+                "asks for something the model declines, or the prompt makes an ordinary "
+                "request read that way. Not a usage limit and not a retryable error.",
+            source=_SRC_STOP,
+        ))
+    elif outcome == "tool_deferred":
+        out.append(Finding(
+            id="RES013", severity="warn", area="results",
+            message="a deferred tool was unavailable when the session resumed "
+                    "(stop_reason=tool_deferred_unavailable; is_error on a success subtype)",
+            path=path,
+            fix="resume with the same tools the deferring session had (the deferred call is "
+                "in `deferred_tool_use`); this is a harness problem, not an agent failure.",
+            source=_SRC_STOP,
         ))
     subtype = str(data.get("subtype") or "")
     if subtype == "error_max_budget_usd":

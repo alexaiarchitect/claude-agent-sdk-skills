@@ -53,7 +53,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Sequence
 
-from . import SYNTHETIC_TOOLS
+from . import RESULT_STOP_REASON_OUTCOMES, SYNTHETIC_TOOLS
 from .graders import normalize_tool_name
 
 SCHEMA = "agent-sdk-skills.trace/1"
@@ -317,7 +317,10 @@ def load_session(path: Path | str) -> list[TraceEvent]:
 
     1. index every line that has a `uuid`;
     2. find the roots (`parentUuid` null or pointing outside the file) and walk
-       children depth-first, so a line always follows its parent;
+       children depth-first, so a line always follows its parent — except that
+       a parallel-tool response comes out whole (every call, then every result
+       by timestamp, then the continuation), as `get_session_messages` returns
+       it from claude-agent-sdk 0.2.170;
     3. keep lines with no `uuid` (`ai-title`, `queue-operation`, `atis-latch`,
        `last-prompt`) in file order, interleaved at the position they appeared.
 
@@ -367,7 +370,9 @@ def load_session(path: Path | str) -> list[TraceEvent]:
         session_id = raw.get("sessionId")
         stamp = raw.get("timestamp")
         if line_type == "user":
-            turn += 1
+            # A user line that only carries tool results is not a new turn.
+            if _has_user_text(raw):
+                turn += 1
             for event in _blocks_to_events(raw, role="user", turn=turn):
                 event.i, event.t, event.session_id = counter, stamp, session_id
                 events.append(event)
@@ -391,6 +396,16 @@ def load_session(path: Path | str) -> list[TraceEvent]:
         ))
         counter += 1
     return events
+
+
+def _has_user_text(raw: dict[str, Any]) -> bool:
+    message = raw.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    if isinstance(content, str):
+        return True
+    if not isinstance(content, list):
+        return True                       # unknown shape: count it, as before
+    return any(isinstance(block, dict) and block.get("type") == "text" for block in content)
 
 
 def _imported_result(raw: dict[str, Any], *, i: int, t: str | None,
@@ -455,7 +470,18 @@ def _float_or_none(value: Any) -> float | None:
 
 
 def _order_session_lines(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """File order, corrected so every uuid-bearing line follows its parent."""
+    """File order, corrected so every uuid-bearing line follows its parent.
+
+    A response that ran tools in parallel is written as one `assistant` line per
+    content block, all sharing `message.id` and chained by `parentUuid`; each
+    `tool_result` line is parented on *its own* call, and the conversation
+    continues from whichever result was written last. A plain depth-first walk
+    would follow that last branch to the end of the session before coming back
+    for the other results. So such a response is emitted whole, the way
+    claude-agent-sdk 0.2.170+ `get_session_messages` returns it: every call, then
+    every result in timestamp order, then what follows (measured on 0.2.174).
+    Siblings must share the writer too (`isSidechain`, `agentId`), as in the SDK.
+    """
     by_uuid: dict[str, dict[str, Any]] = {}
     for raw in lines:
         uuid = raw.get("uuid")
@@ -472,16 +498,72 @@ def _order_session_lines(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ordered: list[dict[str, Any]] = []
     emitted: set[int] = set()
 
+    def response_key(raw: dict[str, Any]) -> tuple[Any, ...] | None:
+        if raw.get("type") != "assistant":
+            return None
+        message = raw.get("message")
+        message_id = message.get("id") if isinstance(message, dict) else None
+        if not isinstance(message_id, str) or not message_id:
+            return None
+        return (message_id, bool(raw.get("isSidechain")), raw.get("agentId"))
+
+    def is_tool_result(raw: dict[str, Any]) -> bool:
+        if raw.get("type") != "user":
+            return False
+        message = raw.get("message")
+        content = message.get("content") if isinstance(message, dict) else None
+        return isinstance(content, list) and any(
+            isinstance(block, dict) and block.get("type") == "tool_result" for block in content)
+
+    def emit(raw: dict[str, Any]) -> bool:
+        marker = id(raw)
+        if marker in emitted:
+            return False                  # a cycle, or a uuid reused
+        emitted.add(marker)
+        ordered.append(raw)
+        return True
+
     def walk(key: str | None) -> None:
         for child in children.get(key, []):
-            marker = id(child)
-            if marker in emitted:
-                continue                  # a cycle, or a uuid reused
-            emitted.add(marker)
-            ordered.append(child)
-            uuid = child.get("uuid")
-            if isinstance(uuid, str):
-                walk(uuid)
+            if id(child) in emitted:
+                continue
+            group = [child]
+            rkey = response_key(child)
+            if rkey is not None:
+                tip = child
+                while True:
+                    nxt = [c for c in children.get(tip.get("uuid"), [])
+                           if response_key(c) == rkey and id(c) not in emitted
+                           and not any(c is m for m in group)]
+                    if not nxt:
+                        break
+                    tip = nxt[0]
+                    group.append(tip)
+            if len(group) == 1:
+                if emit(child):
+                    uuid = child.get("uuid")
+                    if isinstance(uuid, str):
+                        walk(uuid)
+                continue
+            # A parallel-tool response: the calls, then their results by
+            # timestamp (stable), then whatever continues from each result.
+            for member in group:
+                emit(member)
+            fringe = [c for member in group for c in children.get(member.get("uuid"), [])
+                      if not any(c is m for m in group)]
+            results = sorted((c for c in fringe if is_tool_result(c)),
+                             key=lambda c: str(c.get("timestamp") or ""))
+            rest = [c for c in fringe if not is_tool_result(c)]
+            emitted_results = [r for r in results if emit(r)]
+            for raw in emitted_results:
+                uuid = raw.get("uuid")
+                if isinstance(uuid, str):
+                    walk(uuid)
+            for raw in rest:
+                if emit(raw):
+                    uuid = raw.get("uuid")
+                    if isinstance(uuid, str):
+                        walk(uuid)
 
     walk(None)
 
@@ -686,6 +768,30 @@ def result_event(events: Iterable[TraceEvent]) -> TraceEvent | None:
     return found[-1] if found else None
 
 
+def result_outcome(result: TraceEvent | dict[str, Any] | None) -> str | None:
+    """How a run ended: `success`, `refusal`, `tool_deferred` or `error`.
+
+    None when there is no result to read (imported evidence). The order is the
+    Python SDK docs' (read at Claude Code 2.1.310): `stop_reason` first, then
+    `terminal_reason`, then `subtype`. `is_error` is `True` on
+    `subtype="success"` in three cases — `stop_reason == "refusal"` (the model
+    declined), `"tool_deferred_unavailable"` (a deferred tool was missing on
+    resume), and anything else, which is an error reported in place of a model
+    response. The first two are not API errors even when `terminal_reason` reads
+    `"api_error"`, so a report must not file them with the 429s and timeouts.
+    """
+    if result is None:
+        return None
+    data = result.data if isinstance(result, TraceEvent) else result
+    outcome = RESULT_STOP_REASON_OUTCOMES.get(str(data.get("stop_reason") or ""))
+    if outcome is not None:
+        return outcome
+    if data.get("is_error") or str(data.get("terminal_reason") or "") == "api_error" \
+            or str(data.get("subtype") or "").startswith("error"):
+        return "error"
+    return "success"
+
+
 def init_event(events: Iterable[TraceEvent]) -> TraceEvent | None:
     """The first `init` event.
 
@@ -791,7 +897,10 @@ def to_summary(events: Sequence[TraceEvent]) -> dict[str, Any]:
             "models_billed": result.get("models_billed") or sorted(result.get("model_usage") or {}),
             "subtype": result.get("subtype"),
             "terminal_reason": result.get("terminal_reason"),
+            "stop_reason": result.get("stop_reason"),
             "is_error": bool(result.get("is_error")),
+            # `refusal` / `tool_deferred` are not errors though `is_error` is set.
+            "outcome": None if result.get("imported_cost") else result_outcome(result),
             "num_turns": result.get("num_turns"),
             "duration_ms": result.get("duration_ms"),
             "total_cost_usd": result.get("total_cost_usd"),

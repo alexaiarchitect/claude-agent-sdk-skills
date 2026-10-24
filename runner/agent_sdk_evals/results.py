@@ -44,6 +44,10 @@ def result_projection(result: dict[str, Any] | None) -> dict[str, Any]:
     return {
         "subtype": result.get("subtype"),
         "terminal_reason": result.get("terminal_reason"),
+        # Read before `is_error`: `refusal` / `tool_deferred_unavailable` set
+        # `is_error` on a `success` subtype without any API error (0.1.4).
+        "stop_reason": result.get("stop_reason"),
+        "is_error": bool(result.get("is_error")),
         "num_turns": result.get("num_turns"),
         "duration_ms": result.get("duration_ms"),
         "total_cost_usd": result.get("total_cost_usd"),

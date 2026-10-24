@@ -121,9 +121,9 @@ guidance that an OAuth token is tied to one subscription, federation inputs,
 (`claude setup-token`, the one-year token, which plans have it);
 `https://code.claude.com/docs/en/env-vars` (the backend switches);
 `https://code.claude.com/docs/en/agent-sdk/quickstart` (the third-party note);
-`https://code.claude.com/docs/en/permission-modes` (the headless starting-mode
-table); `https://code.claude.com/docs/en/plugin-evals` (cloud-provider
+`https://code.claude.com/docs/en/permission-modes` ("Tool calls denied in `claude -p` and Agent SDK runs"); `https://code.claude.com/docs/en/plugin-evals` (cloud-provider
 variables in CI). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
-Code 2.1.296 docs. The 2.1.302 unset-mode change is from
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
-2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+Code 2.1.296 docs. The 2.1.302 unset-mode rule is stated at
+<https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
+(and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
+Claude Code 2.1.310 docs.

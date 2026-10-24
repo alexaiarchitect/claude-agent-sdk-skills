@@ -40,12 +40,21 @@ class ScriptRun:
         return f"{self.stdout}\n{self.stderr}"
 
 
+#: Where the target venv lives: next to the plugin repo, outside it, in
+#: `../tmp/venvs/` (macOS cleared `/tmp` on 2026-10-22 and the surface tests
+#: skipped silently until the 0.2.174 sync noticed).
+SDK_VENV_NAME = "casdk-venv-0.2.174"
+
 #: Interpreters that may have the real `claude_agent_sdk` installed, most
-#: specific first. The target venv is named for the release the plugin was
-#: checked against (`SDK_TARGET`, 0.2.168); the previous target's venv and the
-#: unversioned path are the older conventions, kept as fallbacks. `AGENT_SDK_TEST_PYTHON` overrides both.
+#: specific first. `AGENT_SDK_TEST_PYTHON` overrides everything; then the venv
+#: named for the release the plugin was checked against (`SDK_TARGET`, 0.2.174),
+#: found relative to the repo (`parents[2]` of this file is the directory that
+#: holds the repo) so it survives a move, then at its absolute path; the old
+#: `/tmp` venvs are the earlier convention, kept as fallbacks.
 SDK_VENV_CANDIDATES = (
     os.environ.get("AGENT_SDK_TEST_PYTHON") or "",
+    str(Path(__file__).resolve().parents[2] / "tmp" / "venvs" / SDK_VENV_NAME / "bin" / "python"),
+    "/Users/alex/Documents/Business/adk-evanl-skills/tmp/venvs/" + SDK_VENV_NAME + "/bin/python",
     "/tmp/casdk-venv-0.2.168/bin/python",
     "/tmp/casdk-venv-0.2.165/bin/python",
     "/tmp/casdk-venv/bin/python",
@@ -87,8 +96,9 @@ def sdk_python() -> str:
         pytest.skip(
             "no interpreter with claude_agent_sdk installed; tried "
             + ", ".join(c for c in SDK_VENV_CANDIDATES if c)
-            + ". Build one with: python3.12 -m venv /tmp/casdk-venv-0.2.168 && "
-            "/tmp/casdk-venv-0.2.168/bin/pip install 'claude-agent-sdk==0.2.168'"
+            + ". Build one next to the repo with: python3.12 -m venv ../tmp/venvs/"
+            + SDK_VENV_NAME + " && ../tmp/venvs/" + SDK_VENV_NAME
+            + "/bin/pip install 'claude-agent-sdk==0.2.174' pytest"
         )
     return found
 

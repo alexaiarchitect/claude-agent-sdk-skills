@@ -84,9 +84,9 @@ def test_only_a_deprecated_id_reports_a_committed_retirement_date():
 
 def test_the_checked_against_pins_are_reported_verbatim():
     assert CHECKED_AGAINST == {"sdk": SDK_TARGET, "cli": CLI_BUNDLED_WITH_TARGET}
-    assert version_newer_than_target("0.2.169") and version_newer_than_target("0.3.0")
+    assert version_newer_than_target("0.2.175") and version_newer_than_target("0.3.0")
     assert not version_newer_than_target(SDK_TARGET), "equal is not newer"
-    assert not version_newer_than_target("0.2.167")
+    assert not version_newer_than_target("0.2.173")
     assert not version_newer_than_target(None), "unknown is not newer"
 
 

@@ -18,11 +18,11 @@ Three measured corrections live here.
   both, and assert that the option tripped with a `terminal` grader
   (`subtype: error_max_budget_usd`).
 * **The cost is spread over more than one model.** Measured 2026-10-11 on CLI
-  2.1.294 (and again 2026-10-17 on 2.1.301), `model_usage` carried a second
+  2.1.294 (and again on 2.1.301 and 2.1.310), `model_usage` carried a second
   entry for `claude-haiku-5-5`, which the CLI billed for its own background work. The trace `result` event records
   `models_billed` and `cost_basis_list` so a reader never takes the first entry
   for the total; `costBasis` and `thinkingTokens` are read with `.get()`
-  because neither is declared on the `ModelUsage` TypedDict (0.2.165 through 0.2.168).
+  because neither is declared on the `ModelUsage` TypedDict (0.2.165 through 0.2.174).
 
 `informational: true` reports the numbers and never gates: the honest setting
 while a suite is still learning what its own costs look like.

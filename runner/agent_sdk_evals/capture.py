@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from . import RATE_LIMIT_STATUSES, SCHEMA_TRACE, SYNTHETIC_TOOLS
+from . import RATE_LIMIT_STATUSES, RESULT_STOP_REASON_OUTCOMES, SCHEMA_TRACE, SYNTHETIC_TOOLS
 
 TOOL_RESULT_CONTENT_LIMIT = 2048
 
@@ -115,6 +115,23 @@ def looks_like_usage_limit(text: str | None, api_error_status: int | None = None
         return True
     lowered = (text or "").lower()
     return any(marker in lowered for marker in USAGE_LIMIT_MARKERS)
+
+
+def result_outcome(subtype: Any, is_error: Any, stop_reason: Any) -> str:
+    """How a result ended: `success`, `refusal`, `tool_deferred` or `error`.
+
+    `stop_reason` is read first (Python SDK docs, Claude Code 2.1.310): a
+    refusal and a deferred tool missing on resume both arrive as
+    `subtype="success"` with `is_error=True`, and neither is an API error, so
+    their text must not be searched for limit wording either. Only then do
+    `is_error` and an `error_*` subtype mean an error.
+    """
+    outcome = RESULT_STOP_REASON_OUTCOMES.get(str(stop_reason or ""))
+    if outcome is not None:
+        return outcome
+    if is_error or str(subtype or "").startswith("error"):
+        return "error"
+    return "success"
 
 
 @dataclass
@@ -243,12 +260,12 @@ class Capture:
         if subtype == "init":
             self.init_count += 1
             # Recorded when present, never required (CONTRACTS section 14.4):
-            # `capabilities` (CLI 2.1.205+; 11 strings on 2.1.301) is for feature
-            # detection instead of version comparison, and the fast-mode pair is
+            # `capabilities` (CLI 2.1.205+; 11 strings on 2.1.301, 13 on 2.1.310) is
+            # for feature detection instead of version comparison, and the fast-mode pair is
             # declared on `SystemInitData` from SDK 0.2.166. Undeclared keys the
             # CLI also sends (`original_cwd`, `memory_paths`, `view_mode`, ...)
             # are ignored, and `plugins[]` entries are copied as they come
-            # (2.1.301 sends `source`, not `version`).
+            # (2.1.301 and 2.1.310 send `source`, not `version`).
             extras: dict[str, Any] = {}
             capabilities = data.get("capabilities")
             if isinstance(capabilities, list):
@@ -275,7 +292,8 @@ class Capture:
             )
             return
         # Anything else (`commands_changed`, sent right after `init` by CLI
-        # 2.1.301, among them) falls through to a plain `system` event below.
+        # 2.1.301 and not seen on 2.1.310, among them) falls through to a plain
+        # `system` event below.
         if subtype in ("hook_started", "hook_response") or hasattr(message, "hook_event_name"):
             event_name = getattr(message, "hook_event_name", "") or data.get("hook_event") or ""
             self.emit(
@@ -368,14 +386,18 @@ class Capture:
         result_text = getattr(message, "result", None)
         api_error_status = getattr(message, "api_error_status", None)
         is_error = bool(getattr(message, "is_error", False))
+        stop_reason = getattr(message, "stop_reason", None)
         model_usage = getattr(message, "model_usage", None) or {}
         if not isinstance(model_usage, dict):
             model_usage = {}
+        # `subtype`, `is_error`, `terminal_reason` and `stop_reason` always travel
+        # together: `is_error=True` on `subtype="success"` is a refusal or a
+        # missing deferred tool when `stop_reason` says so, an error otherwise.
         payload = {
             "subtype": getattr(message, "subtype", None),
             "is_error": is_error,
             "terminal_reason": getattr(message, "terminal_reason", None),
-            "stop_reason": getattr(message, "stop_reason", None),
+            "stop_reason": stop_reason,
             "num_turns": getattr(message, "num_turns", 0),
             "duration_ms": getattr(message, "duration_ms", 0),
             "duration_api_ms": getattr(message, "duration_api_ms", 0),
@@ -385,13 +407,13 @@ class Capture:
             "usage_raw": usage_raw,
             "model_usage": model_usage,
             # Every model the session was billed for, not just the agent's:
-            # measured 2026-10-11 on CLI 2.1.294 and again 2026-10-17 on 2.1.301,
+            # measured 2026-10-11 on CLI 2.1.294 and again on 2.1.301 and 2.1.310,
             # the CLI bills its own background work to `claude-haiku-5-5` unasked,
             # so a cost read that takes the first entry is wrong about the total.
             "models_billed": sorted(model_usage),
             # True when no model reported a negotiated rate: `costBasis` is
             # `list | managed | unknown` and is absent from the `ModelUsage`
-            # TypedDict (still on 0.2.168) though the wire carries it, so it is read
+            # TypedDict (still on 0.2.174) though the wire carries it, so it is read
             # with `.get()` and absent counts as list pricing.
             "cost_basis_list": all(
                 (entry or {}).get("costBasis", "list") == "list"
@@ -408,7 +430,8 @@ class Capture:
         }
         self.results.append(payload)
         self.emit("result", **payload)
-        if is_error and looks_like_usage_limit(result_text, api_error_status):
+        outcome = result_outcome(payload["subtype"], is_error, stop_reason)
+        if outcome == "error" and looks_like_usage_limit(result_text, api_error_status):
             limit = rate_limit_payload(
                 {"status": "rejected", "raw": {}}, kind="usage_limit",
                 message=(result_text or "")[:400],

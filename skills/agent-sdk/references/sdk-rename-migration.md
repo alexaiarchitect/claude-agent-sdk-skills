@@ -76,6 +76,7 @@ system prompt default, settings sources default and the 0.1.59 note);
 `https://code.claude.com/docs/en/agent-sdk/permissions` and
 `https://code.claude.com/docs/en/permission-modes` (which mode a session starts
 in). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
-docs. The 2.1.302 unset-mode change is from
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
-2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+docs. The 2.1.302 unset-mode rule is stated at
+<https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
+(and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
+Claude Code 2.1.310 docs.

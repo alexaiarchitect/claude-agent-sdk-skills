@@ -112,8 +112,8 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/check_env.py <project-dir>
 reports the credential and its source, the cost basis, the interpreter and SDK
 version, and the model with its policy grade, and exits 1 with the blockers
 listed when a run would fail. It also prints which versions the plugin was
-checked against — `claude-agent-sdk` **0.2.168** with its bundled Claude Code
-**2.1.301** — and raises **`ENV003`** at info level when the installed SDK is
+checked against — `claude-agent-sdk` **0.2.174** with its bundled Claude Code
+**2.1.310** — and raises **`ENV003`** at info level when the installed SDK is
 *newer* than that target. `ENV003` is never an error: a newer SDK is expected to
 work, and the note exists so a surprising behaviour can be attributed to the
 version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
@@ -127,10 +127,11 @@ provider switches, the third-party note), `https://code.claude.com/docs/en/env-v
 (estimates, usage limits), `https://code.claude.com/docs/en/agent-sdk/hosting`
 (auth and secrets), `https://code.claude.com/docs/en/model-config` (default
 model, the `haiku` alias from 2.1.293),
-`https://code.claude.com/docs/en/permission-modes` (the headless starting-mode
-table), `https://code.claude.com/docs/en/plugins/mods/overview` (the mod class);
+`https://code.claude.com/docs/en/permission-modes` ("Tool calls denied in
+`claude -p` and Agent SDK runs"), `https://code.claude.com/docs/en/plugins/mods/overview`
+(the mod class);
 this plugin's `lib/agent_sdk_skills/env.py`,
 `https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` (2.1.302
 unset-mode default). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
-Claude Code 2.1.296 docs; re-read 2026-10-17 against claude-agent-sdk 0.2.168 /
-Claude Code 2.1.302 docs.
+Claude Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
+Claude Code 2.1.310 docs.

@@ -422,3 +422,10 @@ def test_every_free_grader_type_is_implemented(type_: str):
     from agent_sdk_evals.graders import _registry
 
     assert type_ in _registry()
+
+
+def test_terminal_names_a_refusal_when_it_fails_one(grader, evidence):
+    ev = evidence(result=result_event(is_error=True, stop_reason="refusal"))
+    got = grade_free(grader("terminal", subtype="success"), ev)
+    assert got.status == FAILED and "refused" in got.reason and "not an API" in got.reason
+    assert grade_free(grader("terminal", subtype="success", allow_error=True), ev).status == PASSED

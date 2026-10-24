@@ -37,7 +37,7 @@ def make_project(tmp_path: Path, *, cases=CASES, runner=True, config=None) -> Pa
     if runner:
         package = project / "evals" / "runner" / "agent_sdk_evals"
         package.mkdir(parents=True)
-        (package / "VERSION").write_text("0.1.3\n")
+        (package / "VERSION").write_text("0.1.4\n")
         (package / "__init__.py").write_text("")
     if config is not None:
         (project / "evals" / "eval_config.json").write_text(json.dumps(config, indent=2))
@@ -67,14 +67,14 @@ def stage_results(project: Path, stamp: str, *, cases=CASES, runs=1, status="PAS
         "totals": {"cases": len(cases), "runs": len(cases) * runs,
                    "passed": len(cases) * runs, "failed": 0, "not_evaluated": 0,
                    "cost_usd": 0.04, "cost_basis": "subscription"},
-        "exit_code": 0, "runner_version": "0.1.3",
+        "exit_code": 0, "runner_version": "0.1.4",
     }, indent=2))
     return directory
 
 
 TWO_TIER_CONFIG = {
     "schema": "agent-sdk-skills.eval-config/1",
-    "runner_version": "0.1.3",
+    "runner_version": "0.1.4",
     "agent": "agent:build_options",
     "model": "claude-sonnet-5-5",
     "tiers": {

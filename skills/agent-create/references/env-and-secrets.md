@@ -135,12 +135,14 @@ https://code.claude.com/docs/en/agent-sdk/python (`ClaudeAgentOptions.env`,
 (`apiKeyHelper`, environment variables);
 https://code.claude.com/docs/en/agent-sdk/secure-deployment (keeping
 credentials out of the repository);
-https://code.claude.com/docs/en/permission-modes (the headless starting-mode
-table: `default` only in sessions that fetch feature flags);
+https://code.claude.com/docs/en/permission-modes ("Tool calls denied in
+`claude -p` and Agent SDK runs": `default` from v2.1.302; before it, runs that
+didn't fetch feature flags could start in `auto`);
 https://code.claude.com/docs/en/env-vars (`env` values are not shell-expanded;
 the subprocess scrub list). The stderr connectors notice was measured by this
 plugin on 2026-10-11 against SDK 0.2.165 with bundled CLI 2.1.294. Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
-The 2.1.302 unset-mode change is from
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>; re-read
-2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+The 2.1.302 unset-mode rule is stated at
+<https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
+(and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
+Claude Code 2.1.310 docs.

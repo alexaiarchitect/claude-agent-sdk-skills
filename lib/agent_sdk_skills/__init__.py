@@ -11,19 +11,19 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.1.3"
+RUNNER_VERSION = "0.1.4"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the
 #: mcp 2.x transport arrived in 0.2.140). The SDK bundles its own CLI, so the
 #: CLI version is reported separately (`cli_version`), never derived.
-SDK_TARGET = "0.2.168"
+SDK_TARGET = "0.2.174"
 SDK_MIN_SUPPORTED = "0.2.140"
-CLI_BUNDLED_WITH_TARGET = "2.1.301"
+CLI_BUNDLED_WITH_TARGET = "2.1.310"
 
 #: Model policy. Ids from platform.claude.com/docs/en/models/overview and
 #: .../about-claude/model-deprecations (read 2026-10-11). Four grades, in order
@@ -59,7 +59,7 @@ RETIRED_MODELS = (
 ALIAS_MODELS = ("sonnet", "opus", "haiku", "fable", "best", "default", "opusplan")
 
 #: `ClaudeAgentOptions` field names in declaration order (`types.py:2326` of
-#: claude-agent-sdk 0.2.168, 49 fields). "Is this even an option?" (EVC003).
+#: claude-agent-sdk 0.2.174, 49 fields). "Is this even an option?" (EVC003).
 OPTION_NAMES = (
     "tools", "allowed_tools", "system_prompt", "mcp_servers", "strict_mcp_config",
     "permission_mode", "continue_conversation", "resume", "session_id", "max_turns",
@@ -90,13 +90,17 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: measured with and without; see CONTRACTS §1.2).
 #: The runner also resolves one *conditional* default that is not a key here,
 #: because it only applies when the agent leaves the field `None`:
-#: `permission_mode="dontAsk"`. With the mode unset the CLI picks it: a
-#: headless session that fetches feature flags starts in `default` (measured on
-#: CLI 2.1.292 and 2.1.301, direct API key, telemetry on); on CLI 2.1.285-2.1.301
-#: one that does not (third-party provider, telemetry off, first run after an
-#: install or upgrade) starts in `auto`, where a classifier reviews each tool
-#: call and a bare allow rule no longer settles it; 2.1.302+ starts those in
-#: `default` too. The runner forces `dontAsk` for unattended runs either way.
+#: `permission_mode="dontAsk"`. With the mode unset the CLI picks it.
+#: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
+#: read at 2.1.310): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: SDK runs with no permission mode set start in Manual mode" (`default`;
+#: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
+#: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
+#: headless session that fetches feature flags starts in `default` (CLI 2.1.292
+#: and 2.1.301, direct API key, telemetry on); one that does not (third-party
+#: provider, telemetry off, first run after an install or upgrade) starts in
+#: `auto`, where a classifier reviews each tool call and a bare allow rule no
+#: longer settles it. The runner forces `dontAsk` for unattended runs either way.
 #: The trace `init` event records which way it went as `permission_mode_source`
 #: ("agent" or "runner-default").
 ISOLATION_DEFAULTS = {"setting_sources": [], "strict_mcp_config": True}
@@ -129,4 +133,15 @@ SUBAGENT_TOOL_NAMES = ("Task", "Agent")
 #: Result subtypes and terminal reasons the SDK reports.
 RESULT_SUBTYPES = ("success", "error_max_turns", "error_during_execution", "error_max_budget_usd")
 TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tools", "api_error")
+
+#: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
+#: without any API error, mapped to the outcome label the reports use. The Python
+#: SDK docs (read at Claude Code 2.1.310): `is_error` "is `True` in three cases.
+#: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
+#: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
+#: and any other value, which is an error reported in place of a model response.
+#: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
+#: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
+#: through from the CLI unchanged (0.2.174 `_internal/message_parser.py`).
+RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")

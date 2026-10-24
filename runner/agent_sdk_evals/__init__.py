@@ -99,13 +99,17 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: One more default is resolved per run but is deliberately *not* a key here,
 #: because it only applies when the agent leaves the field `None`:
 #: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). With the mode
-#: unset the CLI picks it, and which one depends on its version and environment:
-#: a headless session that fetches feature flags starts in `default` (measured on
-#: CLI 2.1.292 and 2.1.301, direct API key, telemetry on); on CLI 2.1.285-2.1.301
-#: one that does not (third-party provider, telemetry off, first run after an
-#: install or upgrade) starts in `auto`, where a classifier reviews each tool
-#: call and a bare allow rule no longer settles it; 2.1.302+ starts those in
-#: `default` too. The runner forces `dontAsk` for unattended runs either way.
+#: unset the CLI picks it, and which one depends on its version and environment.
+#: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
+#: read at 2.1.310): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: SDK runs with no permission mode set start in Manual mode" (`default`;
+#: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
+#: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
+#: headless session that fetches feature flags starts in `default` (CLI 2.1.292
+#: and 2.1.301, direct API key, telemetry on); one that does not (third-party
+#: provider, telemetry off, first run after an install or upgrade) starts in
+#: `auto`, where a classifier reviews each tool call and a bare allow rule no
+#: longer settles it. The runner forces `dontAsk` for unattended runs either way.
 #: The trace `init` event records which way it went as `permission_mode_source`,
 #: either `"agent"` or `"runner-default"`.
 ISOLATION_DEFAULTS = {"setting_sources": [], "strict_mcp_config": True}
@@ -136,6 +140,17 @@ SUBAGENT_TOOL_NAMES = ("Task", "Agent")
 
 RESULT_SUBTYPES = ("success", "error_max_turns", "error_during_execution", "error_max_budget_usd")
 TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tools", "api_error")
+
+#: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
+#: without any API error, mapped to the outcome label the reports use. The Python
+#: SDK docs (read at Claude Code 2.1.310): `is_error` "is `True` in three cases.
+#: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
+#: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
+#: and any other value, which is an error reported in place of a model response.
+#: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
+#: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
+#: through from the CLI unchanged (0.2.174 `_internal/message_parser.py`).
+RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")
 
 #: Grader verdicts. Counted separately for ever; never merged.
@@ -185,7 +200,8 @@ __all__ = [
     "ISOLATION_DEFAULTS", "PERMISSION_MODES", "SETTING_SOURCES", "EFFORT_LEVELS",
     "PYTHON_HOOK_EVENTS", "HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT",
     "SYNTHETIC_TOOLS", "SUBAGENT_TOOL_NAMES",
-    "RESULT_SUBTYPES", "TERMINAL_REASONS", "RATE_LIMIT_STATUSES",
+    "RESULT_SUBTYPES", "TERMINAL_REASONS", "RESULT_STOP_REASON_OUTCOMES",
+    "RATE_LIMIT_STATUSES",
     "PASSED", "FAILED", "NOT_EVALUATED", "INFORMATIONAL", "STATUSES",
     "CLIENT_APP", "EvalError", "InconclusiveError",
 ]

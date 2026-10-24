@@ -65,11 +65,14 @@ machine that meant SDK runs used CLI 2.1.285 while `claude -p` used 2.1.274 —
 two versions on one host. Re-measured 2026-10-11 the gap had widened: the
 `claude-agent-sdk` 0.2.165 wheel bundled 2.1.294 while the host's PATH `claude`
 was still 2.1.285; on 2026-10-17 the **0.2.168** wheel bundles **2.1.301** while
-PATH `claude` (the stable Homebrew cask) is **2.1.292**. `cli_path` is the only
-way to force the PATH binary, and the report prints the bundled version so the
-difference is visible. The gap is not cosmetic: a doc fact gated on 2.1.299 —
-`claude plugin eval --disallow-tools`, API-error runs scored 0, the MCP rule
-scoping — is absent from a run on PATH 2.1.292, and the 2.1.302 unset-mode
+PATH `claude` (the stable Homebrew cask) is **2.1.292**. On 2026-10-24 the two
+happened to agree — the **0.2.174** wheel bundles **2.1.310** and the build
+machine's PATH `claude` (now the `claude-code@latest` cask) is 2.1.310 too — but
+that is a coincidence of timing, not a guarantee. `cli_path` is the only way to
+force the PATH binary, and the report prints the bundled version so a
+difference is visible. The gap is not cosmetic: on 2026-10-17 a doc fact gated on
+2.1.299 — `claude plugin eval --disallow-tools`, API-error runs scored 0, the MCP
+rule scoping — was absent from a run on PATH 2.1.292, and the 2.1.302 unset-mode
 default from a run on either.
 
 **`option_fields` is the installed field list.** The probe prints every field the
@@ -99,12 +102,13 @@ Sources:
 <https://code.claude.com/docs/en/agent-sdk/migration-guide>,
 <https://code.claude.com/docs/en/agent-sdk/troubleshooting>,
 <https://code.claude.com/docs/en/agent-sdk/skills>;
-`claude-agent-sdk` 0.2.168 `_internal/transport/subprocess_cli.py:237-264`
+`claude-agent-sdk` 0.2.174 `_internal/transport/subprocess_cli.py:237-264`
 (CLI discovery order), `_errors.py:129` (`MessageParseError`),
-`types.py:2664` (`skills`); this plugin's `lib/agent_sdk_skills/env.py`
+`types.py:2665` (`skills`); this plugin's `lib/agent_sdk_skills/env.py`
 (`resolve_runner`) and `lib/agent_sdk_skills/sdk_subprocess.py` (`run_probe`).
 The two-CLI-versions-on-one-host observation was measured by this plugin on
 2026-09-30, on 2026-10-11 (0.2.165 bundles 2.1.294; PATH `claude` 2.1.285) and
-on 2026-10-17 (0.2.168 bundles 2.1.301; PATH `claude` 2.1.292). Re-read
-2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
-2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+on 2026-10-17 (0.2.168 bundles 2.1.301; PATH `claude` 2.1.292); on 2026-10-24
+both were 2.1.310. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
+Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude
+Code 2.1.310 docs.

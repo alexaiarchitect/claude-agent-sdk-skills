@@ -69,13 +69,14 @@ on SDK 0.2.165 with bundled CLI 2.1.294, the extra row was **`claude-haiku-5-5`*
 2026-09-30 runs on CLI 2.1.285 had shown Haiku 4.5. Read it per model, never as
 the first entry; the model that answered is `assistant_text.model`. Each row
 also carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
-and `thinkingTokens`, neither of them on the 0.2.168 `ModelUsage` TypedDict, so
+and `thinkingTokens`, neither of them on the 0.2.174 `ModelUsage` TypedDict, so
 read both with `.get()` and record the basis beside any figure you compare
 between accounts.
 
 One price to date rather than quote: a Sonnet 5.5 **cache read** is $0.10/Mtok
-on the platform price list, and the CLI 2.1.301 bundled with
-`claude-agent-sdk` 0.2.168 charges that (measured 2026-10-17), while the 2.1.294
+on the platform price list, and the CLI 2.1.310 bundled with
+`claude-agent-sdk` 0.2.174 charges that (measured 2026-10-24, as 2.1.301 did on
+2026-10-17), while the 2.1.294
 bundled with 0.2.165 charged **$0.20/Mtok** (measured 2026-10-11). A cache-heavy
 estimate recorded on the older CLI therefore halves on the newer one.
 
@@ -89,4 +90,4 @@ running totals, `max_budget_usd`), `https://code.claude.com/docs/en/agent-sdk/co
 percentages); measurements in `.dev/VERIFIED-FACTS.md`. Re-read 2026-10-11
 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; the session
 arithmetic and the `runs` precedence re-checked 2026-10-13 against `cli.py`;
-re-read 2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

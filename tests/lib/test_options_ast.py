@@ -350,7 +350,7 @@ def test_to_dict_is_json_serialisable_for_every_fixture(agent_dir):
         assert json.loads(json.dumps(payload))["summary"]["agent_modules"] >= 1
 
 
-# -- sandbox (0.2.168 shape) ---------------------------------------------
+# -- sandbox (0.2.168 shape, unchanged in 0.2.174) -------------------------
 
 def test_a_sandbox_with_the_released_ignore_violations_shape_is_accepted(tmp_path):
     """`ignoreViolations` is `dict[str, list[str]]` from SDK 0.2.166; `failIfUnavailable`

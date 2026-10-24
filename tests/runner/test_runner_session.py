@@ -312,3 +312,36 @@ def test_mock_tool_names_carry_the_mcp_prefix(mini_evals):
     from agent_sdk_evals.mocks import mock_tool_names
 
     assert mock_tool_names(mini_evals, ["ledger"]) == ["mcp__ledger__lookup"]
+
+
+# -- a refusal ends in ResultError too, and it is not an API error ----------
+
+def test_a_refusal_result_error_is_classified_as_a_refusal():
+    """The CLI exits non-zero after an `is_error` result, so the SDK raises
+    `ResultError` with the raw result in `.data`; `stop_reason` is read first."""
+    code, kind, message = classify_exception(sdk.ResultError(
+        subtype="success", terminal_reason="completed",
+        result="I can't help get around the quota on another member's account.",
+        data={"subtype": "success", "is_error": True, "stop_reason": "refusal"}))
+    assert (code, kind) == (1, "refusal"), "limit words in a refusal are not a usage limit"
+    assert "declined" in message
+
+
+def test_a_missing_deferred_tool_result_error_is_its_own_kind():
+    code, kind, _ = classify_exception(sdk.ResultError(
+        subtype="success", result="usage limit", data={"stop_reason": "tool_deferred_unavailable"}))
+    assert (code, kind) == (1, "tool_deferred")
+
+
+def test_a_result_error_without_a_stop_reason_is_classified_as_before():
+    code, kind, _ = classify_exception(sdk.ResultError(subtype="success", result="usage limit",
+                                                       data={"stop_reason": None}))
+    assert (code, kind) == (3, "usage_limit")
+
+
+def test_a_refused_run_is_graded_not_marked_inconclusive():
+    """A refusal is an agent-side outcome: with gating graders they decide, and
+    without any it fails like any other error result — never NOT_EVALUATED."""
+    outcome = FakeOutcome(error="the model declined", error_kind="refusal")
+    assert run_status(outcome, []) == FAILED
+    assert run_status(outcome, [FakeGrader(PASSED)]) == PASSED

@@ -10,12 +10,18 @@ grader that asks for one and gets nothing abstains instead of failing. The same
 goes for a result synthesised from an imported session's `cost-state` line
 (`imported_cost: true`): it carries the cost and nothing else, so this grader
 abstains on one outright.
+
+`is_error` is not always an error: a refusal (`stop_reason: refusal`) and a
+deferred tool missing on resume (`stop_reason: tool_deferred_unavailable`) both
+set it on `subtype: success` (Python SDK docs, Claude Code 2.1.310). The
+`allow_error` check still applies to them; the failure message names which it was.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from ..capture import result_outcome
 from . import Evidence, GraderResult, not_evaluated, verdict
 
 
@@ -59,7 +65,15 @@ def grade_terminal(grader: Any, evidence: Evidence) -> GraderResult:
             problems.append(f"terminal_reason {actual!r} is not one of {allowed}")
 
     if not grader.get("allow_error") and result.get("is_error"):
-        problems.append("the result is flagged is_error and the grader does not set allow_error")
+        outcome = result_outcome(result.get("subtype"), True, result.get("stop_reason"))
+        if outcome == "refusal":
+            problems.append("the model refused (is_error with stop_reason 'refusal', not an API "
+                            "error) and the grader does not set allow_error")
+        elif outcome == "tool_deferred":
+            problems.append("a deferred tool was unavailable on resume (is_error with stop_reason "
+                            "'tool_deferred_unavailable') and the grader does not set allow_error")
+        else:
+            problems.append("the result is flagged is_error and the grader does not set allow_error")
         observed.append("is_error=True")
 
     return verdict(grader, not problems,

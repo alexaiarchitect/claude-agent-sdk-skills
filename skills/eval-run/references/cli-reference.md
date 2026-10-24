@@ -91,10 +91,12 @@ Sources: this plugin's `runner/agent_sdk_evals/cli.py` and `.dev/CONTRACTS.md`
 SDK behaviour per `https://code.claude.com/docs/en/agent-sdk/python` (`query`,
 `ClaudeSDKClient`, `ClaudeAgentOptions`),
 `https://code.claude.com/docs/en/agent-sdk/configuration` (model selection,
-`setting_sources`) and `https://code.claude.com/docs/en/permission-modes` (the
-headless starting-mode table), with
+`setting_sources`) and
+`https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in`
+(`default` from v2.1.302; "Before v2.1.302, these runs could start in auto mode
+if they didn't fetch feature flags"), with
 `https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` for the
-2.1.302 change the table does not show yet. Re-read 2026-10-11 against
+2.1.302 change. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; the `runs` precedence and
 the session arithmetic re-checked 2026-10-13 against `cli.py`; re-read
-2026-10-17 against claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

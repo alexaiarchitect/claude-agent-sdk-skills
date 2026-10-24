@@ -35,6 +35,11 @@ FIXTURES = PLUGIN_ROOT / "tests" / "fixtures" / "agents"
 REREAD_NOTE = (
     "re-read 2026-10-17 against claude-agent-sdk 0.2.168 / claude code 2.1.302 docs"
 )
+#: The 0.2.174 sync (2026-10-24) may replace the note above with its own, so
+#: either one shows the file was re-read in this sync or a later one.
+LATER_REREAD_NOTES = (
+    "re-read 2026-10-24 against claude-agent-sdk 0.2.174 / claude code 2.1.310 docs",
+)
 
 
 def flat(text: str) -> str:
@@ -232,7 +237,8 @@ TOUCHED = (
 
 @pytest.mark.parametrize("name", TOUCHED)
 def test_every_reference_re_read_in_this_sync_carries_the_note(name):
-    assert REREAD_NOTE in flat((SKILLS / name).read_text(encoding="utf-8"))
+    text = flat((SKILLS / name).read_text(encoding="utf-8"))
+    assert any(note in text for note in (REREAD_NOTE, *LATER_REREAD_NOTES))
 
 
 def test_no_cited_line_number_is_left_at_its_0_2_165_value():

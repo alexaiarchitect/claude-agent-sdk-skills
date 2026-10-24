@@ -67,8 +67,11 @@ knowing before you reach for `deny`: a hook returning
 the `ResultMessage` carries `stop_reason: "tool_deferred"` with the call named in
 `deferred_tool_use`. If a case needs the agent to carry on without the tool, use
 `deny` with a reason; `defer` tests the harness's handling of a stopped turn,
-and the assertion for it is a `terminal` grader on `stop_reason`, never a text
-match.
+and the evidence for it is `stop_reason` on the trace's `result` event (the
+`terminal` grader matches `subtype`/`terminal_reason` only), never a text match.
+If the tool is gone when the session resumes, the result reads
+`stop_reason: "tool_deferred_unavailable"` with `is_error: true` on
+`subtype: "success"` — not an API error; branch on `stop_reason` first.
 
 **Latency.** `latency_ms` sleeps before the action is applied, for any action;
 `action: latency` sleeps and then allows. On `PreToolUse` this delays the call;
@@ -157,5 +160,8 @@ trace event); `https://code.claude.com/docs/en/agent-sdk/hooks` (`HookMatcher`,
 `updatedToolOutput` — which is for every tool, while `updatedMCPToolOutput` is
 MCP-only and **not** deprecated; `defer` and `stop_reason: "tool_deferred"`);
 `https://code.claude.com/docs/en/agent-sdk/python`
-(`ClaudeAgentOptions.hooks`, `include_hook_events`). Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
+(`ClaudeAgentOptions.hooks`, `include_hook_events`, `ResultMessage.is_error`),
+`https://code.claude.com/docs/en/hooks` (`tool_deferred_unavailable` on
+resume). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
+2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
+2.1.310 docs.

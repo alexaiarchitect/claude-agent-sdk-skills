@@ -40,15 +40,17 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4318
 **Telemetry off is not free of consequences.** A session that does not fetch
 the interactive feature flags — which includes one with telemetry disabled, one
 on a third-party provider and one holding a gateway token — is exactly the
-session that starts in **`auto`** permission mode on Claude Code
-2.1.285–2.1.301 when `permission_mode` is left unset (2.1.302 starts it in
-`default`, per its changelog). So a deployment that turns telemetry off to avoid
+session that could start in **`auto`** permission mode on Claude Code
+2.1.285–2.1.301 when `permission_mode` is left unset. The docs now say: "Before
+v2.1.302, these runs could start in auto mode if they didn't fetch feature
+flags, for example on a third-party provider or with `DISABLE_TELEMETRY`," and
+from v2.1.302 they "start in Manual mode" (`default`). So a deployment that turns telemetry off to avoid
 exporting prompts also has to pass `permission_mode` explicitly, or on those
 versions its allow rules quietly stop settling calls.
 
 Two cost fields worth exporting beside the token counters: every `model_usage`
 row carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
-and `thinkingTokens`, neither of which is on the 0.2.168 `ModelUsage` TypedDict
+and `thinkingTokens`, neither of which is on the 0.2.174 `ModelUsage` TypedDict
 — read both with `.get()`. A dashboard that charts cost without the basis
 cannot tell a list-price estimate from a negotiated one, and `model_usage`
 routinely holds more than one model (measured 2026-10-11: the agent's Sonnet 5.5
@@ -56,7 +58,7 @@ plus the CLI's background `claude-haiku-5-5`), so aggregate per model rather
 than taking the first row.
 
 Event fields added recently, worth a column in the collector (from the changelog;
-the monitoring page does not list them yet):
+the monitoring page now documents the `tool_decision` ones and those from 2.1.310):
 
 | Event | Field | Since |
 |---|---|---|
@@ -64,13 +66,41 @@ the monitoring page does not list them yet):
 | `tool_decision` | `classifier_verdict`, `permission_mode` (tell an auto-mode classifier decision from a permission rule) | 2.1.301 |
 | `tool_decision` | `classifier_category` (the built-in rule a classifier block matched; needs `OTEL_LOG_TOOL_DETAILS=1`) | 2.1.301, fixed 2.1.302 |
 | trace spans | GenAI semantic-convention attributes such as `gen_ai.provider.name`, `gen_ai.conversation.id`, `gen_ai.tool.name`, `error.type` | 2.1.300 |
+| `tool_decision` | `decision: "cancelled"` (Claude Code stopped waiting for a permission decision and did not run the call; `source` such as `user_abort`) | documented 2026-10-24 |
+| `tool_result`, `tool_decision` | `request_id` (the API request the call came from) | documented 2026-10-24 |
+| every event | `agent_id` (the subagent that raised it) and `parent_agent_id` (the agent that spawned or last resumed it; absent when that is the main session) | 2.1.310 |
+
+**`claude_code.safety_event` (2.1.307+)** is the one to alert on. It is "Logged
+when a check refuses a tool call or requires a permission prompt", and also when
+the sandbox's network proxy refuses a connection or request and when a hook
+blocks a result; it exports with the other events, no extra setting. Its
+attributes: `category` (`permission_rule`, `managed_policy`, `permission_mode`,
+`hook`, `auto_mode_block`, `auto_mode_no_verdict`, `safety_check`,
+`static_analysis`, `sandbox_override`, `user_rejected`, `sandbox_network`,
+`sandbox_other`, `hook_review`, `other`), `decision` (`"accept"`, `"reject"`, or
+`"sent_back"` when a hook blocked a result or turn end), `decision_source`,
+`reason_code` (e.g. `"rule:policySettings"`, `"mode:dontAsk"`,
+`"hook:PreToolUse"`, `"classifier:auto-mode"`), `reason_type`, `rule_source`,
+`grant_scope`, `circuit_breaker` (`"dangerousRemoval"`, `"outsideReadsBlocked"`,
+`"claudeSettingsFile"`), `classifier_category` (with `OTEL_LOG_TOOL_DETAILS=1`),
+`hook_event`, `tool_class`, `tool_name`, `tool_source`, `permission_mode`,
+`tool_use_id`, `sandbox_violation_count`, `sandbox_enabled`. "The event's own
+attributes hold no command text, file paths, host names, or MCP server and tool
+names" — join on `tool_use_id` to a `tool_decision` (with
+`OTEL_LOG_TOOL_DETAILS=1`) for the command. For an unattended `dontAsk` agent,
+`reason_code "mode:dontAsk"` is the denied call nobody saw. Some calls have no
+safety event (the page lists them). The `claude -p --output-format json` result
+also gained a `safety_stops` count (measured 2026-10-24 on 2.1.310, `0`).
+Telemetry from Claude Desktop sessions behind a Claude apps gateway is no
+longer rejected when `OTEL_EXPORTER_OTLP_HEADERS` is set (2.1.307).
 
 A low `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` pushed `tool_use_id`,
 `tool_source` and `tool_parameters` off `tool_decision` before 2.1.302. The
-model the client-side auto-mode classifier uses is chosen with
-`CLAUDE_CODE_AUTO_MODE_MODEL` (2.1.302, changelog only; it does not change
-server-side auto mode), so a classifier's tokens can show up under a model the
-agent never named.
+auto-mode classifier runs on Claude Sonnet 5 by default, and
+`CLAUDE_CODE_AUTO_MODE_MODEL` (2.1.302+, now on the env-vars and
+permission-modes pages) picks another, so a classifier's tokens can show up
+under a model the agent never named (see
+`agent-harness/references/permission-model.md`).
 
 ## The spans
 
@@ -163,7 +193,8 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/observability> (signal
 catalog, enabling export, span names, trace linking, tagging, end-user
 attribution, sensitive-data flags),
 <https://code.claude.com/docs/en/monitoring-usage> (metric and event
-reference, traces beta),
+reference, traces beta, `claude_code.safety_event` attributes and categories,
+`tool_decision` `cancelled`, `request_id`, `agent_id`/`parent_agent_id`),
 <https://code.claude.com/docs/en/agent-sdk/hosting#observability>,
 <https://code.claude.com/docs/en/env-vars>;
 <https://github.com/Arize-ai/openinference> (package
@@ -171,13 +202,15 @@ reference, traces beta),
 `anthropics/claude-cookbooks` `observability/opentelemetry_tracing.ipynb` at
 `a162e01` (Claude API and Managed Agents tracing);
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300–2.1.302
-event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default);
-<https://code.claude.com/docs/en/permission-modes> (why telemetry-off sessions
-start in `auto` on 2.1.285–2.1.301; 2.1.302 is changelog-only), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
-`claude-agent-sdk` 0.2.168
+event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default,
+2.1.307 `safety_event` and gateway headers fix);
+<https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
+(why telemetry-off sessions could start in `auto` before v2.1.302; "Default
+classifier model"), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
+`claude-agent-sdk` 0.2.174
 `_internal/transport/subprocess_cli.py:814-860` (env merge and trace-context
 injection), `types.py:1669` (`ModelUsage`). The two-model `model_usage` and
 `costBasis: "list"` were measured by this plugin on 2026-10-11 against SDK
-0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against claude-agent-sdk
-0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against claude-agent-sdk
-0.2.168 / Claude Code 2.1.302 docs.
+0.2.165 with bundled CLI 2.1.294; `safety_stops` on 2026-10-24 on CLI 2.1.310.
+Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs;
+re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

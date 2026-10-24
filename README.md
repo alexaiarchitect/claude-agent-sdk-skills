@@ -1,8 +1,8 @@
 # `agent-sdk` — Claude Code skills for Claude Agent SDK agents and evaluations
 
 Thirteen skills for building, reviewing and evaluating agents written with the
-Claude Agent SDK (Python). Checked against `claude-agent-sdk` 0.2.168 with its
-bundled Claude Code 2.1.301; documentation read at 2.1.302.
+Claude Agent SDK (Python). Checked against `claude-agent-sdk` 0.2.174 with its
+bundled Claude Code 2.1.310; documentation read at 2.1.310.
 
 The premise: an agent's system prompt is a promise written in prose, and **eval
 cases are the only form of that promise a machine can check**. The SDK ships no
@@ -80,11 +80,14 @@ a rejection marks the rest `NOT_EVALUATED` and exits 3, never a fake failure.
 
 **Leaving `permission_mode` unset is a trap, not a default.** It is not the
 same as passing `"default"`: the CLI resolves the mode, and the answer depends
-on its version. A session that fetches feature flags starts in `default`; on
-Claude Code 2.1.285–2.1.301 a headless session that fetches none — a gateway or
-third-party provider, telemetry turned off, the first run after an upgrade —
-starts in `auto`, where a classifier reviews each shell command and broad allow
-rules such as a bare `Bash` are dropped; 2.1.302 starts those in `default` too.
+on its version. The docs now state it: "In Claude Code v2.1.302 or later,
+`claude -p` and Agent SDK runs with no permission mode set start in Manual
+mode" (`default`), where a call needing approval is denied unless something
+approves it, and "Before v2.1.302, these runs could start in auto mode if they
+didn't fetch feature flags, for example on a third-party provider or with
+`DISABLE_TELEMETRY`" — on Claude Code 2.1.285–2.1.301 such a session could land
+in `auto`, where a classifier reviews each shell command and broad allow rules
+such as a bare `Bash` are dropped.
 The runner therefore forces `dontAsk` when your options leave the mode unset and
 records that in the trace; `agent-review` reports the omission as `OPT013` (a
 warn), because your agent also runs outside the runner, on whatever CLI it

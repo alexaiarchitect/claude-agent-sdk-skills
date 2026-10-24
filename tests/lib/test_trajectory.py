@@ -338,3 +338,45 @@ def test_calls_from_events_reads_a_trace(traces):
     calls = calls_from_events(load_trace(traces / "happy.trace.jsonl"))
     assert [c.tool for c in calls] == [LOOKUP, RESERVE]
     assert calls[1].args["member_id"] == "member-42"
+
+
+# -- refusal / tool_deferred are not API errors (Python SDK docs, 2.1.310) -----
+
+def test_a_refusal_on_a_success_subtype_is_a_refusal_not_an_api_error(traces):
+    signatures = detect_signatures(load_trace(traces / "refusal_success.trace.jsonl"))
+    assert kinds(signatures) == ["refusal"]
+    refusal = signatures[0]
+    assert refusal.layer == "prompt"
+    assert "not an API error" in refusal.detail
+    assert "quota" in refusal.evidence[0]
+
+
+def _result_only(**fields):
+    from agent_sdk_skills.trace import TraceEvent
+    base = {"subtype": "success", "is_error": True, "terminal_reason": "completed",
+            "num_turns": 1, "result_text": "x"}
+    base.update(fields)
+    return [TraceEvent(type="assistant_text", i=0, data={"text": "x"}),
+            TraceEvent(type="result", i=1, data=base)]
+
+
+def test_a_refusal_whose_terminal_reason_reads_api_error_is_still_a_refusal():
+    """The docs: a refusal's `terminal_reason` "can read completed or api_error"."""
+    signatures = detect_signatures(_result_only(stop_reason="refusal", terminal_reason="api_error"))
+    assert kinds(signatures) == ["refusal"]
+
+
+def test_a_missing_deferred_tool_is_an_eval_layer_signature():
+    signatures = detect_signatures(_result_only(stop_reason="tool_deferred_unavailable"))
+    assert kinds(signatures) == ["tool_deferred"]
+    assert signatures[0].layer == "eval"
+
+
+def test_is_error_on_success_with_any_other_stop_reason_is_an_api_error():
+    assert kinds(detect_signatures(_result_only(stop_reason="end_turn"))) == ["api_error"]
+
+
+def test_a_genuine_error_subtype_is_still_an_api_error():
+    events = _result_only(subtype="error_during_execution", stop_reason=None,
+                          terminal_reason="api_error")
+    assert kinds(detect_signatures(events)) == ["api_error"]

@@ -313,3 +313,37 @@ def test_the_efficiency_rows_carry_the_models_and_the_basis(fixtures):
     )
     rows = efficiency_rows([document])
     assert "models_billed" in rows[0] and "cost_basis_list" in rows[0]
+
+
+# -- is_error on a success subtype (Python SDK docs, Claude Code 2.1.310) ----
+
+def test_a_refusal_with_limit_words_is_not_read_as_a_usage_limit(traces):
+    """The fixture's refusal text says "quota"; `stop_reason` is read first."""
+    result = result_event(load_trace(traces / "refusal_success.trace.jsonl"))
+    assert result.get("is_error") is True and result.get("subtype") == "success"
+    assert "quota" in result.get("result_text")
+    assert usage_limit_from_result(result) is None
+
+
+def test_a_refusal_gets_its_own_results_finding_not_an_error_one(traces):
+    findings = budget_findings(result_event(load_trace(traces / "refusal_success.trace.jsonl")))
+    assert [f.id for f in findings] == ["RES012"]
+    assert findings[0].severity == "warn"
+    assert "not an API error" in findings[0].message
+    assert "stop_reason" in findings[0].source
+
+
+def test_a_deferred_tool_missing_on_resume_is_its_own_finding():
+    result = {"subtype": "success", "is_error": True, "stop_reason": "tool_deferred_unavailable",
+              "terminal_reason": "completed", "result_text": "rate limit tool not available",
+              "deferred_tool_use": {"id": "toolu_1", "name": "mcp__x__y", "input": {}}}
+    assert usage_limit_from_result(result) is None
+    assert [f.id for f in budget_findings(result)] == ["RES013"]
+
+
+def test_an_error_in_place_of_a_response_still_reads_its_limit_wording():
+    """Any other `stop_reason` with `is_error` on `success` is an error, as before."""
+    result = {"subtype": "success", "is_error": True, "stop_reason": None,
+              "terminal_reason": "api_error", "result_text": "API Error: usage limit reached"}
+    assert usage_limit_from_result(result)["confidence"] == "likely"
+    assert [f.id for f in budget_findings(result)] == ["RES011"]

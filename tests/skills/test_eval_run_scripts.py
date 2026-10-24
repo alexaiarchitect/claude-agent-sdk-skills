@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def make_project(tmp_path: Path, *, runner_version="0.1.3", cases=("a", "b")) -> Path:
+def make_project(tmp_path: Path, *, runner_version="0.1.4", cases=("a", "b")) -> Path:
     project = tmp_path / "proj"
     (project / "evals").mkdir(parents=True)
     (project / "agent.py").write_text(

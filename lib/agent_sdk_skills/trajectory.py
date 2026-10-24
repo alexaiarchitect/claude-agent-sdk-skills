@@ -31,7 +31,8 @@ is downstream noise, and fixing the last symptom fixes nothing.
 :func:`detect_signatures` names six failure shapes, each with a different root
 cause and therefore a different repair — `loop`, `oscillation`, `stall`,
 `unknown_tool`, `error_cascade`, and the terminal shapes `max_turns` /
-`max_budget`. A run can carry several.
+`max_budget` — plus how the result ended when that was not a clean success:
+`refusal`, `tool_deferred` or `api_error`. A run can carry several.
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ from typing import Any, Iterable, Sequence
 
 from . import SYNTHETIC_TOOLS
 from .graders import normalize_tool_name
-from .trace import TraceEvent, result_event, tool_calls
+from .trace import TraceEvent, result_event, result_outcome, tool_calls
 
 MATCH_EXACT = "EXACT"
 MATCH_IN_ORDER = "IN_ORDER"
@@ -438,6 +439,13 @@ def detect_signatures(
     ``max_turns`` / ``max_budget``
         a ceiling stopped the run. Not a bug — but the run proves nothing about
         the agent's answer, so it must not be read as a content failure.
+    ``refusal`` / ``tool_deferred``
+        `is_error` on a `success` subtype with `stop_reason` `refusal` or
+        `tool_deferred_unavailable`: the model declined, or a deferred tool was
+        missing on resume. Neither is an API error (Python SDK docs, 2.1.310).
+    ``api_error``
+        any other error result: `error_during_execution`, `terminal_reason:
+        api_error`, or `is_error` on `success` with another `stop_reason`.
     """
     calls = calls_from_events(events)
     signatures: list[Signature] = []
@@ -570,7 +578,34 @@ def _terminal(events: Sequence[TraceEvent]) -> list[Signature]:
         return []
     subtype = str(result.get("subtype") or "")
     reason = str(result.get("terminal_reason") or "")
+    # `stop_reason` first (Python SDK docs, Claude Code 2.1.310): a refusal's
+    # `terminal_reason` can read `api_error` and it is still not an API error.
+    outcome = result_outcome(result)
     out: list[Signature] = []
+    if outcome == "refusal":
+        out.append(Signature(
+            kind="refusal",
+            detail=f"the model refused (stop_reason=refusal, subtype={subtype or 'n/a'}, "
+                   f"terminal_reason={reason or 'n/a'}); is_error is set but this is not an "
+                   "API error",
+            evidence=[str(result.get("result_text") or "")[:120]], layer="prompt",
+            fix="read the refusal before blaming the agent: either the case asks for something "
+                "the model declines (then assert the refusal with a `final_text` grader and "
+                "`terminal: {allow_error: true}`), or the prompt makes an ordinary request "
+                "read as one it should decline.",
+        ))
+        return out
+    if outcome == "tool_deferred":
+        out.append(Signature(
+            kind="tool_deferred",
+            detail="a deferred tool was unavailable when the session resumed "
+                   "(stop_reason=tool_deferred_unavailable); is_error is set on a "
+                   f"{subtype or 'n/a'} subtype but this is not an API error",
+            evidence=[str(result.get("deferred_tool_use") or "")[:120]], layer="eval",
+            fix="resume with the tools the deferring session had; the harness, not the agent, "
+                "lost the tool.",
+        ))
+        return out
     if subtype == "error_max_turns" or reason == "max_turns":
         out.append(Signature(
             kind="max_turns",
@@ -591,7 +626,8 @@ def _terminal(events: Sequence[TraceEvent]) -> list[Signature]:
                 "right, the agent is doing too much work; if the work is right, the ceiling "
                 "is too low for this case.",
         ))
-    if subtype == "error_during_execution" or reason == "api_error":
+    if subtype == "error_during_execution" or reason == "api_error" \
+            or (subtype == "success" and outcome == "error"):
         out.append(Signature(
             kind="api_error",
             detail=f"the run ended in an error (subtype={subtype or 'n/a'}, "

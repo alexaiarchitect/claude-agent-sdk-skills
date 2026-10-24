@@ -31,7 +31,7 @@ prompt string.** There is no ambient context to fall back on.
 | `tools` | no | omitted, it inherits **every** tool available to subagents (`SUB001`) |
 | `disallowedTools` | no | accepts `mcp__server`, `mcp__server__*`, `mcp__*` |
 | `model` | no | an alias, a full id, or `'inherit'`. Omitted, Claude Code picks from the subagent model order |
-| `skills` | no | preloaded at startup; unlisted skills stay invocable through the Skill tool |
+| `skills` | no | preloaded at startup — "at most the first 32 distinct names in the list"; unlisted skills stay invocable through the Skill tool |
 | `memory` | no | `user` / `project` / `local` |
 | `mcpServers` | no | by name, or inline config |
 | `maxTurns` | no | the subagent's own ceiling (`SUB003`). At the limit its output is returned marked partial |
@@ -92,15 +92,33 @@ describes). Where a model-switching request would normally prompt, **in a
 subagent no prompt is shown** — the flagged request simply re-runs on the
 fallback model.
 
-**Two defaults changed in 2.1.302** for `claude -p` and the Agent SDK. Fork
-subagents (`subagent_type: "fork"`, a copy of the current conversation) are
-**on by default**, as they already were in the terminal;
-`CLAUDE_CODE_FORK_SUBAGENT=0` in `env` turns them off, which an eval that
-asserts on the set of `subagent_type` values may want. And a subagent's own
-Agent calls now run in the **foreground** by default, so a nested delegation
-blocks its parent subagent rather than returning at once. Since 2.1.299 an
-agent's `tools:` list that names an MCP server takes only **that server's**
-tools; list a server whose name contains `__` as `mcp__<whole name>__*`.
+**Two defaults changed in 2.1.302** for `claude -p` and the Agent SDK; the
+docs now describe both.
+
+**Forked subagents.** "A fork is a subagent that copies the conversation so far
+instead of starting fresh. From Claude Code v2.1.302, Claude can start forks in
+your application with nothing configured, by calling the Agent tool with
+`subagent_type: "fork"`." So an agent that defines no subagents can still
+delegate, and an eval that asserts on the set of `subagent_type` values sees
+`fork`. Deny forks only with `disallowed_tools=["Agent(fork)"]` (other subagents
+still run); turn fork mode off entirely with `CLAUDE_CODE_FORK_SUBAGENT=0` in
+`env`. From 2.1.307 forks launched together are each told which launch is
+theirs, so they rarely start each other's work.
+
+**Who waits.** With `run_in_background` omitted, "your main agent's call runs
+the new agent in the background, and a subagent's call waits for it": from the
+main agent the Agent tool result has `status: "async_launched"` and the report
+arrives in a later turn (Claude still waits, `status: "completed"`, when its next
+step needs it, or when the prompt asks it to); from a subagent the call blocks,
+unless the definition sets `background=True` or fork mode is off. "Before Python
+SDK v0.2.169, agents that your subagents started also ran in the background by
+default. That release is the first to bundle Claude Code v2.1.302 or later."
+
+Since 2.1.299 an agent's `tools:` list that names an MCP server takes only
+**that server's** tools; list a server whose name contains `__` as
+`mcp__<whole name>__*`. From 2.1.304 a plugin can no longer keep a headless run
+going past `--max-turns`, Stop or ended input by spawning or re-running
+subagents.
 
 Opus 5 delegates more readily than earlier models, so these matter most there.
 With the `claude_code` system-prompt preset, Claude Code adds a line telling
@@ -131,9 +149,12 @@ The **TypeScript** Agent SDK additionally puts `agent_id` on a subagent's
 assistant and user messages from v0.3.292, equal to the `task_id` of that
 subagent's task events, which is the reliable way to attribute interleaved
 parallel subagents. **Python has no such field** on `AssistantMessage` or
-`UserMessage` at 0.2.168 — `parent_tool_use_id` is what a Python reader
+`UserMessage` at 0.2.174 — `parent_tool_use_id` is what a Python reader
 correlates on. (From 0.2.166, `agent_id` does appear on the four
 tool-lifecycle *hook inputs*; that is a 0.2.166+ fact and a different surface.)
+Subagent transcripts record real token usage and stop reasons for streamed
+responses from 2.1.307 (before, placeholders and an empty stop reason), which
+matters to anyone pricing or grading from the session files.
 
 Before v2.1.210 the parent read the subagent's final message verbatim; since
 then Claude Code scans it for instruction-shaped patterns (control tags, turn
@@ -154,15 +175,19 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/subagents>
 Opus 5, output scanning), <https://code.claude.com/docs/en/sub-agents>
 (filesystem definitions, available tools, concurrent limit),
 <https://code.claude.com/docs/en/agent-sdk/permissions#available-modes>
-(subagent mode inheritance), <https://code.claude.com/docs/en/env-vars>;
+(subagent mode inheritance), <https://code.claude.com/docs/en/agent-sdk/subagents>
+("Forked subagents", "Choose whether Claude waits for subagents"),
+<https://code.claude.com/docs/en/agent-sdk/python> (Agent tool
+`run_in_background`), <https://code.claude.com/docs/en/env-vars>;
 <https://code.claude.com/docs/en/model-config> (effort after a fallback,
 per-model `autoCompactWindow`),
 <https://code.claude.com/docs/en/sub-agents#subagent-auto-compact-window>,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 MCP
-`tools:` scoping, 2.1.302 fork and foreground defaults);
-`claude-agent-sdk` 0.2.168 `types.py:2646` (`agents`), `:2562-2572`
+`tools:` scoping, 2.1.302 fork and foreground defaults, 2.1.304 headless
+stop, 2.1.307 fork identity and transcript usage);
+`claude-agent-sdk` 0.2.174 `types.py:2647` (`agents`), `:2563-2573`
 (`parent_tool_use_id` and subagent text), `:1821` (`HookEventMessage`). The
 `Task` / `Agent` naming difference was measured by this plugin on 2026-09-30
 from the CLI's own `init.tools` list. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
-claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs.
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

@@ -26,7 +26,7 @@ money rather than plan quota, so it is opt-in on top of `AGENT_SDK_LIVE=1`:
 
     set -a; source ../.env; set +a
     AGENT_SDK_LIVE=1 AGENT_SDK_LIVE_CREDENTIAL=api_key PYTHONPATH=runner \\
-        /tmp/casdk-venv-0.2.168/bin/python -m pytest tests/runner/test_live.py -q
+        ../tmp/venvs/casdk-venv-0.2.174/bin/python -m pytest tests/runner/test_live.py -q
 
 The CLI prints one stderr notice on every API-key run ("claude.ai connectors are
 disabled because ANTHROPIC_API_KEY … takes precedence"), which is not a failure.
@@ -161,6 +161,7 @@ def test_the_pr_tier_passes_against_the_real_backend(project, tmp_path_factory):
     assert result["cost_basis_list"] is True, "no negotiated rate on a first-party account"
     print(f"\nLIVE pr tier totals: {json.dumps(totals)}")
     print(f"LIVE echo-ready: cli={init['cli_version']} cost={result.get('total_cost_usd')} "
+          f"stop_reason={result.get('stop_reason')} is_error={result.get('is_error')} "
           f"models_billed={result['models_billed']} "
           f"capabilities={len(init.get('capabilities') or [])} "
           f"fast_mode={init.get('fast_mode_state')}/{init.get('fast_mode_disabled_reason')}")

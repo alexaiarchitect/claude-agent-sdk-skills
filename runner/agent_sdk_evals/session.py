@@ -15,7 +15,10 @@ summed — it is a session running total.
 Exception mapping is CONTRACTS section 8. `ResultError` is caught **before**
 `ProcessError` because it subclasses it, and it is the useful one: it carries
 `terminal_reason`, `subtype` and `api_error_status`, so the runner branches on
-fields instead of matching strings. `MessageParseError` is deliberately not
+fields instead of matching strings. Its `data` is the raw result, and
+`data["stop_reason"]` is read first: a refusal or a deferred tool missing on
+resume ends with `is_error=True` on `subtype="success"` and is not an API error
+(Python SDK docs, Claude Code 2.1.310). `MessageParseError` is deliberately not
 imported — it is not exported from the package root — so `ClaudeSDKError` is the
 catch-all.
 """
@@ -32,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from . import FAILED, NOT_EVALUATED, PASSED
-from .capture import Capture, looks_like_usage_limit, rate_limit_payload
+from .capture import Capture, looks_like_usage_limit, rate_limit_payload, result_outcome
 from .loader import Case, Config, resolve_permission_mode
 
 
@@ -83,6 +86,19 @@ def classify_exception(exc: BaseException) -> tuple[int, str, str]:
         reason = getattr(exc, "terminal_reason", None)
         status = getattr(exc, "api_error_status", None)
         text = getattr(exc, "result", None) or str(exc)
+        data = getattr(exc, "data", None)
+        stop_reason = data.get("stop_reason") if isinstance(data, dict) else None
+        outcome = result_outcome(subtype, True, stop_reason)
+        if outcome == "refusal":
+            return 1, "refusal", (
+                f"the model declined the request (stop_reason='refusal', subtype={subtype!r}, "
+                f"terminal_reason={reason!r}): {text}"
+            )
+        if outcome == "tool_deferred":
+            return 1, "tool_deferred", (
+                "a deferred tool was not available when the session resumed "
+                f"(stop_reason='tool_deferred_unavailable', subtype={subtype!r}): {text}"
+            )
         if looks_like_usage_limit(str(text), status):
             return 3, "usage_limit", (
                 f"the run hit a usage limit (subtype={subtype!r}, terminal_reason={reason!r}, "
@@ -271,7 +287,8 @@ def run_status(outcome: RunOutcome, grader_results: list[Any]) -> str:
     gating = [g for g in grader_results if g.gating]
     if outcome.error and outcome.error_kind == "timeout":
         return FAILED
-    if outcome.error and outcome.error_kind == "result_error" and not gating:
+    if outcome.error and outcome.error_kind in ("result_error", "refusal", "tool_deferred") \
+            and not gating:
         return FAILED
     if not gating:
         inconclusive = [g for g in grader_results if g.status == NOT_EVALUATED]

@@ -47,7 +47,7 @@ branch on them and a test may assert them.
 | `OPT002` | warn (**error** under `--strict`) | `permission_mode="bypassPermissions"` | approves everything that reaches the permission-mode step. Deny rules still apply; nothing else does. It is also one of the two modes that skip the network-path check |
 | `OPT003` | info | allow/deny lists set but `tools` never set | the built-ins are still in context. `tools=[]` is what removes them; MCP tools are unaffected either way |
 | `OPT004` | warn | `"Skill"` in `allowed_tools` | deprecated. The `skills` option configures everything including allowing the Skill tool |
-| `OPT013` | warn | `permission_mode` is not passed at all | the mode becomes whatever the CLI picks. A session that fetches feature flags starts in `default` (measured on 2.1.292 and 2.1.301); on Claude Code **2.1.285–2.1.301** one that fetches none — a third-party provider or gateway, telemetry off, the first run after an install or upgrade — starts in **`auto`**, where a classifier reviews each shell command and network request and a bare allow rule such as `Bash` no longer settles the call; **2.1.302** starts those in `default` too. A warn, because the behaviour depends on CLI version and environment. Pass `"default"` or `"dontAsk"` explicitly. This plugin's runner forces `"dontAsk"` when the agent leaves it unset and records `permission_mode_source: "runner-default"`, but the agent also runs outside the runner, so the finding stands |
+| `OPT013` | warn | `permission_mode` is not passed at all | the mode becomes whatever the CLI picks. A session that fetches feature flags starts in `default` (measured on 2.1.292 and 2.1.301); on Claude Code **2.1.285–2.1.301** one that fetches none — a third-party provider or gateway, telemetry off — could start in **`auto`**, where a classifier reviews each shell command and network request and a bare allow rule such as `Bash` no longer settles the call. The docs now state the rule: "In Claude Code v2.1.302 or later, `claude -p` and Agent SDK runs with no permission mode set start in Manual mode" (`default`; measured again on 2.1.310), and "Before v2.1.302, these runs could start in auto mode if they didn't fetch feature flags". A warn, because the behaviour depends on CLI version and environment. Pass `"default"` or `"dontAsk"` explicitly. This plugin's runner forces `"dontAsk"` when the agent leaves it unset and records `permission_mode_source: "runner-default"`, but the agent also runs outside the runner, so the finding stands |
 | `OPT040` | warn | `agents` defined but neither `Agent` nor `Task` is available | Claude cannot delegate. The CLI reports the tool as `Task`, the docs and SDK call it `Agent`; a check has to accept both |
 | `OPT060` | **error** | `permission_mode` is not one of the six literals | `default`, `acceptEdits`, `plan`, `bypassPermissions`, `dontAsk`, `auto` |
 | `OPT061` | **error** | `effort` is not one of the five literals | `low`, `medium`, `high`, `xhigh`, `max` |
@@ -93,6 +93,12 @@ branch on them and a test may assert them.
 | `MCP002` | warn | a stdio server's `command` is not on this machine's PATH | the server fails to connect and its tools are absent from the init message. Pass `--no-path-check` when reviewing for a different machine |
 | `MCP010` | warn | a `@tool` schema that is not a readable dict of types, a missing description, or a non-async handler | the description and schema are the whole of what the model is told; arguments are validated against the schema before the handler runs |
 
+## Read by hand: no lint id
+
+| Check | Why |
+|---|---|
+| result handling tests `is_error` or `subtype` without consulting `stop_reason` (on a `ResultMessage`, or `ResultError.data`) | a refusal or deferred-tool result reports `is_error=True` with `subtype="success"`. Branch on `stop_reason` first — `"refusal"` (the model declined), `"tool_deferred_unavailable"` (a deferred tool was gone on resume) — then `terminal_reason`, then `subtype`; a refusal's `terminal_reason` can read `"completed"` or `"api_error"`, so it is not an API error to retry. The docs' pattern: `if e.data.get("stop_reason") == "refusal":` before `elif e.terminal_reason == "api_error":`. `lint_agent.py` has no rule that reads result-handling code, so this one is a reviewer's |
+
 ## Subagents (`SUB0xx`)
 
 | Id | Severity | Trigger | Why |
@@ -120,21 +126,23 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
 `.../agent-sdk/claude-code-features`, `.../agent-sdk/modifying-system-prompts`,
 `.../agent-sdk/structured-outputs`, `.../agent-sdk/agent-loop`,
 `.../agent-sdk/migration-guide`, `.../agent-sdk/python`;
-`claude-agent-sdk` 0.2.168 `types.py:25` (`PermissionMode`), `:37`
+`claude-agent-sdk` 0.2.174 `types.py:25` (`PermissionMode`), `:37`
 (`EffortLevel`), `:284` (`HookEvent`), `:728-815` (`HookJSONOutput`), `:828`
 (`HookCallback`), `:840` (`HookMatcher`), `:2346` (the `Skill` deprecation),
 `:2380` (`permission_mode`, the field `OPT013` reads),
-`:2504` (`debug_stderr`), `:2705` (`max_thinking_tokens`), `:2326-2785` (the 49
+`:2504` (`debug_stderr`), `:2706` (`max_thinking_tokens`), `:2326-2786` (the 49
 fields); `__init__.py:267` (`SdkMcpTool`);
 <https://platform.claude.com/docs/en/about-claude/model-deprecations>;
-<https://code.claude.com/docs/en/permission-modes> (the headless starting-mode
-row behind `OPT013`, which has not caught up with 2.1.302),
+<https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
+(the rule behind `OPT013`, "Tool calls denied in `claude -p` and Agent SDK runs"),
+<https://code.claude.com/docs/en/agent-sdk/python> (`ResultMessage.is_error`,
+`ResultError`: the `stop_reason`-first order),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.302 unset
 mode, 2.1.299 MCP rule scoping), <https://code.claude.com/docs/en/permissions#mcp>,
 <https://code.claude.com/docs/en/permissions#network-paths>,
 <https://code.claude.com/docs/en/hooks> (`onFailure`). The 17x and 4x cost
 figures and the `max_turns=1 -> num_turns=2` result were measured by this plugin
 against SDK 0.2.162 with bundled CLI 2.1.285; re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-17 against
-claude-agent-sdk 0.2.168 / Claude Code 2.1.302 docs, with the line numbers above
-re-pinned to 0.2.168 (`types.py` gained 365 lines in 0.2.166).
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs, with the line numbers above
+re-pinned to 0.2.174 (`types.py` gained one line, at 2558, in 0.2.169).
