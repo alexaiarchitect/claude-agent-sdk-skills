@@ -47,6 +47,10 @@ def test_the_runner_version_matches_the_library():
     assert RUNNER_VERSION == plugin.RUNNER_VERSION
 
 
+def test_the_docs_read_at_version_matches_the_library():
+    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.312"
+
+
 def test_the_option_list_matches_the_stub():
     """The pinned list is 49 names in declaration order, and the stub agrees.
 

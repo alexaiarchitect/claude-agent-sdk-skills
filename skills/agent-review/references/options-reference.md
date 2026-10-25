@@ -12,7 +12,7 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 
 | Field | Type | Default | | Note |
 |---|---|---|---|---|
-| `model` | `str \| None` | `None` | O | unset means Claude Code's default for the account |
+| `model` | `str \| None` | `None` | O | unset means Claude Code's default for the account. From 2.1.311 the `[1m]` suffix is dropped from names where it has no effect (still accepted) |
 | `fallback_model` | `str \| None` | `None` | O | one id or a comma-separated chain |
 | `effort` | `EffortLevel \| None` | `None` | O | `low` `medium` `high` `xhigh` `max` |
 | `thinking` | `ThinkingConfig \| None` | `None` | O | `{"type":"adaptive"}`, `{"type":"enabled","budget_tokens":N}`, `{"type":"disabled"}`, optional `display` |
@@ -42,14 +42,14 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `hooks` | `dict[HookEvent, list[HookMatcher]] \| None` | `None` | R | callables; the runner adds its capture and fault hooks here |
 | `output_format` | `dict \| None` | `None` | O | only `{"type":"json_schema","schema":{...}}` is acted on |
 | `verbatim_prompts` | `bool` | `False` | O | needs CLI 2.1.248+ |
-| `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166; `failIfUnavailable`, `filesystem` (`denyWrite`) and `allowNestedUserNamespaces` (2.1.305) are forwarded though undeclared |
+| `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166; `allowAllUnixSockets` also covers Linux VM sockets (`AF_VSOCK`); `failIfUnavailable`, `filesystem` (`denyWrite`) and `allowNestedUserNamespaces` (2.1.305) are forwarded though undeclared |
 | `plugins` | `list[SdkPluginConfig]` | `[]` | O | |
 
 ## Ceilings
 
 | Field | Type | Default | | Note |
 |---|---|---|---|---|
-| `max_turns` | `int \| None` | `None` | O | not a hard stop on assistant turns: measured `max_turns=1` → `num_turns=2` |
+| `max_turns` | `int \| None` | `None` | O | count each turn with tool calls, plus one for the final text-only response; without it the run ends `error_max_turns` with no final response. Measured 2026-10-29: one needed tool call with `max_turns=1` → `subtype error_max_turns`, `stop_reason tool_use`, `is_error True`, `num_turns 2`, no final text |
 | `max_budget_usd` | `float \| None` | `None` | O | client-side estimate; counts subagent spend; ends the query with `error_max_budget_usd`. A **soft** cap: the estimate can pass the value, so leave headroom |
 | `task_budget` | `TaskBudget \| None` | `None` | O | |
 | `load_timeout_ms` | `int` | `60000` | O | |
@@ -105,9 +105,9 @@ or later, `claude -p` and Agent SDK runs with no permission mode set start in
 Manual mode" (`default`). A session in `auto` that `set_model()`s to a model
 without auto support drops to `default` with a `system`/`status` message
 (2.1.299+); from 2.1.307 `set_model()` waits up to 15 s for the API to confirm
-the model (it was refused after 5 s). Pass `"default"` or
-`"dontAsk"` explicitly — `lint_agent.py` reports the omission as `OPT013`, and
-this plugin's runner supplies `"dontAsk"` itself when the agent leaves it unset.
+the model, and `set_model()` with no argument switches to Claude Code's default
+model. Pass `"default"` or `"dontAsk"` explicitly — `lint_agent.py` reports the
+omission as `OPT013`; this plugin's runner supplies `"dontAsk"` when it is unset.
 
 **Network paths are outside the allow system** (2.1.292+): a read of a UNC or
 `/net` automount path has its own check that no allow rule, `PreToolUse`
@@ -203,17 +203,13 @@ assert state through files, `structured_output` or mock call records.
 `version?`), `plugin_errors?`, `fast_mode_state?` (`off`/`cooldown`/`on`),
 `fast_mode_disabled_reason?` (`sdk_opt_in_required` measured; newer CLIs may send
 others) and `capabilities?`. Use `capabilities` to **feature-detect instead of
-comparing versions**, ignoring unknown strings: CLI 2.1.310 sent 13
-(`interrupt_receipt_v1`, `interrupt_cancel_queued_v1`, `interrupt_send_now_v1`,
-`interrupt_requeue_taken_v1`, `msg_lifecycle_v1`, `request_marker_lists_v1`,
+comparing versions**, ignoring unknown strings: CLI 2.1.310 sent 13 (the
+`interrupt_*_v1` four, `msg_lifecycle_v1`, `request_marker_lists_v1`,
 `lifecycle_wakeup_source_v1`, `sdk_mcp_tools_list_changed`, `sdk_mcp_manifests`,
 `mcp_read_resource_v1`, `mcp_tool_ui_meta_v1`, `ui_surface_v1`,
-`mcp_call_result_not_for_model_v1`), 2.1.301 sent 11, 2.1.292 sent 9. Read every
-key with `.get()`: 2.1.301 and 2.1.310 also sent undeclared keys (`original_cwd`,
-`additional_directories`, `memory_paths`, `messaging_socket_path`,
-`per_turn_effort_active`, `view_mode`, `analytics_disabled`,
-`product_feedback_disabled`) and plugin entries with `source` and no `version`;
-2.1.301 sent a `system`/`commands_changed` message after `init`, 2.1.310 did not.
+`mcp_call_result_not_for_model_v1`; the same 13 again on 2026-10-29), 2.1.301
+sent 11, 2.1.292 sent 9. Read every key with `.get()`: 2.1.301 and 2.1.310 also
+sent undeclared keys (`original_cwd`, `memory_paths`, `view_mode`, …).
 `SandboxSettings.ignoreViolations` is now `dict[str, list[str]]` — a command
 pattern (`"*"` for all) to violation-text substrings, affecting reporting only;
 the Python docs page still shows the old `{file, network}` shape.
@@ -231,7 +227,9 @@ declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 <https://code.claude.com/docs/en/agent-sdk/custom-tools#control-tool-access>,
 <https://code.claude.com/docs/en/agent-sdk/permissions#allow-and-deny-rules>,
 <https://code.claude.com/docs/en/agent-sdk/configuration#load-settings-files>,
-<https://code.claude.com/docs/en/agent-sdk/agent-loop#turns-and-budget>,
+<https://code.claude.com/docs/en/agent-sdk/agent-loop#turns-and-budget> (the
+`max_turns` "+1" rule), <https://code.claude.com/docs/en/agent-sdk/configuration>
+(`set_model()` with no model),
 <https://code.claude.com/docs/en/agent-sdk/session-storage>,
 <https://code.claude.com/docs/en/permission-modes>,
 <https://code.claude.com/docs/en/permissions#network-paths>,
@@ -247,4 +245,6 @@ declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 2026-10-17 (CLI 2.1.301, 2.1.292) and 2026-10-24 (CLI 2.1.310). Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs, with
-every line number re-pinned to 0.2.174.
+every line number re-pinned to 0.2.174. The `max_turns=1` result was measured
+again 2026-10-29 (CLI 2.1.310); `[1m]` from the 2.1.311 changelog. Re-read
+2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

@@ -4,6 +4,15 @@ Anthropic ships an official plugin for the Agent SDK, `agent-sdk-dev`. This
 plugin references it and does not depend on it. That distinction is deliberate
 and worth understanding before you offer the handoff.
 
+**Where it lives now.** In October 2026 `anthropics/claude-code` removed all
+plugin code from its `plugins/` directory (only a README remains); Anthropic's
+plugins are developed in `anthropics/claude-plugins-official`, where
+`agent-sdk-dev` sits at `plugins/agent-sdk-dev` with an Apache-2.0 licence and,
+since 2026-10-26, an explicit version. The `claude-code-plugins` marketplace
+still lists it and installs it from there, so plugin ids are unchanged:
+`/agent-sdk-dev:new-sdk-app` keeps working. A user who asks how to install it
+can run `claude plugin install agent-sdk-dev@claude-plugins-official`.
+
 ## What `new-sdk-app` does
 
 It is an interview command. It asks what the agent should do, then writes a
@@ -33,9 +42,10 @@ evaluate it.
 
 1. A dependency would make this plugin fail to install when the other is
    unavailable, for a feature that is one optional step in one skill.
-2. `agent-sdk-dev` has been unchanged since 2025-10-17 and some of its docs
-   URLs point at hosts that now redirect. Depending on a stale artifact
-   inherits its staleness.
+2. `agent-sdk-dev` moves on its own schedule: its code changed little for a
+   year (unchanged from 2025-10-17 until a licence file in 2026-02 and a version
+   in 2026-10), then moved repositories. Depending on it would tie this
+   plugin's install to that schedule.
 3. Nothing in this plugin's flow requires it. Every check works on an agent
    written by hand, by Cursor, or by that plugin.
 
@@ -83,4 +93,10 @@ Sources: `.claude-plugin/plugin.json` (no `dependencies` entry, asserted by
 info); https://code.claude.com/docs/en/claude-code/plugins (plugin
 installation, `claude plugin list`);
 https://code.claude.com/docs/en/claude-code/plugins-reference (manifest schema
-and the `dependencies` field this plugin deliberately omits).
+and the `dependencies` field this plugin deliberately omits);
+`anthropics/claude-code` at `58d6da1` (`plugins/README.md`: plugins are developed
+in `claude-plugins-official`, the `claude-code-plugins` marketplace installs them
+from there); `anthropics/claude-plugins-official` `plugins/agent-sdk-dev`
+(commits of 2026-02-20, licence, and 2026-10-26, explicit versions), checked
+2026-10-29. Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code
+2.1.312 docs.

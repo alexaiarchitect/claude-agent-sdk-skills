@@ -48,7 +48,12 @@ Two differences matter:
   results sorted by timestamp, then the reply.
 
 `version` in a session file is the CLI version, which may differ from the CLI
-bundled with the SDK the runner used; both are reported.
+bundled with the SDK the runner used; both are reported. Before **2.1.311**,
+`claude -p` and SDK sessions could save transcript messages **out of order** or
+keep messages that were taken back; a session file written by an older CLI
+(the 0.2.174 wheel bundles 2.1.310) can therefore disagree with the live
+message stream. Prefer the runner's trace, which records the stream as it came,
+and order a session file by its `parentUuid` graph, never by line position.
 
 ## Capturing fresh evidence (spends)
 
@@ -66,4 +71,6 @@ session file in `.dev/VERIFIED-FACTS.md`; session storage per
 `https://code.claude.com/docs/en/agent-sdk/python` (`ResultMessage.is_error`);
 the parallel-call shape per the claude-agent-sdk-python `CHANGELOG.md` (0.2.170)
 and `_internal/sessions.py`;
-re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs;
+the transcript-order fix per the Claude Code `CHANGELOG.md` (2.1.311). Re-read
+2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

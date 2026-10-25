@@ -80,6 +80,14 @@ on the platform price list, and the CLI 2.1.310 bundled with
 bundled with 0.2.165 charged **$0.20/Mtok** (measured 2026-10-11). A cache-heavy
 estimate recorded on the older CLI therefore halves on the newer one.
 
+**Budget for repeats across days.** Anthropic's infrastructure-noise study
+(2026-02-05) recommends running shared evals at several times and on several
+days, and treating differences under 3 percentage points as noise until the
+configuration is documented and matched. Repeats multiply cost linearly: a
+20-case suite at `--runs 3` on five nightlies is 300 sessions, plus judge calls.
+Spend that on the cases whose verdict decides something, and keep the cheap
+`pr` tier at one run. The estimate this skill prints is still an estimate.
+
 ---
 
 Sources: `https://code.claude.com/docs/en/agent-sdk/cost-tracking` (estimates,
@@ -91,3 +99,7 @@ percentages); measurements in `.dev/VERIFIED-FACTS.md`. Re-read 2026-10-11
 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; the session
 arithmetic and the `runs` precedence re-checked 2026-10-13 against `cli.py`;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+<https://www.anthropic.com/research/infrastructure-noise> ("Infrastructure noise
+in agentic coding evals", 2026-02-05, repeats across times and days, the 3-point
+threshold). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code
+2.1.312 docs.

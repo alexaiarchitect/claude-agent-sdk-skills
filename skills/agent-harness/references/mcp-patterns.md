@@ -56,6 +56,41 @@ async def reserve_book(args: dict[str, Any]) -> dict[str, Any]:
   Claude reads, not whether the query fails.
 - Prefer returning `{"is_error": True}` with a sentence the model can act on
   over raising: an exception's message reaches Claude as raw text.
+- Annotations: `readOnlyHint`/`idempotentHint` decide which HTTP calls are
+  retried (2.1.307). `destructiveHint: true` matters to the TypeScript
+  `permission_policy: "always_ask"` (TypeScript-only, v0.3.301+): under `auto`
+  or `plan` set it explicitly so those calls still reach `canUseTool`, because
+  unset counts as `false` there. In Python the hint is advisory; gate a
+  destructive tool with `can_use_tool` or a `PreToolUse` hook.
+
+### Writing the tools themselves
+
+Anthropic's tool-writing guidance (2025-09-11) in brief, with the current
+mechanics from the docs:
+
+- **Few, deliberate tools.** Search over list (`search_contacts`, not
+  `list_contacts`); consolidate a multi-step operation into one tool
+  (`schedule_event` instead of list-users + list-events + create-event); give
+  each tool one clear purpose — overlapping tools are the commonest failure.
+- **Namespace by service and resource** (`library_books_search`,
+  `library_loans_create`): the `mcp__<server>__` prefix separates servers, not
+  resources within one.
+- **Return high-signal fields** (names over opaque UUIDs) and offer a
+  `response_format` enum (`"concise"`/`"detailed"`) when IDs are only sometimes
+  needed. Claude Code limits MCP output to **25,000 tokens** by default
+  (`MAX_MCP_OUTPUT_TOKENS`; text over 50,000 characters is saved to a file), so
+  paginate, filter or truncate with defaults, and when you truncate say how to
+  narrow the next call.
+- **Actionable errors** (what to change, an example of valid input) and
+  **unambiguous parameter names** (`user_id`, not `user`).
+
+The code-execution alternative (2025-11-04): present servers as code APIs the
+agent calls from scripts, so definitions load on demand and intermediate data
+stays out of the window — the article cites one workflow dropping from 150,000
+to 2,000 tokens — at the price of running agent-written code in a sandbox with
+resource limits and monitoring (`secure-deployment.md`). The SDK's built-in
+partial answer is tool search (`ToolSearch`, deferred tool loading). For a design
+review of a tool set, `/agent-sdk:agent-design`.
 
 ### Errors and status
 
@@ -113,7 +148,7 @@ negotiates it but omits `resultType`, `ttlMs` or `cacheScope` showed no tools
 until the 2.1.302 fix. A `"failed"` HTTP or SSE server can now reconnect on its
 own in the background.
 
-Fixes since then that an SDK agent can feel (Claude Code 2.1.305–2.1.310):
+Fixes since then that an SDK agent can feel (Claude Code 2.1.305–2.1.311):
 
 - a server passed with the SDK's `setMcpServers` (TypeScript; the Python
   client has no such call at 0.2.174) is no longer replaced later in the session
@@ -127,7 +162,16 @@ Fixes since then that an SDK agent can feel (Claude Code 2.1.305–2.1.310):
 - a call that times out in a non-interactive session while the server's
   elicitation goes unanswered now tells Claude "that no answer came and not to
   repeat the call" (2.1.310) — an unattended agent cannot answer elicitations,
-  so mock such a tool rather than wait.
+  so mock such a tool rather than wait;
+- subagents can use MCP tools from servers that finish connecting after the
+  subagent started (2.1.311).
+
+**Skipped servers are reported.** An `--mcp-config` entry that fails config
+validation is absent from `mcp_servers` and listed in `mcp_server_errors`
+(`name`, `type` such as `unknown_type`/`invalid_config`/`reserved_name`,
+`message`) in `-p --output-format json` output — the key is omitted when empty,
+so a CI gate can fail on a non-empty array — and in stream-json runs in the
+`system/init` event's `mcp_server_errors` field.
 
 A `claude -p` run does not wait for MCP work in the background when it ends: a
 remote MCP task goes on (resume the session to follow it), and the result of a
@@ -164,7 +208,16 @@ list. A server that has not connected is simply absent from that list — read
 Sources: <https://code.claude.com/docs/en/agent-sdk/mcp> (naming, transports,
 allowing tools, connection timing, error handling),
 <https://code.claude.com/docs/en/agent-sdk/custom-tools> (the `@tool`
-contract, content types, error handling);
+contract, content types, error handling, annotations, TypeScript-only
+`permission_policy` and `destructiveHint`),
+<https://code.claude.com/docs/en/mcp> (output limits, `mcp_server_errors` in
+`system/init`), <https://code.claude.com/docs/en/headless> (`mcp_server_errors`);
+<https://www.anthropic.com/research/writing-tools-for-agents> ("Writing effective
+tools for AI agents", 2025-09-11, search over list, consolidation, namespacing,
+`response_format`, truncation, actionable errors, parameter names);
+<https://www.anthropic.com/research/code-execution-with-mcp> ("Code execution
+with MCP for efficient agents", 2025-11-04, the code-API trade-off and its
+150,000→2,000-token example);
 `claude-agent-sdk` 0.2.174 `__init__.py:267` (`SdkMcpTool`), `:277` (`tool`),
 `:477-515` (content-item handling), `:517` (`create_sdk_mcp_server`),
 `types.py:1218` (`ToolResultBlock`), `:2365` (`mcp_servers`), `:2373`
@@ -177,9 +230,11 @@ contract, content types, error handling);
 (`CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 rule
 scoping and protocol negotiation, 2.1.302 fix, 2.1.305, 2.1.307, 2.1.309 and
-2.1.310 MCP entries), <https://code.claude.com/docs/en/headless> ("MCP work when
-a non-interactive run ends").
+2.1.310 MCP entries, 2.1.311 late-connecting servers),
+<https://code.claude.com/docs/en/headless> ("MCP work when a non-interactive run
+ends").
 The `is_error is None`, ambient-connector and `tools=["Read"]` observations were
 measured by this plugin on 2026-09-30. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

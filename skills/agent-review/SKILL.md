@@ -17,7 +17,9 @@ description: >-
   an agent you did not write. Don't use for eval case quality (use
   `/agent-sdk:eval-review`), a run that misbehaved (use `/agent-sdk:agent-debug`),
   designing hooks or MCP servers rather than checking them (use
-  `/agent-sdk:agent-harness`), or hosting readiness (use `/agent-sdk:agent-deploy`).
+  `/agent-sdk:agent-harness`), hosting readiness (use `/agent-sdk:agent-deploy`),
+  or whether the tool set and subagent split are well designed (use
+  `/agent-sdk:agent-design`).
 argument-hint: "[project-dir]"
 allowed-tools: Read, Grep, Glob, AskUserQuestion, Skill, Bash(python3 *)
 ---

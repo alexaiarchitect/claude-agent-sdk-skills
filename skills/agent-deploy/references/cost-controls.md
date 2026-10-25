@@ -11,7 +11,10 @@ Four of them, in the order they bite.
 
 ## 1. `max_turns`
 
-The turn ceiling. Two things to know:
+The turn ceiling. Size it as the docs say: count each turn with tool calls, plus
+one for the final text-only response — without that extra turn the run ends with
+`error_max_turns` and no final response (measured 2026-10-29: `max_turns=1` with
+one tool call needed gave no answer at all). Two more things to know:
 
 - it is **not** a hard stop on assistant turns. Measured: `max_turns=1`
   produced `num_turns=2`, `subtype="success"` — a synthetic `StructuredOutput`
@@ -21,6 +24,11 @@ The turn ceiling. Two things to know:
 
 For an ephemeral container it is also what makes the container exit rather than
 loop.
+
+**Effort is a cost lever too.** Thinking tokens bill as output. Set `effort`
+per agent, or `CLAUDE_CODE_EFFORT_LEVEL` in `env`, which outranks the option;
+with nothing set, Opus 5.5, Sonnet 5.5 and Haiku 5.5 run at `medium` in Claude
+Code (`agent-harness/references/context-and-settings.md` has the order).
 
 ## 2. `max_budget_usd`
 
@@ -167,7 +175,14 @@ limit, carrying `status` (`allowed`, `allowed_warning`, `rejected`),
 `rate_limit_type` (`five_hour`, `seven_day`, `seven_day_opus`,
 `seven_day_sonnet`, `overage`), `utilization` and `resets_at`, plus a `raw`
 dict with per-window figures. Only `rejected` means work stopped;
-`allowed_warning` is information.
+`allowed_warning` is information. From 2.1.312 Claude Code's own messages call
+the `five_hour` window the "5-hour limit" (formerly "session limit"), so match
+on `rate_limit_type`, not on message text.
+
+A long session no longer dead-ends on context: from **2.1.311** a
+standard-context session whose request runs over 200K tokens compacts and
+continues, where it used to stop with "Usage credits required for 1M context" —
+a run that used to fail cheaply now keeps spending, so keep `max_budget_usd`.
 
 For the developer's own sessions, `/usage` now lists **Recommendations**, one
 per row, each starting with its share of recent usage (at least 10 %, as in
@@ -175,6 +190,9 @@ per row, each starting with its share of recent usage (at least 10 %, as in
 applies the ones Claude Code can. It is an interactive view, not something an
 SDK agent reads, but its rows name the same ambient costs (oversized
 `CLAUDE.md`, many MCP tools) that `setting_sources=[]` removes from an agent.
+From 2.1.311 `/usage` also shows **large prompt-cache misses** under "What's
+contributing to your limits usage?" — the same misses that make an SDK agent's
+`cache_creation_input_tokens` jump.
 
 ---
 
@@ -194,7 +212,9 @@ cache-read percentages),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
 limit), <https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom>,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.301
-usage-limit wait, 2.1.305 usage-limit recheck and `/usage` fixes).
+usage-limit wait, 2.1.305 usage-limit recheck and `/usage` fixes, 2.1.311 200K
+compaction and `/usage` cache misses, 2.1.312 "5-hour limit" wording);
+<https://code.claude.com/docs/en/model-config> (effort order and defaults).
 The 17x and 4x figures, the cumulative-cost behaviour, the
 `max_turns=1 → num_turns=2` result and the `RateLimitEvent` shape were measured
 by this plugin on 2026-09-30 on a Claude Max subscription with no API key set;
@@ -203,3 +223,4 @@ measured 2026-10-11 with `ANTHROPIC_API_KEY` set, and the $0.10/Mtok of the
 bundled CLI 2.1.301 on 2026-10-17 and of 2.1.310 on 2026-10-24. Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

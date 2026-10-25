@@ -53,7 +53,10 @@ find:
 * **`budget.max_turns` is not the option.** `max_turns=1` was measured
   producing `num_turns=2`. The grader compares `result.num_turns` against its
   own ceiling. To assert a limit actually *tripped*, use `terminal` with
-  `subtype: error_max_turns` or `terminal_reason: max_turns`.
+  `subtype: error_max_turns` or `terminal_reason: max_turns`. When a case sets
+  `max_turns`, count each turn with tool calls plus one for the final text-only
+  response; without that extra turn the run ends `error_max_turns` with no
+  final response, and every answer grader fails with it.
 * **`budget` token ceilings map to measured `usage` keys.** `max_input_tokens`
   → `usage.input_tokens`, `max_output_tokens` → `usage.output_tokens`. Cache is
   `cache_read_input_tokens` and `cache_creation_input_tokens`;
@@ -125,8 +128,10 @@ https://code.claude.com/docs/en/agent-sdk/python (`ResultMessage`,
 `ToolResultBlock`, `HookEvent`, `costBasis`),
 https://code.claude.com/docs/en/agent-sdk/hooks (`defer` and
 `stop_reason: "tool_deferred"`),
+https://code.claude.com/docs/en/agent-sdk/agent-loop (the `max_turns` "+1" rule),
 https://platform.claude.com/docs/en/about-claude/models/overview (Haiku 5.5's
 price). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
 SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
 Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

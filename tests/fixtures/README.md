@@ -37,14 +37,17 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `agents/deploy_ready/` | Dockerfile, compose, OTEL env, an API-key gateway pattern and `setting_sources=[]`; comes back clean from all three linters, so each deploy test plants exactly one defect in a copy. |
 | `agents/trap/` | A document-vault agent whose `release_document` mock succeeds for a sealed document while the system prompt forbids the call: separates "the agent refused" from "the backend refused". One adversarial case; its README says do not make the mock refuse. |
 | `agents/stale_runner/` | The `good` agent with a runner copy stamped `0.0.1` and a config declaring `0.0.1`: `DEP001` and `CFG050`; `install_runner.py` refuses without `--upgrade`. Its README says do not upgrade this fixture. |
+| `agents/tool_design/` | The `good` domain with every `DSG` design rule planted once: a `list_books` with no limit, a `lookup(id)` with a 12-character description, overlapping `find_book`/`search_books`, five un-namespaced tools on one server plus 27 literal `mcp__ils__*` names, a subagent prompt without an output format, no `max_turns`. `design_check.py` exits 1 with 6 warn + 2 info. Do not fix this file. |
 | `agents/ci_ready/` | Convention agent with two cases, a runner stub, `tests/test_evals.py` and two workflows: one generated and clean, one deliberately broken (`CI010`, `CI020`, `CI022`, `CI030`, `CI040`, `CI050`). Maturity L3 without shipped results, because `evals/results/` is gitignored. |
 | `bin/fake_sdk.py` | A fake "Python that has the SDK", so no test ever needs the real one. |
 | `cases/` | One case directory per failure mode, each the smallest thing that triggers exactly one finding: `valid` (clean), `broken_frontmatter` (EVC001), `bad_grader_type` (EVC010), `unknown_override` (EVC003), `not_overridable` (EVC004), `simulated_with_trajectory` (EVC040), `no_graders` (EVC060), `adversarial_lenient` (EVC041). |
 | `eval_configs/` | `pr.json` and `nightly.json` (clean), `judge_retiring.json` (CFG010), `no_isolation.json` (CFG041 + CFG042), `bad.json` (thirteen ids at once, on purpose), `invalid_json.json` (CFG002). |
 | `traces/*.trace.jsonl` | One run each, schema `agent-sdk-skills.trace/1`: `happy`, `loop`, `oscillation`, `stall`, `unknown_tool`, `budget_exceeded`, `max_turns`, `import_failed`, `structured_output`, `rate_limited`. Each produces exactly the failure signature its name claims. `two_models` is the odd one out: it is a whole measured run, not a shaped one. |
 | `sessions/one_turn.jsonl` | A real `claude -p` session file, scrubbed. The shape `load_session` must survive, and it has no cost line. |
+| `traces/max_turns_one.trace.jsonl` | One tool call under `max_turns=1`: `subtype: "error_max_turns"`, `stop_reason: "tool_use"`, `is_error: true`, `num_turns: 2`, no final text. Reports must name the "+1" sizing rule. |
 | `traces/refusal_success.trace.jsonl` | A refusal: `subtype: "success"` with `is_error: true` and `stop_reason: "refusal"`, whose text names a quota. Reports must call it a refusal, never an API error or a usage-limit hit. |
 | `traces/init_2_1_301.*`, `traces/init_2_1_310.*` | A measured `init` per bundled CLI (11 and 13 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). |
+| `sessions/escaped_chars.jsonl` | Two hand-written lines whose assistant text holds `\u0007`, `\u200b`, `\u007f` and `\u0085` escapes, the way Claude Code 2.1.311+ writes DEL, C1 and format characters. `load_session` must decode and keep them. |
 | `sessions/sdk_parallel_tools.jsonl` | One response that ran three tools in parallel: the transcript forks, and `load_session` must still emit every call, then every result, then the continuation. |
 | `sessions/sdk_with_tool.jsonl` | A real `entrypoint: "sdk-py"` session with three tool calls, scrubbed. It carries the `cost-state` and `system`/`stop_hook_summary` lines, which is what makes an imported cost testable. |
 | `results/series_5run/` | Three cases × five runs, with a judge grader that flips between runs — enough to tell pass@k from pass^k, and to show an `INFORMATIONAL` budget grader. |
@@ -135,6 +138,16 @@ shape the Python SDK docs (read at Claude Code 2.1.310) give for a refusal:
 **not** produced live (the measurement budget did not cover one); the SDK
 passes these fields through from the CLI unchanged, so the docs' shape is what a
 runner would record.
+
+**`traces/max_turns_one.trace.jsonl`** is the measured shape of a 2026-10-29
+live run (claude-agent-sdk 0.2.174, bundled CLI 2.1.310, `claude-haiku-5-5`, API
+key): `dontAsk`, `allowed_tools=["Read"]`, `max_turns=1`, a prompt that needs one
+Read. The CLI ran the Read, then stopped with `subtype: "error_max_turns"`,
+`stop_reason: "tool_use"`, `terminal_reason: "max_turns"`, `is_error: true`,
+`num_turns: 2`, `result` null and `errors: ["Reached maximum number of turns (1)"]`;
+the same prompt with `max_turns=2` succeeded. That is the docs' rule (agent-loop,
+read 2026-10-29): count each turn with tool calls plus one for the final
+text-only response. Paths, session id and uuids are placeholders.
 
 **`sessions/sdk_parallel_tools.jsonl`** is written by hand, ten lines, in the
 transcript shape the CLI writes for a response with parallel tool calls and that

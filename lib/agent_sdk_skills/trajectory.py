@@ -41,6 +41,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable, Sequence
 
 from . import SYNTHETIC_TOOLS
+from .budget import MAX_TURNS_PLUS_ONE
 from .graders import normalize_tool_name
 from .trace import TraceEvent, result_event, result_outcome, tool_calls
 
@@ -614,7 +615,8 @@ def _terminal(events: Sequence[TraceEvent]) -> list[Signature]:
             evidence=[f"num_turns={result.get('num_turns')}"], layer="budget",
             fix="the run was cut off, so its answer proves nothing: read it as inconclusive, "
                 "not as a content failure. Either the agent needs more turns or it is "
-                "looping — check for a `loop` signature before raising the limit.",
+                "looping — check for a `loop` signature before raising the limit. When "
+                "sizing max_turns, " + MAX_TURNS_PLUS_ONE + ".",
         ))
     if subtype == "error_max_budget_usd":
         out.append(Signature(

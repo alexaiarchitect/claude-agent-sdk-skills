@@ -95,6 +95,20 @@ meaning is given first.
   and on CLI 2.1.285–2.1.301 a headless session that fetches no feature flags
   lands in `auto`, where broad allow rules are dropped; 2.1.302 starts it in
   `default` (`OPT013`).
+- **Context engineering** — choosing which tokens reach the model each turn
+  (prompt, tools, retrieved data, history), treating the window as a finite
+  budget: compaction, notes kept outside the window, data loaded on demand.
+  `/agent-sdk:agent-design` reviews it.
+- **Progressive disclosure** — showing the model a short description first and
+  the full content only when it is needed: a skill's name and description up
+  front, its body on use; tool search loading tool definitions on demand.
+- **Fold (subagents)** — merging a subagent back into the main loop as skills
+  and tools, one at a time, keeping it a subagent only when the folded version
+  scores worse on the evals.
+- **Harness** (design sense) — everything around the model that runs the loop:
+  options, tools, hooks, permissions, compaction, the files a long run reads
+  and writes between sessions. In this plugin's file names it also means the
+  wiring `/agent-sdk:agent-harness` checks.
 
 ---
 
@@ -107,4 +121,14 @@ and `https://code.claude.com/docs/en/permissions` (the unset mode, mods). Re-rea
 The 2.1.302 unset-mode rule is stated at
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
-Claude Code 2.1.310 docs.
+Claude Code 2.1.310 docs. The four design terms follow
+<https://www.anthropic.com/research/effective-context-engineering-for-ai-agents>
+("Effective context engineering for AI agents", 2025-09-29, context engineering),
+<https://www.anthropic.com/research/equipping-agents-for-the-real-world-with-agent-skills>
+("Equipping agents with Agent Skills", 2025-10-16, progressive disclosure),
+<https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop>
+("Building agents: When to fold subagents into your main agent loop",
+2026-10-22, folding) and
+<https://www.anthropic.com/research/effective-harnesses-for-long-running-agents>
+("Effective harnesses for long-running agents", 2025-11-26, the harness).
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

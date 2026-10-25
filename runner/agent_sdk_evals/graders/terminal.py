@@ -15,6 +15,12 @@ abstains on one outright.
 deferred tool missing on resume (`stop_reason: tool_deferred_unavailable`) both
 set it on `subtype: success` (Python SDK docs, Claude Code 2.1.310). The
 `allow_error` check still applies to them; the failure message names which it was.
+
+When the run itself ended on the turn limit, the reason also states the
+documented sizing rule (`MAX_TURNS_PLUS_ONE`, docs agent-loop read 2026-10-29;
+measured the same day on CLI 2.1.310: one tool call under `max_turns=1` ends
+`error_max_turns` with `stop_reason "tool_use"`, `num_turns 2` and no final text).
+The verdict does not change.
 """
 
 from __future__ import annotations
@@ -23,6 +29,11 @@ from typing import Any
 
 from ..capture import result_outcome
 from . import Evidence, GraderResult, not_evaluated, verdict
+
+#: Kept word for word equal to `agent_sdk_skills.budget.MAX_TURNS_PLUS_ONE` (a test checks).
+MAX_TURNS_PLUS_ONE = ("count each turn with tool calls plus one for the final text-only "
+                      "response; without that extra turn the run ends `error_max_turns` with "
+                      "no final response (docs agent-loop, read 2026-10-29)")
 
 
 def grade_terminal(grader: Any, evidence: Evidence) -> GraderResult:
@@ -76,5 +87,7 @@ def grade_terminal(grader: Any, evidence: Evidence) -> GraderResult:
             problems.append("the result is flagged is_error and the grader does not set allow_error")
         observed.append("is_error=True")
 
-    return verdict(grader, not problems,
-                   ("; ".join(problems)) if problems else "terminal state as expected (" + ", ".join(observed) + ")")
+    reason = ("; ".join(problems)) if problems else "terminal state as expected (" + ", ".join(observed) + ")"
+    if result.get("subtype") == "error_max_turns" or result.get("terminal_reason") == "max_turns":
+        reason += "; the turn limit ended this run: when sizing max_turns, " + MAX_TURNS_PLUS_ONE
+    return verdict(grader, not problems, reason)

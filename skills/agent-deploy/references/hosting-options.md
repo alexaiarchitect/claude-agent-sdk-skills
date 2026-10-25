@@ -47,6 +47,32 @@ Ephemeral is the default answer. Reach for long-running only when the latency
 of a cold start is the problem, because everything else about it — pinning,
 eviction, memory growth — is harder.
 
+## Patterns from Anthropic's own agent infrastructure
+
+Two engineering write-ups describe how Anthropic hosts agents; they are design
+rationale, and the SDK mechanics that implement them are in the docs.
+
+- **Decouple the brain from the hands** (Managed Agents, 2026-04-08). Keep three
+  things apart: the **session**, a durable, append-only event log that lives
+  outside the context window; the **harness**, the loop calling Claude, kept
+  stateless so a crashed one resumes from the log by session id; and the
+  **sandbox**, called like any other tool through an `execute(name, input)`-style
+  interface, so a dead container is a retryable tool error rather than a lost
+  session. Provision sandboxes **lazily**, only when a tool call needs one (the
+  article reports large time-to-first-token gains). **Credentials never inside
+  the sandbox**: wire them into the resource at setup, or keep them in a vault
+  and reach external services through a proxy that adds them per call. In SDK
+  terms: a `SessionStore` (or the transcript under a per-session
+  `CLAUDE_CONFIG_DIR`) is the log, resume is `resume=<session_id>`, the egress
+  proxy holds the credentials (`secure-deployment.md`).
+- **Production lessons from the research system** (2025-06-13). Agents are
+  stateful and errors compound, so **resume from a checkpoint** where the error
+  happened rather than restart; tell the agent a tool is failing and let it
+  adapt; deploy with **rainbow deployments** — shift traffic gradually while old
+  and new versions both run, so in-flight sessions finish on the code they
+  started on; and keep **full tracing** of decisions and tool calls without
+  reading conversation contents (`observability-otel.md`).
+
 ## Provisioning
 
 | Concern | Starting point |
@@ -88,7 +114,20 @@ cases fixed in 2.1.300 — another reason to pin a CLI at least that new when a
 compaction cost: from 2.1.310 non-interactive sessions (`-p`, Agent SDK) use
 less memory compacting when the transcript file is very large, and 2.1.304 sends
 the first request after resuming a large compacted session sooner — size a
-long-running agent's container on a CLI at least that new.
+long-running agent's container on a CLI at least that new. From **2.1.311** a
+standard-context session whose request passes 200K tokens compacts and
+continues instead of stopping with "Usage credits required for 1M context".
+
+**Bedrock, Vertex, Foundry (from the changelog; `CLAUDE_CODE_MODEL_CATALOG` is
+not on the env-vars page read 2026-10-29).**
+From 2.1.311 Claude Code on those providers (and Mantle) loads model settings
+from a signed file on downloads.claude.ai; `CLAUDE_CODE_MODEL_CATALOG=off`
+turns that off, which an image without that egress needs. From 2.1.312 a model
+name Claude Code does not recognise there (a custom deployment name, an
+inference-profile ARN) gets the shorter system prompt even when it fronts
+Sonnet or Haiku; `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0` keeps the full prompt.
+These ship in CLIs newer than the 2.1.310 bundled with 0.2.174, so they apply
+only with `cli_path` pointing at a newer `claude`.
 
 ## Known limitations worth planning around
 
@@ -133,8 +172,16 @@ percentages); `claude-agent-sdk` 0.2.174
 (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300 gzip
 and resume fixes, 2.1.302 unset-mode default, 2.1.304 resume and 2.1.310
-compaction memory). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
+compaction memory, 2.1.311 200K compaction and `CLAUDE_CODE_MODEL_CATALOG`,
+2.1.312 `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT`);
+<https://www.anthropic.com/research/managed-agents> ("Scaling Managed Agents with
+stable interfaces", 2026-04-08, session log outside the context window,
+stateless harness, sandbox as a tool, credentials outside the sandbox, lazy
+provisioning); <https://www.anthropic.com/research/multi-agent-research-system>
+("How we built our multi-agent research system", 2025-06-13, resume from
+checkpoints, rainbow deployments, tracing without contents). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
 was measured by this plugin on 2026-10-11, the $0.10/Mtok of 2.1.301 on
 2026-10-17 and of 2.1.310 on 2026-10-24. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

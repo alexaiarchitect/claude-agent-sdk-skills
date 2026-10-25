@@ -68,7 +68,10 @@ subtype: success
 ---
 Proves the session finished its loop without erroring: the result message came
 back with `subtype: success` rather than `error_max_turns`,
-`error_during_execution` or `error_max_budget_usd`.
+`error_during_execution` or `error_max_budget_usd`. When you size the case's
+`max_turns`, count each turn with tool calls plus one for the final text-only
+response; without that extra turn the run ends with `error_max_turns` and no
+final response.
 
 It does not prove the agent did the work, or did it well. A run that answered
 "I cannot help with that" and stopped ends just as cleanly as one that did the

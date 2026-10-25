@@ -56,7 +56,7 @@ branch on them and a test may assert them.
 
 | Id | Severity | Trigger | Why |
 |---|---|---|---|
-| `OPT010` | warn | no `max_turns` | a loop has no ceiling. Note it is not a hard stop on assistant turns: measured, `max_turns=1` produced `num_turns=2`. Assert on `terminal_reason == "max_turns"` or `subtype == "error_max_turns"` |
+| `OPT010` | warn | no `max_turns` | a loop has no ceiling. Size it as the docs say: count each turn with tool calls, plus one for the final text-only response, or the run ends `error_max_turns` with no final response. It is not a hard stop on assistant turns: measured, `max_turns=1` produced `num_turns=2`. Assert on `terminal_reason == "max_turns"` or `subtype == "error_max_turns"` |
 | `OPT011` | warn | no `max_budget_usd` | nothing stops a run that goes wrong expensively. The cap counts subagent requests too, refuses to spawn more subagents, and ends the query with `error_max_budget_usd`. It is a **soft cap**: the running estimate can pass the value before the query stops, so leave headroom instead of setting the exact figure you can afford |
 
 ## Context and settings (`OPT02x`)
@@ -98,6 +98,7 @@ branch on them and a test may assert them.
 | Check | Why |
 |---|---|
 | result handling tests `is_error` or `subtype` without consulting `stop_reason` (on a `ResultMessage`, or `ResultError.data`) | a refusal or deferred-tool result reports `is_error=True` with `subtype="success"`. Branch on `stop_reason` first — `"refusal"` (the model declined), `"tool_deferred_unavailable"` (a deferred tool was gone on resume) — then `terminal_reason`, then `subtype`; a refusal's `terminal_reason` can read `"completed"` or `"api_error"`, so it is not an API error to retry. The docs' pattern: `if e.data.get("stop_reason") == "refusal":` before `elif e.terminal_reason == "api_error":`. `lint_agent.py` has no rule that reads result-handling code, so this one is a reviewer's |
+| design questions: are the tools well shaped (names, descriptions, parameters, list-versus-search, too many definitions), should a subagent exist at all or be folded into the main loop, will a long run outgrow its context | these are judgements about design, not wiring, and no `OPT`/`SUB` rule makes them. Hand them to `/agent-sdk:agent-design`, which reads the same source, reports `DSG0xx` findings with the Anthropic article and doc page behind each, and writes nothing |
 
 ## Subagents (`SUB0xx`)
 
@@ -146,3 +147,6 @@ against SDK 0.2.162 with bundled CLI 2.1.285; re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
 claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs, with the line numbers above
 re-pinned to 0.2.174 (`types.py` gained one line, at 2558, in 0.2.169).
+<https://code.claude.com/docs/en/agent-sdk/agent-loop#turns-and-budget> (the
+`max_turns` "+1" rule). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 /
+Claude Code 2.1.312 docs.

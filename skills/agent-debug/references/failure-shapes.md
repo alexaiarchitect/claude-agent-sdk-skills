@@ -26,6 +26,23 @@ denied without being told (check `permission_denials` on the result event and
 `PermissionRequest` hook events), an `output_format` the model could not
 satisfy, or `max_turns` reached mid-thought (`terminal_reason: max_turns`).
 
+Two stall shapes belong to **long-running** agents that work across several
+sessions (Anthropic's long-running harness article, 2025-11-26):
+
+- **Tried to do too much at once.** The agent attempts the whole job in one
+  session, runs out of context mid-feature, and the next session inherits
+  half-built, undocumented work. In the trace: a session ending on
+  compaction or a cap with edits but no commit or test run.
+- **Declared victory early.** A later session looks around, sees progress, and
+  says the project is finished while features are missing or untested. In the
+  trace: a confident final text after few tool calls, and no end-to-end check.
+
+Layer: **harness**, not prompt wording. The fix is structure the next session
+can read: a progress file and git history it reads first, a feature list (JSON,
+each feature marked passing only after testing) from which it picks **one
+feature per session**, and an end-to-end smoke test before new work. For the
+design itself, `/agent-sdk:agent-design`.
+
 ## unknown_tool
 
 A call to a name the agent does not have. In evals this is nearly always a
@@ -46,7 +63,10 @@ wrong in words the model can act on.
 `terminal_reason: max_turns` or `subtype: error_max_budget_usd`. Not a shape of
 its own: find the loop, oscillation or stall that consumed the budget. Note
 that `max_turns` is not a hard cap on `num_turns` (a cap of 1 measured two
-turns), so read the terminal reason, not the count.
+turns), so read the terminal reason, not the count. A cap sized to the tool
+calls alone is a classic `capped` run: count each turn with tool calls plus one
+for the final text-only response, or the run ends `error_max_turns` with no
+final response (measured again 2026-10-29).
 
 ## refusal
 
@@ -87,4 +107,10 @@ Sources: this plugin's `lib/agent_sdk_skills/trajectory.py`; result fields per
 `permission_denials`, `is_error` and the `stop_reason`-first order),
 `https://code.claude.com/docs/en/hooks` (`tool_deferred_unavailable` on resume),
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs;
-the `max_turns` measurement in `.dev/VERIFIED-FACTS.md`.
+the `max_turns` measurement in `.dev/VERIFIED-FACTS.md`;
+`https://code.claude.com/docs/en/agent-sdk/agent-loop` (the `max_turns` "+1"
+rule); <https://www.anthropic.com/research/effective-harnesses-for-long-running-agents>
+("Effective harnesses for long-running agents", 2025-11-26, the two long-run
+failure modes and the progress-file / feature-list / one-feature-per-session
+fix). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312
+docs.

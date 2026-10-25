@@ -52,6 +52,23 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/pass_at_k.py <project> --last 5 --k 1,3,5
 - **Missing from some runs**: a case was added between runs, or a run stopped
   early; the warning names them.
 
+## Before you believe a small difference
+
+Run-to-run variance is not only the model. Anthropic's infrastructure-noise
+study (2026-02-05) moved a benchmark 6 points by changing resource limits
+alone, and saw pass rates drift with the time of day. So, before calling a
+change an improvement or a regression:
+
+- the two result sets must share a **documented resource configuration**
+  (machine or container limits, concurrency, model id, SDK and CLI versions);
+- the samples should come from **several times and days**, not one burst
+  (`--last N` over a week of nightlies);
+- a difference **below 3 percentage points** is noise until both of the above
+  hold — the study's words: "leaderboard differences below 3 percentage points
+  deserve skepticism until the eval configuration is documented and matched".
+  With 10 runs a single flip is 10 points, so small suites need more runs, not
+  finer reading.
+
 ## Where the samples come from
 
 `results.samples_by_case` merges the runs inside each result file with the runs
@@ -62,4 +79,9 @@ three samples. `--last N` limits the directories read.
 
 Sources: this plugin's `lib/agent_sdk_skills/passk.py`; the pass@k estimator is
 the standard unbiased form; the pass@k versus pass^k distinction follows
-`https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents`.
+<https://www.anthropic.com/research/demystifying-evals-for-ai-agents>
+("Demystifying evals for AI agents", 2026-01-09, pass@k versus pass^k);
+<https://www.anthropic.com/research/infrastructure-noise> ("Infrastructure noise
+in agentic coding evals", 2026-02-05, resource configuration, repeats across
+times and days, the 3-point threshold). Re-read 2026-10-29 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

@@ -380,3 +380,13 @@ def test_a_genuine_error_subtype_is_still_an_api_error():
     events = _result_only(subtype="error_during_execution", stop_reason=None,
                           terminal_reason="api_error")
     assert kinds(detect_signatures(events)) == ["api_error"]
+
+
+def test_a_one_tool_call_turn_limit_names_the_plus_one_rule(traces):
+    """`max_turns=1` with one tool call: the measured 2026-10-29 shape."""
+    signatures = detect_signatures(load_trace(traces / "max_turns_one.trace.jsonl"))
+    assert "max_turns" in kinds(signatures)
+    terminal = next(s for s in signatures if s.kind == "max_turns")
+    assert terminal.layer == "budget" and "inconclusive" in terminal.fix
+    assert "plus one for the final text-only response" in terminal.fix
+    assert "num_turns=2" in terminal.evidence

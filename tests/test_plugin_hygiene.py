@@ -33,7 +33,7 @@ RUNNER_MODULES = sorted(RUNNER_ROOT.rglob("*.py"))
 EXPECTED_SKILLS = {
     "agent-sdk", "agent-create", "agent-review", "agent-debug", "agent-harness",
     "agent-deploy", "eval-create", "eval-criteria", "eval-review", "eval-run",
-    "eval-analyze", "eval-simulation", "eval-ci",
+    "eval-analyze", "eval-simulation", "eval-ci", "agent-design",
 }
 
 
@@ -183,6 +183,40 @@ def test_references_cite_the_current_docs_host(reference):
     text = reference.read_text(encoding="utf-8")
     assert "docs.claude.com/en/api/agent-sdk" not in text
     assert "docs.anthropic.com" not in text
+
+
+#: An Anthropic article citation: `anthropic.com/research|engineering/<slug>` or
+#: `claude.com/...` (never `code.claude.com`, which the scheme anchor excludes).
+ARTICLE_URL = re.compile(
+    r"https?://(?:www\.)?(?:anthropic\.com/(?:research|engineering)/|claude\.com/)[^\s`>)\"']+")
+ANY_URL = re.compile(r"https?://")
+DATED_PARENTHETICAL = re.compile(r"\(.*?20\d\d-\d\d-\d\d", re.DOTALL)
+
+
+@pytest.mark.parametrize("reference", REFERENCES, ids=lambda p: f"{p.parent.parent.name}/{p.name}")
+def test_article_citations_are_dated(reference):
+    """An article is a dated snapshot of someone's practice, not documentation:
+    every article URL in a `Sources:` footer carries `(…, YYYY-MM-DD, …)` before
+    the next URL, so a reader can tell how old the advice is."""
+    text = reference.read_text(encoding="utf-8")
+    undated = []
+    for start in [m.start() for m in re.finditer(r"Sources:", text)]:
+        footer = text[start:]
+        heading = re.search(r"\n#", footer)
+        footer = footer[:heading.start()] if heading else footer
+        for match in ARTICLE_URL.finditer(footer):
+            following = ANY_URL.search(footer, match.end())
+            segment = footer[match.end():following.start() if following else len(footer)]
+            if not DATED_PARENTHETICAL.search(segment):
+                undated.append(match.group(0))
+    assert undated == [], "cite as <URL> (\"Title\", YYYY-MM-DD, what it is cited for)"
+
+
+@pytest.mark.parametrize("reference", REFERENCES, ids=lambda p: f"{p.parent.parent.name}/{p.name}")
+def test_article_citations_use_the_research_path(reference):
+    """`anthropic.com/engineering/<slug>` now 308-redirects to
+    `anthropic.com/research/<slug>` (measured 2026-10-29); cite the canonical one."""
+    assert "anthropic.com/engineering/" not in reference.read_text(encoding="utf-8")
 
 
 # -- scripts ---------------------------------------------------------------

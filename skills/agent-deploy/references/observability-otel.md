@@ -70,11 +70,24 @@ the monitoring page now documents the `tool_decision` ones and those from 2.1.31
 | `tool_result`, `tool_decision` | `request_id` (the API request the call came from) | documented 2026-10-24 |
 | every event | `agent_id` (the subagent that raised it) and `parent_agent_id` (the agent that spawned or last resumed it; absent when that is the main session) | 2.1.310 |
 
-**`claude_code.safety_event` (2.1.307+)** is the one to alert on. It is "Logged
-when a check refuses a tool call or requires a permission prompt", and also when
-the sandbox's network proxy refuses a connection or request and when a hook
-blocks a result; it exports with the other events, no extra setting. Its
-attributes: `category` (`permission_rule`, `managed_policy`, `permission_mode`,
+**Alert on `claude_code.tool_decision`.** Its `decision` (`accept`, `reject`,
+`cancelled`) and `source` say who settled each call; two `source` values matter
+to an unattended agent: **`"config"`**, which Claude Code "also reports … when
+the permission prompt request itself fails" — a `can_use_tool` callback or
+`--permission-prompt-tool` returning an invalid result, or the input stream
+closing while the request is pending — and **`"user_abort"`**, which in Agent
+SDK and `-p` sessions "includes interrupting the turn while a `canUseTool` or
+`--permission-prompt-tool` permission request is pending" (treated as a
+reject). With `OTEL_LOG_TOOL_DETAILS=1` the event carries the command.
+
+**`claude_code.safety_event`: sent 2.1.307–2.1.311, no longer sent from
+2.1.312.** The 2.1.312 changelog says "Changed Claude Code to stop sending the
+`claude_code.safety_event` OpenTelemetry event"; the monitoring page read
+2026-10-29 still documents it, so the docs lag the changelog. Do not build a new
+alert on it; a collector fed by 2.1.307–2.1.311 sessions may still hold it. As
+history: it was "Logged when a check refuses a tool call or requires a
+permission prompt", also for sandbox network refusals and hook-blocked results,
+with attributes `category` (`permission_rule`, `managed_policy`, `permission_mode`,
 `hook`, `auto_mode_block`, `auto_mode_no_verdict`, `safety_check`,
 `static_analysis`, `sandbox_override`, `user_rejected`, `sandbox_network`,
 `sandbox_other`, `hook_review`, `other`), `decision` (`"accept"`, `"reject"`, or
@@ -84,15 +97,19 @@ attributes: `category` (`permission_rule`, `managed_policy`, `permission_mode`,
 `grant_scope`, `circuit_breaker` (`"dangerousRemoval"`, `"outsideReadsBlocked"`,
 `"claudeSettingsFile"`), `classifier_category` (with `OTEL_LOG_TOOL_DETAILS=1`),
 `hook_event`, `tool_class`, `tool_name`, `tool_source`, `permission_mode`,
-`tool_use_id`, `sandbox_violation_count`, `sandbox_enabled`. "The event's own
-attributes hold no command text, file paths, host names, or MCP server and tool
-names" — join on `tool_use_id` to a `tool_decision` (with
-`OTEL_LOG_TOOL_DETAILS=1`) for the command. For an unattended `dontAsk` agent,
-`reason_code "mode:dontAsk"` is the denied call nobody saw. Some calls have no
-safety event (the page lists them). The `claude -p --output-format json` result
-also gained a `safety_stops` count (measured 2026-10-24 on 2.1.310, `0`).
-Telemetry from Claude Desktop sessions behind a Claude apps gateway is no
-longer rejected when `OTEL_EXPORTER_OTLP_HEADERS` is set (2.1.307).
+`tool_use_id`, `sandbox_violation_count`, `sandbox_enabled`, and no command
+text. The `claude -p --output-format json` result's `safety_stops` count is a
+separate field and still present (measured `0` on 2.1.310 on 2026-10-24 and on
+2.1.312 on 2026-10-29). Telemetry from Claude Desktop sessions behind a Claude
+apps gateway is no longer rejected when `OTEL_EXPORTER_OTLP_HEADERS` is set (2.1.307).
+
+Three 2.1.312 details for dashboards: the `effort` attribute (on `api_request`
+and the cost counter) now names **the level in force**, not a newly picked level
+the model had not applied yet; `mcp_server.name` reports the real name of
+fixed-URL remote servers declared by plugins from the official Anthropic
+marketplace instead of `"custom"`; and the docs now state that when `prometheus`
+is the **only** metrics exporter, the `USD`, `tokens` and `s` units are omitted
+so the scrape stays valid (combined exporters keep them).
 
 A low `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` pushed `tool_use_id`,
 `tool_source` and `tool_parameters` off `tool_decision` before 2.1.302. The
@@ -194,7 +211,8 @@ catalog, enabling export, span names, trace linking, tagging, end-user
 attribution, sensitive-data flags),
 <https://code.claude.com/docs/en/monitoring-usage> (metric and event
 reference, traces beta, `claude_code.safety_event` attributes and categories,
-`tool_decision` `cancelled`, `request_id`, `agent_id`/`parent_agent_id`),
+`tool_decision` `cancelled`, `config`, `user_abort`, `request_id`,
+`agent_id`/`parent_agent_id`, Prometheus units),
 <https://code.claude.com/docs/en/agent-sdk/hosting#observability>,
 <https://code.claude.com/docs/en/env-vars>;
 <https://github.com/Arize-ai/openinference> (package
@@ -203,7 +221,8 @@ reference, traces beta, `claude_code.safety_event` attributes and categories,
 `a162e01` (Claude API and Managed Agents tracing);
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300–2.1.302
 event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default,
-2.1.307 `safety_event` and gateway headers fix);
+2.1.307 `safety_event` and gateway headers fix; 2.1.312 `safety_event` withdrawn,
+OTel `effort` value, `mcp_server.name`);
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (why telemetry-off sessions could start in `auto` before v2.1.302; "Default
 classifier model"), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
@@ -214,3 +233,4 @@ injection), `types.py:1669` (`ModelUsage`). The two-model `model_usage` and
 0.2.165 with bundled CLI 2.1.294; `safety_stops` on 2026-10-24 on CLI 2.1.310.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

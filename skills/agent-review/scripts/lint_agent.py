@@ -262,8 +262,10 @@ def main(argv: list[str] | None = None) -> int:
             report.add("OPT010", "warn", "limits",
                        "no max_turns, so a loop has no ceiling",
                        path=primary.path, locator=f"line {primary.lineno}",
-                       fix="set max_turns. Note it is not a hard stop on assistant turns: "
-                           "assert on terminal_reason == \"max_turns\" or subtype == "
+                       fix="set max_turns: count each turn with tool calls plus one for "
+                           "the final text-only response, or the run ends error_max_turns "
+                           "with no final response. It is not a hard stop on assistant "
+                           "turns: assert on terminal_reason == \"max_turns\" or subtype == "
                            "\"error_max_turns\", never on num_turns.",
                        source=SRC_AGENT_LOOP)
         if not primary.has("max_budget_usd"):

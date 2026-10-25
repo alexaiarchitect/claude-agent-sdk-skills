@@ -3,6 +3,44 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.2.0 — 2026-10-29
+
+Re-checked against `claude-agent-sdk` 0.2.174 with its bundled CLI 2.1.310
+(docs and changelog read at Claude Code 2.1.312); minimum supported SDK stays
+0.2.140. No SDK API change: no release since 0.2.174 (upstream `main` differs
+only in its bundled CLI string), `types.py` is byte-identical, and the 49
+options, 6 permission modes, 10 Python hook events and 21 `HookSpecificOutput`
+members (only `PreCompact` lacks one) are re-verified against the installed
+wheel. The minor version moves with the plugin's 0.2.0 release (new skill
+`/agent-sdk:agent-design`). The runner's reports changed, so a project copy at
+0.1.4 is reported as older (`DEP001`) and offered the upgrade.
+
+- **A turn-limit result states how to size `max_turns`.** The docs
+  (`agent-sdk/agent-loop`, read 2026-10-29) now say: count each turn with tool
+  calls plus one for the final text-only response; without that extra turn the
+  run ends `error_max_turns` with no final response. Measured the same day on
+  CLI 2.1.310: one tool call under `max_turns=1` ends `subtype
+  "error_max_turns"`, `stop_reason "tool_use"`, `is_error true`, `result` null,
+  `num_turns` 2, then `ResultError` from the iterator; with `max_turns=2` the
+  run succeeds with the answer. A `terminal` grader's reason now carries that
+  sentence (`graders/terminal.py`, `MAX_TURNS_PLUS_ONE`) whenever the run ended
+  on the turn limit; verdicts and outcome labels are unchanged. The plugin's
+  `RES010` finding and `max_turns` trajectory signature say the same.
+- **`\uXXXX`-escaped characters are tolerated.** From Claude Code 2.1.311,
+  `--output-format json`/`stream-json` write DEL, C1 and Unicode format
+  characters inside strings as `\uXXXX` escapes; the parsed values are
+  unchanged. Confirmed with tests: the capture and the trace replay loader
+  keep such characters through a round trip, and the plugin's session import
+  decodes them. No code change was needed.
+- `DOCS_READ_AT_CLI = "2.1.312"` records which Claude Code documentation the
+  runner's comments were read against (a test keeps it equal to the plugin's).
+- Documentation-only notes (no runner code depends on them): from 2.1.312,
+  prompt and agent hooks run at most 24 at a time per session, sub-agents
+  included, plus at most 12 that waited past their timeout (a `timeout` under
+  1 s counts as 1 s); and `claude_code.safety_event` is no longer sent (it was
+  sent 2.1.307–2.1.311). 2.1.311 also fixed `-p`/SDK transcripts being saved
+  out of order, which the plugin's session import already reorders.
+
 ## 0.1.4 — 2026-10-24
 
 Re-checked against `claude-agent-sdk` 0.2.174 with its bundled CLI 2.1.310

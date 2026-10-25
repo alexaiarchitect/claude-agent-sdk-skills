@@ -16,7 +16,10 @@ Four measured facts shape :func:`check_budget`, and each one is a bug if ignored
   to a turn.
 * **`max_turns` does not bound `num_turns`.** `max_turns=1` produced
   `num_turns=2`, `subtype="success"`. A `budget` grader's `max_turns` is its own
-  ceiling; asserting the option *tripped* is a `terminal` grader's job.
+  ceiling; asserting the option *tripped* is a `terminal` grader's job. To size
+  the option itself, count each turn with tool calls plus one for the final
+  text-only response (docs agent-loop, read 2026-10-29): one tool call under
+  `max_turns=1` ends `error_max_turns` with `num_turns=2` and no final response.
 * **The token keys are `*_input_tokens`.** `usage.cache_creation` is a nested
   dict of ephemeral TTL buckets, never a number — comparing it to an integer
   silently never fires.
@@ -53,7 +56,15 @@ from .report import Finding
 from .trace import TraceEvent, result_outcome
 
 _SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.174) + measured VERIFIED-FACTS §2.2"
-_SRC_TURNS = "measured: VERIFIED-FACTS §8.1 — max_turns=1 produced num_turns=2"
+_SRC_TURNS = ("measured: VERIFIED-FACTS §8.1 — max_turns=1 produced num_turns=2; "
+              "code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, Claude Code 2.1.312)")
+#: The documented "+1" rule for sizing `max_turns` (agent-loop page, read
+#: 2026-10-29; measured the same day on CLI 2.1.310: one tool call under
+#: `max_turns=1` ended `error_max_turns`, `stop_reason "tool_use"`, `num_turns 2`,
+#: `result None`; under `max_turns=2` it succeeded with the answer).
+MAX_TURNS_PLUS_ONE = ("count each turn with tool calls plus one for the final text-only "
+                      "response; without that extra turn the run ends `error_max_turns` with "
+                      "no final response (docs agent-loop, read 2026-10-29)")
 _SRC_COST = "measured: VERIFIED-FACTS §8.2 — total_cost_usd is a session running total"
 _SRC_RATE = "measured: VERIFIED-FACTS §9 — RateLimitEvent on every run at allowed_warning"
 _SRC_STOP = ("code.claude.com/docs/en/agent-sdk/python (ResultMessage.is_error, read at Claude "
@@ -629,7 +640,8 @@ def budget_findings(
             message=f"the turn limit stopped this run at num_turns="
                     f"{data.get('num_turns')}",
             path=path,
-            fix="read it as inconclusive: a cut-off run's answer proves nothing. Note that "
+            fix="read it as inconclusive: a cut-off run's answer proves nothing. When sizing "
+                "the option, " + MAX_TURNS_PLUS_ONE + ". Note that "
                 "num_turns can exceed the option's value without the limit tripping, so "
                 "assert the limit with a `terminal` grader, not a `budget` one.",
             source=_SRC_TURNS,

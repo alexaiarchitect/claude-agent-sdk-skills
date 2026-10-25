@@ -11,11 +11,11 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.1.4"
+__version__ = "0.2.0"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.1.4"
+RUNNER_VERSION = "0.2.0"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the
@@ -24,6 +24,8 @@ RUNNER_VERSION = "0.1.4"
 SDK_TARGET = "0.2.174"
 SDK_MIN_SUPPORTED = "0.2.140"
 CLI_BUNDLED_WITH_TARGET = "2.1.310"
+#: The Claude Code version whose documentation the references were read against.
+DOCS_READ_AT_CLI = "2.1.312"
 
 #: Model policy. Ids from platform.claude.com/docs/en/models/overview and
 #: .../about-claude/model-deprecations (read 2026-10-11). Four grades, in order
@@ -35,7 +37,7 @@ DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_JUDGE_MODEL = "claude-sonnet-5-5"
 MODEL_ENV_VAR = "CLAUDE_MODEL"
 CURRENT_MODELS = (
-    "claude-sonnet-5-5",            # $2/$10 per Mtok, 1M context, effort high
+    "claude-sonnet-5-5",            # $2/$10 per Mtok, 1M context; API default effort high, Claude Code default medium (2.1.312 docs)
     "claude-opus-5-5",              # $4/$20
     "claude-fable-5-1",             # $10/$50
     "claude-haiku-5-5",             # $0.10/$0.50; the `haiku` alias from CLI 2.1.293
@@ -92,7 +94,7 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: because it only applies when the agent leaves the field `None`:
 #: `permission_mode="dontAsk"`. With the mode unset the CLI picks it.
 #: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
-#: read at 2.1.310): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: read at 2.1.312): "In Claude Code v2.1.302 or later, `claude -p` and Agent
 #: SDK runs with no permission mode set start in Manual mode" (`default`;
 #: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
 #: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
@@ -136,7 +138,7 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.310): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.312): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
 #: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
 #: and any other value, which is an error reported in place of a model response.

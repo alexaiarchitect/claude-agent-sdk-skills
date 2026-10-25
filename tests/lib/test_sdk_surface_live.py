@@ -14,7 +14,10 @@ than re-asserted.
 Measured 2026-10-24 against `claude-agent-sdk` 0.2.174 (bundled CLI 2.1.310),
 installed in `../tmp/venvs/casdk-venv-0.2.174`: every answer below matched the
 pins, and every `types.py:<line>` the plugin cites is checked by
-:data:`TYPES_PY_LINES`. (History: the 2026-10-17 run against 0.2.168 / CLI
+:data:`TYPES_PY_LINES`. Re-run 2026-10-29 (docs read at Claude Code 2.1.312): no
+new release, `types.py` byte-identical, every answer unchanged; the `main`
+checkout in `../tmp/venvs/casdk-venv-main` (27858cb) reports CLI 2.1.312 and is
+read only, never asserted on. (History: the 2026-10-17 run against 0.2.168 / CLI
 2.1.301 and the 2026-10-11 run against 0.2.165 / CLI 2.1.294 matched the checks
 that existed then.)
 """

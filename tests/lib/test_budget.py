@@ -347,3 +347,35 @@ def test_an_error_in_place_of_a_response_still_reads_its_limit_wording():
               "terminal_reason": "api_error", "result_text": "API Error: usage limit reached"}
     assert usage_limit_from_result(result)["confidence"] == "likely"
     assert [f.id for f in budget_findings(result)] == ["RES011"]
+
+
+# -- the documented "+1" rule for max_turns (2026-10-29) ----------------------
+
+PLUS_ONE = "plus one for the final text-only response"
+
+
+def test_a_one_tool_call_run_under_max_turns_1_names_the_plus_one_rule(traces):
+    """Measured 2026-10-29 (CLI 2.1.310): one tool call under `max_turns=1` ends
+    `error_max_turns` with `stop_reason "tool_use"`, `num_turns 2`, no final text."""
+    result = result_event(load_trace(traces / "max_turns_one.trace.jsonl"))
+    assert (result.data["subtype"], result.data["stop_reason"], result.data["num_turns"],
+            result.data["result_text"]) == ("error_max_turns", "tool_use", 2, None)
+    findings = budget_findings(result)
+    assert [f.id for f in findings] == ["RES010"]
+    assert findings[0].severity == "warn"
+    assert PLUS_ONE in findings[0].fix and "error_max_turns" in findings[0].fix
+    assert "agent-loop" in findings[0].source
+
+
+def test_the_plus_one_sentence_is_the_documented_wording():
+    from agent_sdk_skills.budget import MAX_TURNS_PLUS_ONE
+    assert MAX_TURNS_PLUS_ONE.startswith("count each turn with tool calls plus one for the final "
+                                         "text-only response; without that extra turn the run "
+                                         "ends `error_max_turns` with no final response")
+    assert "read 2026-10-29" in MAX_TURNS_PLUS_ONE
+
+
+def test_a_budget_grader_on_the_one_tool_call_run_keeps_its_own_ceiling(traces):
+    result = result_event(load_trace(traces / "max_turns_one.trace.jsonl"))
+    assert check_budget(result, {"max_turns": 1}).status == STATUS_FAILED
+    assert check_budget(result, {"max_turns": 2}).status == STATUS_PASSED

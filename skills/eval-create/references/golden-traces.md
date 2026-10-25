@@ -90,9 +90,31 @@ prompt. Write the case by hand with the expectation you want, watch it fail,
 then fix the agent. A golden trace of a broken run is a test that asserts the
 bug.
 
+## How many, and from where
+
+Start small and real. Anthropic's fold-subagents article (2026-10-22) says
+"Even a set of 10 golden examples is enough to start" and adds two habits worth
+copying. **Run each task more than once**: failures are intermittent, and the
+break it describes appeared in one run out of two, so freeze a trace only after
+the case passes repeatedly. **Timestamp the important events** in production
+(a handoff, a tool failure, a user correction) so an interaction that is hard
+to reproduce can be found later and replayed as a targeted eval — here, a
+production session converted with `agent-debug/scripts/import_session.py` and
+frozen with `trace_to_case.py`.
+The Agent SDK write-up (2025-09-29) adds the source: build the set from real
+customer usage, and read the failures before the passes.
+
 Sources: `lib/agent_sdk_skills/trajectory.py` (`calls_from_events`, the match
 modes, `Call` normalization); `lib/agent_sdk_skills/trace.py` (`load_trace`,
 `load_session`, the `synthetic` flag); `.dev/CONTRACTS.md` §2.1, §5, §5.3 and
 §12.1 (`SYNTHETIC_TOOLS` including `ToolSearch`, and what an imported session
 carries); https://code.claude.com/docs/en/agent-sdk/python (`ToolUseBlock`,
-`ResultMessage`).
+`ResultMessage`);
+<https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop>
+("Building agents: When to fold subagents into your main agent loop",
+2026-10-22, ten golden examples, repeated runs, timestamped events replayed as
+targeted evals);
+<https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk>
+("Building agents with the Claude Agent SDK", 2025-09-29, evals from customer
+usage). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312
+docs.

@@ -545,7 +545,7 @@ def test_version_reports_all_three_versions():
     payload, code = cli_module.execute_version(argparse.Namespace(command="version", json=True))
     assert code == EXIT_OK
     assert set(payload) == {"runner_version", "sdk_version", "cli_version", "python"}
-    assert payload["runner_version"] == "0.1.4"
+    assert payload["runner_version"] == "0.2.0"
     assert payload["sdk_version"] == sdk.__version__
     assert payload["cli_version"] == "2.1.310", "the CLI version is read, never derived"
 

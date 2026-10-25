@@ -39,6 +39,7 @@ REREAD_NOTE = (
 #: either one shows the file was re-read in this sync or a later one.
 LATER_REREAD_NOTES = (
     "re-read 2026-10-24 against claude-agent-sdk 0.2.174 / claude code 2.1.310 docs",
+    "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.1.312 docs",
 )
 
 

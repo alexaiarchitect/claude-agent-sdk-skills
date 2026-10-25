@@ -42,7 +42,7 @@ the paragraph above defines.
   transcript's own script output does not contain is a fail; `CFG050` where
   `validate_cases.py` ran is not;
 - **both version strings** the script reported: `0.0.1` for the project's copy
-  and `0.1.4` for the other side of the mismatch. Which side `0.1.4` is
+  and `0.2.0` for the other side of the mismatch. Which side `0.2.0` is
   attributed to depends on the script: `DEP001` compares the copy against what
   the plugin ships, `CFG050` compares it against the config's `runner_version`
   field. Both framings are correct — judge the pair of versions and the id they

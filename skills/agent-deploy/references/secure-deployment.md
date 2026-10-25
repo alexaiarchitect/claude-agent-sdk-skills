@@ -21,6 +21,28 @@ allowlists on the client-supplied hostname without terminating TLS, so domain
 fronting can reach outside the list. If your threat model needs more, use gVisor
 or a VM, and a TLS-terminating proxy.
 
+**Both isolations, or neither counts.** Anthropic's sandboxing write-up
+(2025-10-20) puts the rule plainly: "effective sandboxing requires both
+filesystem and network isolation". Without network isolation a compromised
+agent exfiltrates what it can read (SSH keys); without filesystem isolation it
+rewrites its own configuration and escapes to the network. Its design: OS
+enforcement (bubblewrap on Linux, seatbelt on macOS) that covers every spawned
+subprocess, network only through a proxy **outside** the sandbox that enforces
+the domain list, and credentials (git, signing keys) **never inside** — a proxy
+verifies the scoped request and attaches the real token. Anthropic reports the
+sandbox cut permission prompts by 84 % in its internal use. So a sandbox with
+filesystem isolation turned off, or a container with open egress, is half a
+sandbox: treat it as such in a review.
+
+**Where wildcards work in `sandbox.filesystem` paths** (settings reference, read
+2026-10-29): on macOS `*`, `?` and `**` work in all four lists. On **Linux and
+WSL2**, `allowWrite`/`denyWrite` honour **only a trailing `/**`** (`~/build/**`
+equals `~/build`; `./src/*` matches only an entry literally named `*`), so write
+`./src` or one entry per path; `allowRead`/`denyRead` accept other wildcards only
+**after the first directory name** (`/**/*.pem` blocks nothing; write
+`/srv/**/*.pem` per top-level directory). A deny list that silently matches
+nothing is the failure to look for.
+
 ## Credentials: the proxy pattern
 
 The recommended shape is that **the agent never sees a credential**. A proxy
@@ -157,6 +179,10 @@ commands the settings exclude from the sandbox now ask before writing to its
 write-list paths when the sandbox is enabled but cannot run, with the
 unsandboxed fallback refused. From 2.1.310 `/sandbox` and the startup warning
 name Ubuntu's AppArmor user-namespace restriction when it stops bubblewrap.
+`CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1` stops a background session's in-flight
+shell commands and subagents when its supervisor restarts or updates it, instead
+of handing them to the next process; it concerns agent-view background
+sessions, not an SDK subprocess, which ends with its query.
 
 And none of it controls **egress**. A container with a shell can connect
 wherever its network policy allows. Apply per-tenant egress rules at the proxy —
@@ -189,14 +215,19 @@ note), <https://code.claude.com/docs/en/sandboxing#security-limitations>;
 `allowedProviders`), <https://code.claude.com/docs/en/permission-modes> (the
 HIPAA configuration and the mode-disabling settings),
 <https://code.claude.com/docs/en/permissions#network-paths>,
-<https://www.anthropic.com/engineering/how-we-contain-claude> ("How we contain
+<https://www.anthropic.com/research/how-we-contain-claude> ("How we contain
 Claude across products", 2026-10-12, for the containment model this checklist
-sits inside);
+sits inside); <https://www.anthropic.com/research/claude-code-sandboxing>
+("Making Claude Code safer with sandboxing", 2025-10-20, filesystem and network
+isolation both required, proxy and credentials outside the sandbox, the reported
+84 % fewer prompts);
 `claude-agent-sdk` 0.2.174 `types.py:2653` (`setting_sources`), `:2373`
 (`strict_mcp_config`), `:2380` (`permission_mode`),
 `_internal/session_resume.py:352-380` (credential handling and `apiKeyHelper`);
 <https://code.claude.com/docs/en/settings-reference> (variables ignored in
-project `env`, `sandbox.allowNestedUserNamespaces`),
+project `env`, `sandbox.allowNestedUserNamespaces`, "Where wildcards work in
+sandbox paths"), <https://code.claude.com/docs/en/env-vars>
+(`CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF`),
 <https://code.claude.com/docs/en/permission-modes> ("The mounted drive prompt"), <https://code.claude.com/docs/en/permissions#hook-approvals-in-plan-mode>,
 <https://code.claude.com/docs/en/env-vars> (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299,
@@ -204,4 +235,5 @@ project `env`, `sandbox.allowNestedUserNamespaces`),
 The list of what still loaded under `setting_sources=[]` was measured by this
 plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
 Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk
-0.2.174 / Claude Code 2.1.310 docs.
+0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk
+0.2.174 / Claude Code 2.1.312 docs.

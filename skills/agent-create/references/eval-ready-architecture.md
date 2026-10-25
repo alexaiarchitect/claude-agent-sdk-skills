@@ -77,6 +77,24 @@ Claude Code's default, which is not the same model on every machine or in every
 week, and a suite that silently changes model is a suite whose regressions are
 uninterpretable.
 
+## 6. A way for the agent, and the suite, to check the work
+
+Anthropic's Agent SDK write-up (2025-09-29) frames every agent as a loop of
+gather context → take action → **verify work** → repeat, and ranks the ways to
+verify from most to least robust. The same ladder decides which grader to write
+first:
+
+| Verification (article) | What it looks like | Runner grader |
+|---|---|---|
+| clearly defined rules, with the failed rule and the reason reported | a linter, a schema, an exact value, a file that must exist | the free graders: `file_exists`, `regex`, `structured_output`, `terminal`, `tool_used`, `tool_order`, `trajectory`, `no_tool`, `budget` |
+| visual feedback | a screenshot or render checked for layout | no built-in grader: have the agent write the render, then grade that file |
+| LLM as judge | another model grading fuzzy qualities such as tone | an `llm` grader with a rubric |
+
+The article calls the judge "generally not a very robust method" with a latency
+cost, so reach for it last and only where a rule cannot express the check. The
+same order serves the agent itself: an agent that can run the linter or the
+schema check on its own output catches mistakes before they compound.
+
 ## The readiness checklist, as the script reports it
 
 | Check | Finding when missing | Why it blocks evaluation |
@@ -101,4 +119,8 @@ https://code.claude.com/docs/en/agent-sdk/python (`ClaudeAgentOptions`,
 `setting_sources`, `strict_mcp_config`);
 https://code.claude.com/docs/en/agent-sdk/custom-tools (in-process `@tool`
 servers); https://code.claude.com/docs/en/agent-sdk/configuration (choosing a
-model).
+model); <https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk>
+("Building agents with the Claude Agent SDK", 2025-09-29, the agent loop and the
+rules → visual feedback → LLM-as-judge verification ladder); the runner's grader
+types in `.dev/CONTRACTS.md` and `eval-criteria/references/grader-catalog.md`.
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

@@ -561,3 +561,17 @@ def test_a_sequential_tool_session_keeps_its_order(fixtures):
     events = load_session(fixtures / "sessions" / "sdk_with_tool.jsonl")
     kinds = [e.type for e in events if e.type in ("tool_use", "tool_result")]
     assert kinds == ["tool_use", "tool_result"] * (len(kinds) // 2)
+
+
+def test_escaped_control_and_format_characters_decode_and_survive(fixtures):
+    r"""Claude Code 2.1.311 writes DEL, C1 and Unicode format characters inside
+    JSON strings as `\uXXXX` escapes (parsed values unchanged). The fixture holds
+    the escapes, not the raw bytes; the import must decode them and keep them."""
+    path = fixtures / "sessions" / "escaped_chars.jsonl"
+    raw = path.read_text(encoding="utf-8")
+    assert "\\u0007" in raw and "\\u200b" in raw and "\\u007f" in raw and "\\u0085" in raw
+    assert "\x07" not in raw and "​" not in raw, "the file carries escapes, not raw characters"
+    events = load_session(path)
+    assert not [e for e in events if e.type == "system" and e.get("subtype") == "_parse_error"]
+    texts = [e.get("text") for e in events if e.type == "assistant_text"]
+    assert texts == ["bell\x07 zwsp​ del\x7f nel\x85 done"]

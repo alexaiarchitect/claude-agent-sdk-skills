@@ -9,10 +9,12 @@ description: >-
   exists and what is missing, then routes to one focused skill. Use when the user
   says "agent sdk", "claude agent", "evaluate my agent", "eval cases", "graders",
   "trajectory", "pass@k", "LLM judge", "simulated user", "mock MCP", "hooks",
-  "permissions", "subagents", "deploy my agent", "session transcript", asks what
-  this plugin can do, or when the intent spans several of those. Don't use when
-  the request already names one task - go straight to `/agent-sdk:agent-create`,
-  `/agent-sdk:agent-review`, `/agent-sdk:agent-debug`, `/agent-sdk:agent-harness`,
+  "permissions", "subagents", "deploy my agent", "session transcript", "design
+  review", asks what this plugin can do, or when the intent spans several of
+  those. Don't use when the request already names one task - go straight to
+  `/agent-sdk:agent-create`, `/agent-sdk:agent-review`, `/agent-sdk:agent-debug`,
+  `/agent-sdk:agent-harness`, `/agent-sdk:agent-design` (design review: tool
+  design, context, whether to use subagents, long-running patterns),
   `/agent-sdk:agent-deploy`, `/agent-sdk:eval-create`, `/agent-sdk:eval-criteria`,
   `/agent-sdk:eval-review`, `/agent-sdk:eval-run`, `/agent-sdk:eval-analyze`,
   `/agent-sdk:eval-simulation` or `/agent-sdk:eval-ci`. Don't use for Claude Code
@@ -70,6 +72,7 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 | a review of agent code: entry point, options, model ids, secrets, legacy names | `/agent-sdk:agent-review` |
 | a fix for looping, stalling, wrong tools, flaky runs; a session file explained | `/agent-sdk:agent-debug` |
 | hooks, permissions, MCP servers, subagents, `setting_sources` designed or checked | `/agent-sdk:agent-harness` |
+| a design review: tool design, context use, whether a subagent should exist, long-running patterns | `/agent-sdk:agent-design` |
 | to host it: credentials, isolation, limits, telemetry, a Dockerfile | `/agent-sdk:agent-deploy` |
 | eval cases written, a trace turned into a trajectory grader, cases managed | `/agent-sdk:eval-create` |
 | to choose graders and budgets, write rubrics, set the judge and tiers | `/agent-sdk:eval-criteria` |
@@ -116,7 +119,8 @@ results, CI. Read down the columns and the next piece of work names itself.
 ## What to tell the user when they ask what this can do
 
 1. **Make** an app eval-ready: cases, config, a runner that lives in the project.
-2. **Review** the agent statically: entry point, options, model policy, hooks, MCP.
+2. **Review** the agent statically: entry point, options, model policy, hooks, MCP;
+   and its **design** — tools, context, subagents — against Anthropic's guidance.
 3. **Write** eval cases: happy path, edge, adversarial, memory, regression.
 4. **Grade** them: free graders per change, an LLM judge and pass@k nightly.
 5. **Run** them, locally or in CI, on your subscription or an API key, and read

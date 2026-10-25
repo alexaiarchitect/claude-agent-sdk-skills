@@ -1,8 +1,8 @@
 # `agent-sdk` — Claude Code skills for Claude Agent SDK agents and evaluations
 
-Thirteen skills for building, reviewing and evaluating agents written with the
+Fourteen skills for building, reviewing and evaluating agents written with the
 Claude Agent SDK (Python). Checked against `claude-agent-sdk` 0.2.174 with its
-bundled Claude Code 2.1.310; documentation read at 2.1.310.
+bundled Claude Code 2.1.310; documentation read at Claude Code 2.1.312.
 
 The premise: an agent's system prompt is a promise written in prose, and **eval
 cases are the only form of that promise a machine can check**. The SDK ships no
@@ -38,6 +38,7 @@ skill you want.
 | `/agent-sdk:agent-review` | review agent code statically: entry point, options, model policy, secrets, legacy SDK names |
 | `/agent-sdk:agent-debug` | triage looping, stalling, wrong tools, flakiness from a trace or a session file |
 | `/agent-sdk:agent-harness` | design and lint hooks, permissions, MCP servers, subagents, `setting_sources` |
+| `/agent-sdk:agent-design` | review the design: tool design, context use, whether a subagent should exist, long-running patterns |
 | `/agent-sdk:agent-deploy` | check hosting readiness: credentials, isolation, limits, telemetry |
 | `/agent-sdk:eval-create` | write eval cases; turn a reviewed trace into a trajectory grader; manage cases |
 | `/agent-sdk:eval-criteria` | choose graders and budgets, write rubrics, set the judge and tiers |
@@ -155,7 +156,10 @@ needs no network and no credentials.
 
 SDK behaviour is cited from `anthropics/claude-agent-sdk-python` (MIT) and the
 documentation at `code.claude.com`; the evaluation practices draw on Anthropic's
-engineering writing and the `skill-creator` grader design. See
+engineering writing and the `skill-creator` grader design. The design guidance
+(`/agent-sdk:agent-design` and the cross-links in the other skills) is grounded
+in 14 published Anthropic articles, paraphrased and cited with their dates — see
+[Cited Anthropic articles](THIRD_PARTY_NOTICES.md#cited-anthropic-articles). See
 `THIRD_PARTY_NOTICES.md` for every snapshot consulted. Fixtures use an original
 library-reservations domain; nothing from a non-redistributable source is
 included.

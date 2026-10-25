@@ -16,6 +16,10 @@ agent, because the result then depends on whose machine it ran on.
 | `[]` | none of the three |
 | not passed **but `skills` is set** | user and project only — set it explicitly to keep local |
 
+`"local"` reads `<cwd>/.claude/settings.local.json`, which "can also load from
+the repository's root" when `cwd` is inside a git repository; project
+`settings.json` loads from `<cwd>/.claude/` with no parent-directory fallback.
+
 ## The measurement
 
 Measured by this plugin on 2026-09-30, SDK 0.2.162 with bundled CLI 2.1.285, the
@@ -94,10 +98,10 @@ settings; only managed policy ranks higher. It is the way to supply one known
 configuration rather than to suppress the machine's.
 
 Compaction keys are a common reason to pass `settings`, so know their reach.
-`idleCompaction` (default `true`; Claude Code 2.1.299 added it to the terminal)
-compacts a 200K+ token conversation left idle about 54 minutes, just before its
-one-hour prompt cache expires — but only in an **interactive terminal session**
-that fetches feature flags, so an SDK run never idle-compacts.
+`idleCompaction` (default `true`) compacts a 200K+ token conversation left idle
+about an hour, before its one-hour prompt cache expires — but only in an
+**interactive terminal session**, the VS Code chat panel or the desktop app, and
+only when feature flags are fetched, so an SDK run never idle-compacts.
 `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` moves the 200000 threshold (floor
 100000), and `DISABLE_AUTO_COMPACT=1` now turns off idle compaction along with
 auto-compaction and overrides `autoCompactEnabled`. The `settings-reference`
@@ -112,7 +116,28 @@ Before 2.1.304 `200k` silently set a 100K window. A bare number is tokens:
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200` means 200 tokens (clamped to 100k), though
 `/autocompact 200` means 200,000. After a compaction Claude is sent the skill
 list again (2.1.304), and from 2.1.310 `-p` and Agent SDK sessions use less
-memory compacting a very large transcript file.
+memory compacting a very large transcript file. From **2.1.311** a
+standard-context session whose request runs over 200K tokens compacts and
+continues instead of stopping with "Usage credits required for 1M context", and
+Claude no longer sees stale `MEMORY.md`/`CLAUDE.md` right after an
+auto-compaction when those files were edited earlier in the session.
+
+## Context is a budget: compaction, notes, just-in-time loading
+
+Anthropic's context-engineering guidance (2025-09-29) frames the window as "a
+finite resource with diminishing marginal returns": recall degrades as tokens
+accumulate, so aim for the smallest set of high-signal tokens. Its long-horizon
+techniques map onto SDK knobs:
+
+| Technique (article) | In an SDK agent (docs) |
+|---|---|
+| compaction, prompt tuned for recall first, then precision; clearing old tool results is the lightest form | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` sets when; a `PreCompact` hook logs or adds what must survive; return less from your own tools |
+| structured note-taking outside the window (progress files, to-do lists) | memory files (`CLAUDE.md`, auto memory) loaded through `setting_sources`, or a notes file the agent reads at start |
+| just-in-time retrieval: keep paths and queries, load data with tools on demand | Read/Grep/Glob or a search tool rather than pasting documents into the prompt; skills load their body only when used |
+
+Tool-result clearing and the memory tool the article names are Claude Developer
+Platform (Messages API) features, not `ClaudeAgentOptions` fields. For a design
+review of context use, `/agent-sdk:agent-design`.
 
 Two settings keys arrived since the last read: `sandbox.allowNestedUserNamespaces`
 (2.1.305+, user or managed scope; lets sandboxed Linux/WSL2 commands create user
@@ -129,6 +154,18 @@ an SDK agent).
 | a coding tool running on a user's own machine | leave it unset; loading their `CLAUDE.md` is the feature |
 | an agent that genuinely needs project conventions | `["project"]`, and commit the `CLAUDE.md` it depends on so the dependency is visible |
 
+## Effort: which level a run gets
+
+Claude Code resolves effort in this order, the first that applies winning:
+(1) `CLAUDE_CODE_EFFORT_LEVEL`; (2) a level picked in the session (`/effort`,
+the `/model` picker, `applyFlagSettings()`); (3) `--effort` (the SDK's `effort`
+option); (4) settings — a saved per-model level or `effortLevel`, precedence at
+`modelSettings`; (5) the model default: `high`, except Opus 5.5, Sonnet 5.5 and
+Haiku 5.5 (`medium`) and Opus 4.7 (`xhigh`). `CLAUDE_CODE_EFFORT_LEVEL=auto` or
+`unset` sends no level, so the API default applies. A variable in `env` therefore
+beats the `effort` option. Bash subprocesses and hook commands see the level in
+force as `CLAUDE_EFFORT`.
+
 ## Where state lives when nothing is configured
 
 Three kinds of state sit on local disk and survive nothing:
@@ -140,7 +177,13 @@ Three kinds of state sit on local disk and survive nothing:
 | working-directory artifacts | the session's `cwd` |
 
 A `SessionStore` adapter mirrors **transcripts only** — not memory files, not
-artifacts. Those need a volume or an object-store sync of their own.
+artifacts. Those need a volume or an object-store sync of their own. To leave
+**no local transcript** from a fresh session, set `CLAUDE_CONFIG_DIR` to a new,
+private temp directory in `env` (a run resumed from the store already deletes
+its local copy). That directory holds no login, so a claude.ai sign-in or a user
+`apiKeyHelper` fails with `Not logged in`: pass `CLAUDE_CODE_OAUTH_TOKEN` from
+`claude setup-token` (model requests only — no claude.ai connectors in that
+run) or `ANTHROPIC_API_KEY` in `env`, or copy the config files in.
 
 ## Hooks and subagents from the filesystem
 
@@ -157,7 +200,11 @@ Sources:
 and its "What settingSources does not control" table,
 <https://code.claude.com/docs/en/agent-sdk/configuration#load-settings-files>,
 <https://code.claude.com/docs/en/agent-sdk/hosting#multi-tenant-isolation>,
-<https://code.claude.com/docs/en/agent-sdk/session-storage>,
+<https://code.claude.com/docs/en/agent-sdk/session-storage> (`CLAUDE_CONFIG_DIR`
+temp directory and its credentials),
+<https://code.claude.com/docs/en/model-config> (effort resolution order and
+defaults), <https://code.claude.com/docs/en/agent-sdk/claude-code-features>
+(`settings.local.json` from the repository root),
 <https://code.claude.com/docs/en/agent-sdk/migration-guide>
 (the 0.1.59 empty-list behaviour), <https://code.claude.com/docs/en/memory>;
 <https://code.claude.com/docs/en/env-vars> (the scrub table, and that `env`
@@ -167,10 +214,15 @@ values are not shell-expanded, `DISABLE_AUTO_COMPACT`,
 <https://code.claude.com/docs/en/model-config> (values and warnings for
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.304,
-2.1.305, 2.1.310 entries);
+2.1.305, 2.1.310, 2.1.311 compaction entries);
+<https://www.anthropic.com/research/effective-context-engineering-for-ai-agents>
+("Effective context engineering for AI agents", 2025-09-29, context as a finite
+resource, compaction tuned for recall then precision, note-taking, just-in-time
+retrieval);
 `claude-agent-sdk` 0.2.174 `types.py:2653` (`setting_sources`), `:2460`
 (`settings`), `:2373` (`strict_mcp_config`), `:2451` (`cwd`). The 17x cost figure
 and the list of what still loaded under `setting_sources=[]` were measured by
 this plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
 Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk
-0.2.174 / Claude Code 2.1.310 docs.
+0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk
+0.2.174 / Claude Code 2.1.312 docs.

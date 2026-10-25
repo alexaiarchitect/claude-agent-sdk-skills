@@ -18,19 +18,14 @@ error — it is simply never called (`HOK020`).
 | `PermissionRequest` | a call needs a permission decision | `tool_name`, `tool_input` | `decision` (a dict) |
 
 `PreCompact` is the only Python event with no `hookSpecificOutput` **type at
-all**; it uses the common fields only. `Stop` and `SubagentStop` gained one in
-0.2.166 (`StopHookSpecificOutput`, `SubagentStopHookSpecificOutput`:
-`hookEventName` plus `additionalContext`), and the dict shape is what the CLI
-reads, so it works on older SDKs too. **Blocking a stop is still a common
-field**: `decision: "block"` with `reason` sends the agent back to work;
-`continue_: False` with `stopReason` ends the turn; `systemMessage` shows the
-user a line. A check that demands `hookSpecificOutput` on `PreCompact`, or
-rejects it on `Stop`, is wrong.
+all**. `Stop` and `SubagentStop` gained one in 0.2.166 (`hookEventName` plus
+`additionalContext`; the dict shape works on older SDKs too). **Blocking a stop
+is still a common field**: `decision: "block"` with `reason` sends the agent
+back to work; `continue_: False` with `stopReason` ends the turn. A check that
+demands `hookSpecificOutput` on `PreCompact`, or rejects it on `Stop`, is wrong.
 
 `updatedToolOutput` has to match the tool's own output shape; a mismatch is
-rejected and the original output is kept. `WorktreeRemove` (a TypeScript-side
-event) is narrower than its name suggests: it fires only when a worktree that a
-`WorktreeCreate` hook created is being removed, not on every worktree teardown.
+rejected and the original output is kept.
 
 `permissionDecision: "defer"` is not a quieter deny, and it "requires
 non-interactive mode with the `-p` flag" (an interactive session ignores it, as
@@ -55,17 +50,12 @@ async def cb(input_data, tool_use_id, context) -> dict: ...
   — in Python a `HookContext` with one key, `signal`, documented as "reserved
   for future abort signal support. Currently always None."
 - **`return {}` means allow, unchanged.** It is the safest return there is.
-- **The common top-level fields are accepted on every event**, with or without
-  `hookSpecificOutput`: `continue_`, `stopReason`, `decision`, `reason`,
-  `systemMessage`, `suppressOutput`. `{"continue_": False, "stopReason": "..."}`
-  is how a hook halts a turn, and it is correct on `PostToolUse` as much as on
-  `Stop`. A checker that demands `hookSpecificOutput` from every non-empty
-  return is wrong about this.
+- **The common top-level fields are accepted on every event**: `continue_`,
+  `stopReason`, `decision`, `reason`, `systemMessage`, `suppressOutput`;
+  `{"continue_": False, "stopReason": "..."}` halts a turn on any event.
 - **Return `{"async_": True, "asyncTimeout": 30000}`** to let the agent proceed
-  without waiting. Note the trailing underscore: Python cannot use `async` as a
-  key name, and the SDK converts it on the wire (the same applies to
-  `continue_`). An async output cannot block, modify or inject anything — the
-  agent has already moved on — so it is for logging and metrics only.
+  without waiting (trailing underscore: the SDK converts `async_`/`continue_` on
+  the wire). An async output cannot block, modify or inject: logging only.
 
 ## Registering them
 
@@ -88,8 +78,8 @@ as matchers in settings files (exact string or regular expression), so an
 invalid pattern is a real error (`HOK003`). Omitting it fires on every
 occurrence of the event, which is what an audit hook wants.
 
-**Matchers on one event are dispatched concurrently**, not in sequence. A
-callback must not assume another has already run.
+**Matchers on one event are dispatched concurrently**: a callback must not
+assume another has already run.
 
 ## Concurrency, precedence and timeouts
 
@@ -102,11 +92,25 @@ callback must not assume another has already run.
 - Default timeout: **600 seconds** for most events, **30** for
   `UserPromptSubmit`. Set `timeout=` on the `HookMatcher` to change it.
 - What a timeout does depends on the event. On `PreToolUse`, an Agent SDK
-  callback that exceeds its timeout **blocks the tool call** and Claude gets an
-  error result naming the timeout; from 2.1.304 that timeout no longer replaces
-  another `PreToolUse` hook's deny reason. On `PostToolUse` the result is kept and the
-  turn continues. On `Stop`/`SubagentStop` the timed-out callback counts as no
-  decision, and the agent stops as if it had allowed.
+  callback that exceeds its timeout **blocks the tool call**: if every other
+  hook returned nothing or `allow`, the tool result tells Claude the hook did not
+  respond in time and the turn continues; another hook's deny still reaches
+  Claude with its reason. Before 2.1.210 the timeout was reported as a user
+  rejection, which left unattended sessions waiting for input. On `PostToolUse`
+  the result is kept. On `Stop`/`SubagentStop` the timed-out callback counts as
+  no decision, and the agent stops as if it had allowed.
+
+## `PreToolUse` `"ask"` in auto mode, and `SubagentHandback`
+
+In `auto` mode a hook's `"ask"` normally sends the call to the permission
+prompt, and the classifier does not decide it. Two kinds of call take another
+path: calls Claude Code's own checks flag too (writes to protected paths,
+commands asking to run outside the sandbox) can be **denied by the classifier
+before any prompt**; and **`SubagentHandback`** (the tool that delivers a
+subagent's report) gets no prompt and runs even if the classifier objects. To
+stop a handback, return `"deny"`: Claude Code tells the subagent, up to three
+times, that its report was not delivered; if you keep denying, the subagent ends
+without delivering it and the waiting conversation gets a note saying so.
 
 ## Command and `http` hooks: three outcomes, not two
 
@@ -120,10 +124,8 @@ is three outcomes:
 | Blocking error | exit **2** | the action is blocked and stderr goes back to the model |
 | Non-blocking error | any other exit code, or failing to start or to parse | the hook is ignored and the action proceeds — it **fails open** |
 
-Stdout parses as JSON only when the **entire** output is one JSON object. From
-Claude Code **2.1.295** that object may span several lines or be
-pretty-printed; output that is one JSON object per line is plain text unless one
-of those lines sets a field, in which case it is a parse failure.
+Stdout parses as JSON only when the **entire** output is one JSON object (from
+**2.1.295** it may be pretty-printed); JSON-per-line output is plain text.
 
 `onFailure` (**2.1.295+**) is the answer to the fail-open row: set it to
 `"block"` on a `command` or `http` hook and a failure — cannot start, an exit
@@ -140,8 +142,10 @@ these fields with `.get()` and imports the new names behind a version check.
 
 - Richer hook inputs: `prompt_id` (the UUID of the prompt being processed,
   matching the OpenTelemetry `prompt.id` attribute, absent until the first user
-  input) and `effort` (a `HookEffort`, `{level: str}`, the level for the current
-  turn after any downgrade) on every hook input; `duration_ms` on `PostToolUse`
+  input) and `effort` (a `HookEffort`, `{level: str}`: the effort setting when
+  the hook runs, a skill's, subagent's or `ultrathink` level included, or the
+  level that ran if the model lacks yours; `$CLAUDE_EFFORT` holds the same in
+  command hooks) on tool-context inputs; `duration_ms` on `PostToolUse`
   and `PostToolUseFailure` (tool execution time, excluding permission-prompt and
   hook time); `last_assistant_message`, `background_tasks`
   (`BackgroundTaskSummary`: shell, subagent, monitor or workflow) and
@@ -154,54 +158,45 @@ these fields with `.get()` and imports the new names behind a version check.
   `PostToolBatch`, `PermissionDenied` (`retry: bool`), `PreModelSwitch`,
   `PostModelSwitch`, `Elicitation`, `ElicitationResult`, `CwdChanged`,
   `FileChanged`, `WorktreeCreate`, `MessageDisplay` — so the type existing is
-  not the event existing, and `HOK020` still fires on all of them. Of the
-  existing classes, `SessionStart` gained `initialUserMessage`, `sessionTitle`,
-  `watchPaths`, `reloadSkills` and `UserPromptSubmit` gained `sessionTitle`,
-  `suppressOriginalPrompt`. (`"defer"` and `updatedMCPToolOutput` were already
-  in 0.2.165.)
-- `SystemInitData`, the documented shape of `SystemMessage.data` for
-  `system`/`init`, with a `capabilities` list for feature detection instead of
-  comparing `claude_code_version` (see `options-reference.md`).
+  not the event existing, and `HOK020` still fires on all of them.
+- `SystemInitData` (`system`/`init` data with a `capabilities` list; see
+  `options-reference.md`).
 
-`ClaudeAgentOptions`, the six permission modes, the five effort levels and the
-ten `HookEvent` literals are **unchanged**, so nothing above widens what you may
-register. From 0.2.169 the `include_hook_events` docstring says `SessionStart`
-and `Setup` hook events are emitted regardless of it: `False` does not suppress them.
+The ten `HookEvent` literals are **unchanged**, so nothing above widens what you
+may register. From 0.2.169 `SessionStart` and `Setup` hook events are emitted
+regardless of `include_hook_events`: `False` does not suppress them.
 
-## Claude Code changes that reach hook authors (2.1.299–2.1.310)
+## Claude Code changes that reach hook authors (2.1.299–2.1.312)
 
 - **`updatedInput` is validated like Claude's own input (2.1.300)** for
   `PreToolUse` and `PermissionRequest`: unknown keys are dropped, and input the
   tool rejects **denies the call**.
 - **`UserPromptSubmit` runs before a skill or slash command expands (2.1.299)**:
-  it sees the typed `/skill …` line, and a hook that blocks the prompt also stops
-  the skill's embedded shell commands. A skill's own front-matter
-  `UserPromptSubmit` hook first runs on the prompt after the one that invoked it.
+  it sees the typed `/skill …` line; blocking it also stops the skill's shell.
 - **A hook that cannot answer now refuses (2.1.299)**: an action a plugin hook
-  can block is refused when the hook cannot be handed it or cannot hand back its
-  answer; a tool that already ran has its result withheld.
-- **Hooks that start a background process**: a deny printed after the hook's
-  process exits is not read. Print the decision first and redirect the
-  background process's stdout and stderr, or the call is blocked with
+  can block is refused when the hook cannot be handed it or cannot answer.
+- **Hooks that start a background process**: print the decision first and
+  redirect the background process's output, or the call is blocked with
   `refusing to honor the suspect capture`.
-- **Windows and PowerShell fail closed (2.1.299, 2.1.309, 2.1.310)**: a
-  shell-form `PreToolUse`/`PermissionRequest` hook with no `shell` that fails
-  blocks the call; hooks run in PowerShell now block on exit 2 and no longer
-  fail open without Git for Windows (2.1.309), nor does a command that is only
-  quoted strings when Git Bash is missing (2.1.310). For a PowerShell guard set
-  `"onFailure": "block"` and `"shell": "powershell"`.
-- **At most 12 prompt or agent hooks of one event run at a time (2.1.302)**;
-  the rest wait, and each one's `timeout` starts when it starts. Agent hooks honour their `model` (2.1.300): aliases
-  such as `haiku` resolve, and an unavailable model falls back to the caller's
-  instead of allowing the action.
+- **Windows and PowerShell fail closed (2.1.299, 2.1.309, 2.1.310)**: a failing
+  shell-form `PreToolUse`/`PermissionRequest` hook blocks the call, also without
+  Git for Windows; for a PowerShell guard set `"onFailure": "block"`.
+- **Prompt and agent hooks run at most 24 at a time per session, sub-agents
+  included, plus at most 12 that have waited longer than their event's timeout;
+  a `timeout` under 1 second counts as 1 second** (changelog 2.1.312; from
+  2.1.302 the cap was 12 per event). The hooks page read 2026-10-29 still says
+  "If more than 12 of them are prompt or agent hooks, 12 of those run at once"
+  per event: the docs lag the changelog. Waiting hooks queue, and each one's
+  `timeout` starts when it starts. Agent hooks honour their `model` (2.1.300).
+- **`SubagentStop` fires once per subagent (2.1.311)**: before, it ran about
+  twice a minute for each running subagent. On older CLIs dedupe on `agent_id`.
 - **Skill hooks are capped per source (2.1.304+)**: the skills of one source
   (project, personal folder, each plugin) register at most 1,024 hooks and
   16,384 matcher characters per session; past it the debug log says
   `registers none of its hooks`.
-- **`@` mentions bypass `PreToolUse`**: a file referenced with `@` is inserted
-  without a tool call. A `Read` deny rule blocks the path;
-  `CLAUDE_CODE_DISABLE_FILE_MENTIONS=1` (2.1.299+, ignored in project and local
-  settings) makes Claude read it with its tools so the hooks run.
+- **`@` mentions bypass `PreToolUse`** (no tool call); a `Read` deny rule still
+  blocks the path, and `CLAUDE_CODE_DISABLE_FILE_MENTIONS=1` (2.1.299+) makes
+  Claude read it with its tools so the hooks run.
 
 ## The one thing hooks are uniquely good for
 
@@ -212,8 +207,7 @@ called for a tool already allowed by `allowed_tools`, by `acceptEdits` or
 tool call, use a `PreToolUse` hook.** That is also what this plugin's eval
 runner captures trace events from.
 
-Measured caveat: `include_hook_events=True` on its own emits nothing. A hook has
-to be registered as well, or the message stream carries no `HookEventMessage`.
+Measured: `include_hook_events=True` alone emits no `HookEventMessage`.
 
 ## Hooks in `.claude/settings.json`
 
@@ -222,6 +216,9 @@ same event names. They load only when `setting_sources` includes `project` (or
 `user`/`local` for those tiers). An eval with `setting_sources=[]` will not run
 them — usually correct, since a run that depends on the developer's settings
 file is not reproducible. `HOK030` reports the situation rather than judging it.
+Frontmatter hooks in a **project subagent** file run only after the workspace
+trust dialog was accepted for the folder the file came from, and "a `-p`
+session doesn't count as accepting it" — do not rely on them in a headless run.
 
 ---
 
@@ -232,10 +229,12 @@ JSON output, per-event sections),
 <https://code.claude.com/docs/en/agent-sdk/permissions#how-permissions-are-evaluated>,
 <https://code.claude.com/docs/en/hooks#hooks-that-start-a-background-process>,
 <https://code.claude.com/docs/en/hooks#failed-hooks-on-windows-without-git-bash>,
-<https://code.claude.com/docs/en/hooks#pretooluse> (`@` mentions, `"defer"`),
+<https://code.claude.com/docs/en/hooks#pretooluse> (`@` mentions, `"defer"`,
+`ask` in auto mode, `SubagentHandback`, `effort`, frontmatter-hook trust),
 <https://code.claude.com/docs/en/env-vars>,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299,
-2.1.300, 2.1.302, 2.1.304, 2.1.309, 2.1.310 entries), the SDK `CHANGELOG.md`
+2.1.300, 2.1.302, 2.1.304, 2.1.309, 2.1.310, 2.1.311 `SubagentStop`, 2.1.312
+hook cap entries), the SDK `CHANGELOG.md`
 (0.2.169); `claude-agent-sdk` 0.2.174 `types.py:284-297` (`HookEvent`, ten literals),
 `:299-509` (hook input types), `:511-725` (`hookSpecificOutput` per event),
 `:728-815` (`HookJSONOutput`), `:818` (`HookContext`), `:828`
@@ -248,3 +247,4 @@ without a registered hook" observation was measured by this plugin on
 `b6e9d12f` on 2026-10-11 and checked against the 0.2.174 wheel on 2026-10-24.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

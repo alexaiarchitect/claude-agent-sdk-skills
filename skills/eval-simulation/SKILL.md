@@ -2,7 +2,7 @@
 name: eval-simulation
 description: >-
   Builds the three levers that let a Claude Agent SDK eval suite test what a
-  plain prompt cannot: mocked MCP tools (evals/mocks/<server>/<tool>.md, derived
+  plain prompt cannot: mocked MCP tools (evals/mocks/SERVER/TOOL.md, derived
   from the agent's own @tool schemas), simulated users (a persona JSON with
   behaviour instructions and violation rubrics that judge the simulator, not the
   agent), and hook-based fault injection (deny, rewritten input, replaced

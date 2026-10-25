@@ -24,6 +24,10 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN_ROOT / "skills"
 
 NEW_NOTE = "re-read 2026-10-24 against claude-agent-sdk 0.2.174 / claude code 2.1.310 docs"
+#: A later sync may replace the note above with its own; either shows a re-read.
+LATER_REREAD_NOTES = (
+    "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.1.312 docs",
+)
 
 
 def flat(text: str) -> str:
@@ -113,7 +117,8 @@ REREAD = (
 
 @pytest.mark.parametrize("name", REREAD)
 def test_every_reference_re_read_in_this_sync_carries_the_new_note(name):
-    assert NEW_NOTE in flat((SKILLS / name).read_text(encoding="utf-8"))
+    text = flat((SKILLS / name).read_text(encoding="utf-8"))
+    assert any(note in text for note in (NEW_NOTE, *LATER_REREAD_NOTES))
 
 
 def test_no_reference_names_2_1_302_docs_without_the_2_1_310_re_read():
@@ -121,7 +126,8 @@ def test_no_reference_names_2_1_302_docs_without_the_2_1_310_re_read():
     offenders = []
     for path in SKILLS.rglob("*.md"):
         text = flat(path.read_text(encoding="utf-8"))
-        if ("2.1.302 docs" in text or "read at 2.1.302" in text) and "2.1.310" not in text:
+        if ("2.1.302 docs" in text or "read at 2.1.302" in text) \
+                and "2.1.310" not in text and "2.1.312" not in text:
             offenders.append(str(path.relative_to(PLUGIN_ROOT)))
     assert offenders == []
 
@@ -205,7 +211,9 @@ def test_no_removed_env_var_is_cited():
 
 
 def test_the_runner_stale_rubric_names_the_new_runner_version():
-    assert "0.1.4" in read("plugin-evals/runner-stale/graders/criteria.md")
+    # 0.1.4 at this sync; follows the current RUNNER_VERSION from 0.2.0 on.
+    from agent_sdk_skills import RUNNER_VERSION
+    assert RUNNER_VERSION in read("plugin-evals/runner-stale/graders/criteria.md")
 
 
 # -- lane B's assertions (2026-10-24) ----------------------------------------
@@ -236,7 +244,7 @@ LANE_B_PRESENT = (
      ("sent_back", "parent_agent_id", "otel_exporter_otlp_headers", "safety_stops")),
     ("skills/agent-deploy/references/cost-controls.md", ("/usage", "recommendations")),
     ("skills/agent-deploy/references/hosting-options.md", ("2.1.310", "less memory")),
-    ("skills/agent-review/references/model-policy.md", ("as of 2026-10-24", "between_tools")),
+    ("skills/agent-review/references/model-policy.md", ("between_tools",)),  # "as of" date moves each sync
     ("README.md", ("before v2.1.302, these runs could start in auto mode",)),
     ("THIRD_PARTY_NOTICES.md",
      ("0e89b298e771259378a6cd3734e00d323dff5703", "318b7e6ac4e726e88a4ad326214866a93c373b1b",

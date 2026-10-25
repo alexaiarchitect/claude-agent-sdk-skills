@@ -83,7 +83,26 @@ arrives: someone has the run that went wrong.
 A case that fits two categories is usually two cases. One behaviour per case is
 what makes a failure readable: when the case fails, its name is the diagnosis.
 
+## Where the first cases come from
+
+From **real usage**, not invention. Anthropic's Agent SDK write-up (2025-09-29)
+recommends building the test set from how customers actually use the agent and
+reading failures first; the fold-subagents article (2026-10-22) says "Even a set
+of 10 golden examples is enough to start". So: a handful of `happy` cases
+frozen from real requests, an `edge` or `regression` case for every failure you
+have read, then the restraint cases. Run each case more than once before
+trusting it (`runs:` above 1, or `--runs`): that article's fold broke a
+process in only one run out of two. Size is not the goal; a small set taken
+from traffic beats a large invented one.
+
 Sources: `lib/agent_sdk_skills/evalcase.py` (`CATEGORIES`, `EVC030`, `EVC031`,
 the restraint checks behind `EVC041`); `lib/agent_sdk_skills/coverage.py`
 (`shape`, the 20% adversarial target, `n_plus_one_gaps`); `.dev/CONTRACTS.md`
-§1 (the `category` key) and §2 (grader types per target).
+§1 (the `category` key) and §2 (grader types per target);
+<https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk>
+("Building agents with the Claude Agent SDK", 2025-09-29, the test set built from
+customer usage, read failures first);
+<https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop>
+("Building agents: When to fold subagents into your main agent loop",
+2026-10-22, ten golden examples to start, run each task more than once).
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

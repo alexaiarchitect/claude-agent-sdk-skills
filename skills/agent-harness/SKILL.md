@@ -16,8 +16,9 @@ description: >-
   subagent spend", or "why does my agent read my CLAUDE.md". Don't use for a
   whole-agent review (use `/agent-sdk:agent-review`), hosting, containers and
   credentials (use `/agent-sdk:agent-deploy`), mock MCP servers and fault
-  injection for evals (use `/agent-sdk:eval-simulation`), or diagnosing a run
-  that already happened (use `/agent-sdk:agent-debug`).
+  injection for evals (use `/agent-sdk:eval-simulation`), diagnosing a run
+  that already happened (use `/agent-sdk:agent-debug`), or to decide whether you
+  need subagents or how tools should be designed (use `/agent-sdk:agent-design`).
 argument-hint: "[project-dir]"
 allowed-tools: Read, Grep, Glob, Write, Edit, AskUserQuestion, Skill, Bash(python3 *)
 ---

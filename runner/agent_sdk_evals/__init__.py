@@ -44,6 +44,10 @@ DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_JUDGE_MODEL = "claude-sonnet-5-5"
 MODEL_ENV_VAR = "CLAUDE_MODEL"
 
+#: The Claude Code version whose documentation the references were read against
+#: (a test keeps it equal to the plugin library's copy).
+DOCS_READ_AT_CLI = "2.1.312"
+
 #: The plugin's model policy, copied here so a run can grade a model id without
 #: the plugin's library (a test asserts the four copies are equal). `CURRENT` are
 #: generally available; `DEPRECATED` map id -> a committed retirement date;
@@ -101,7 +105,7 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). With the mode
 #: unset the CLI picks it, and which one depends on its version and environment.
 #: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
-#: read at 2.1.310): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: read at 2.1.312): "In Claude Code v2.1.302 or later, `claude -p` and Agent
 #: SDK runs with no permission mode set start in Manual mode" (`default`;
 #: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
 #: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
@@ -143,7 +147,7 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.310): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.312): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
 #: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
 #: and any other value, which is an error reported in place of a model response.
@@ -194,7 +198,7 @@ __all__ = [
     "RUNNER_VERSION", "__version__",
     "SCHEMA_TRACE", "SCHEMA_RESULT", "SCHEMA_AGGREGATE", "SCHEMA_EVAL_CONFIG",
     "EXIT_OK", "EXIT_FINDINGS", "EXIT_USAGE", "EXIT_INCONCLUSIVE",
-    "DEFAULT_MODEL", "DEFAULT_JUDGE_MODEL", "MODEL_ENV_VAR",
+    "DEFAULT_MODEL", "DEFAULT_JUDGE_MODEL", "MODEL_ENV_VAR", "DOCS_READ_AT_CLI",
     "CURRENT_MODELS", "DEPRECATED_MODELS", "RETIRING_MODELS", "RETIRED_MODELS",
     "OPTION_NAMES", "RUNNER_OWNED_OPTIONS", "OVERRIDABLE_OPTIONS", "DEPRECATED_OPTIONS",
     "ISOLATION_DEFAULTS", "PERMISSION_MODES", "SETTING_SOURCES", "EFFORT_LEVELS",

@@ -17,8 +17,10 @@ of eight grades. The grade decides the finding, not the string.
 | `unknown` | anything else: a string that is not a Claude id at all — a typo, or another provider's name | none, but the review says it could not grade it |
 
 The lists live in `lib/agent_sdk_skills/__init__.py` and are re-pinned at each
-upstream sync from the deprecations page. **As of 2026-10-24** (no id, price or
-date changed since 2026-10-11):
+upstream sync from the deprecations page. **As of 2026-10-29** (no id, price or
+date changed since 2026-10-11). "Default effort" below is the Claude API's
+default from the models overview; Claude Code's own default differs for the 5.5
+family (next section):
 
 | Id | Status |
 |---|---|
@@ -30,6 +32,19 @@ date changed since 2026-10-11):
 | `claude-haiku-4-5-20251001` | retirement "not sooner than" 2026-10-15 → `retiring`. The date passed nine days ago with no announcement: the deprecations page still lists it **Active** with that date, so it stays `retiring` rather than `retired` until the page says otherwise |
 | `claude-opus-4-5-20251101` | retirement not sooner than 2026-11-24 → `retiring` |
 | every `claude-3-*`, `claude-opus-4-*` (4.0/4.1), `claude-sonnet-4-20250514` | `retired` |
+
+**Effort and names in Claude Code (docs read 2026-10-29).** When nothing sets
+effort, Claude Code uses `high` except on Opus 5.5, Sonnet 5.5 and Haiku 5.5
+(`medium`) and Opus 4.7 (`xhigh`); `CLAUDE_CODE_EFFORT_LEVEL` outranks the
+`effort` option (order in `agent-harness/references/context-and-settings.md`).
+So an agent on `claude-sonnet-5-5` with no `effort` runs at `medium` through the
+SDK although the API default is `high` — set `effort` if a comparison depends on
+it. From **2.1.311** model names drop the `[1m]` suffix where it has no effect
+(the 5.x models already run with 1M); the suffix is still accepted. From
+**2.1.312** automatic model switches after a flagged message also cover model
+names Claude Code does not recognise (custom deployment names);
+`CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK=1` turns those switches off, which keeps an
+eval on the model it configured.
 
 Haiku 5.5 is named as the cheap judge, not made the default: `DEFAULT_MODEL` and
 `DEFAULT_JUDGE_MODEL` both stay `claude-sonnet-5-5`, so a suite's scores stay
@@ -144,7 +159,12 @@ table; the parameter table for API version `2026-10-21`),
 <https://code.claude.com/docs/en/model-config#default-model-setting>,
 <https://code.claude.com/docs/en/agent-sdk/subagents#agentdefinition-configuration>,
 <https://code.claude.com/docs/en/agent-sdk/cost-tracking#break-down-usage-per-model>;
-<https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricing>;
+<https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricing>,
+<https://code.claude.com/docs/en/model-config> (effort resolution and Claude
+Code's per-model defaults, `[1m]` variants), <https://code.claude.com/docs/en/env-vars>
+(`CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK`),
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.311 `[1m]`
+suffix, 2.1.312 refusal fallback);
 `claude-agent-sdk` 0.2.174 `types.py:2425` (`model`), `:2431`
 (`fallback_model`), `:2728` (`effort`), `:1669` (`ModelUsage`), `:2172-2185`
 (`ThinkingConfig`). The cost table
@@ -155,4 +175,5 @@ set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165
 0.2.168 (bundled CLI 2.1.301) and on 2026-10-24 on SDK 0.2.174 (bundled CLI
 2.1.310). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs.
+2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code
+2.1.312 docs (model ids, prices and dates unchanged).

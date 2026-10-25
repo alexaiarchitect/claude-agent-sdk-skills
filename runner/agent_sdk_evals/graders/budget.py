@@ -5,7 +5,9 @@ Three measured corrections live here.
 * **`max_turns` is the grader's own ceiling, not the option's.** A run with
   `max_turns=1` reported `num_turns=2` and still succeeded, because the
   `StructuredOutput` round trip counts as a turn without tripping the limit. To
-  assert that the limit *tripped*, use a `terminal` grader.
+  assert that the limit *tripped*, use a `terminal` grader. To size the option,
+  count each turn with tool calls plus one for the final text-only response
+  (docs agent-loop, read 2026-10-29).
 * **The token keys are the SDK's, not the plan's.** `max_input_tokens` reads
   `usage.input_tokens`, `max_output_tokens` reads `usage.output_tokens`. Cache
   tokens have their own two ceilings. `usage.cache_creation` is a nested dict of

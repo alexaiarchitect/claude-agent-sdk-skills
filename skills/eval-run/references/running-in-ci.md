@@ -52,6 +52,25 @@ headroom.
 Anthropic's policy note applies: a subscription may not be offered to third
 parties' use of a product. A personal CI on a personal plan is your own use.
 
+## Record the machine, not just the score
+
+An agent eval is an end-to-end test of the run's environment too. Anthropic's
+infrastructure-noise study (2026-02-05) found that resource limits alone moved
+a coding benchmark by 6 percentage points, that tight limits kill runs that
+would have passed, and (anecdotally) that pass rates shift with the time of day.
+For a CI gate that means:
+
+- **write the resource configuration down and keep it fixed**: runner image,
+  CPU and memory limits, concurrency, model id, SDK version and bundled CLI
+  (the run's `init` event and `results/*/aggregate.json` carry the last three);
+- **repeat runs across different times and days** before trusting a small
+  movement — a nightly schedule does this for free, so compare a week of
+  nightlies, not two runs;
+- compare scores only between runs with matched configuration: the article
+  says "leaderboard differences below 3 percentage points deserve skepticism
+  until the eval configuration is documented and matched", and a suite of
+  twenty cases moves 5 points when one case flips.
+
 ## The other shape: `claude-code-action`
 
 `anthropics/claude-code-action@v1` runs Claude Code itself in a job and accepts
@@ -73,4 +92,8 @@ bundled CLI 2.1.294. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
 Claude Code 2.1.296 docs. The 2.1.302 unset-mode rule is stated at
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
-Claude Code 2.1.310 docs.
+Claude Code 2.1.310 docs. <https://www.anthropic.com/research/infrastructure-noise>
+("Infrastructure noise in agentic coding evals", 2026-02-05, resource
+configuration as an experimental variable, repeats across times and days, the
+3-point threshold). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude
+Code 2.1.312 docs.

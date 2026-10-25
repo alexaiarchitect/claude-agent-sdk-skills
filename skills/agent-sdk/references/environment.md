@@ -117,6 +117,10 @@ checked against — `claude-agent-sdk` **0.2.174** with its bundled Claude Code
 *newer* than that target. `ENV003` is never an error: a newer SDK is expected to
 work, and the note exists so a surprising behaviour can be attributed to the
 version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
+The documentation behind this plugin's references was read at Claude Code
+**2.1.312** (2026-10-29), two releases past the bundled 2.1.310: a behaviour a
+reference dates to 2.1.311 or 2.1.312 reaches an SDK agent only through
+`cli_path` pointing at a newer `claude`, or a later SDK release.
 
 ---
 
@@ -134,4 +138,5 @@ this plugin's `lib/agent_sdk_skills/env.py`,
 `https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` (2.1.302
 unset-mode default). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
 Claude Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
-Claude Code 2.1.310 docs.
+Claude Code 2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk 0.2.174 /
+Claude Code 2.1.312 docs (pins unchanged: no SDK release since 0.2.174).

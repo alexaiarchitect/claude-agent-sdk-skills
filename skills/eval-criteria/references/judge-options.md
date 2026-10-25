@@ -103,6 +103,31 @@ Pick deliberately. `CFG010` and `CFG011` catch the third case, which is the one
 that actually breaks: a judge model that is retiring, or already retired, so
 every judge call fails and every judged case reports `NOT_EVALUATED`.
 
+## What Anthropic's own judges taught
+
+Three published findings, as design guidance for the rubric and the judge set-up
+(the runner's call above is this plugin's own contract):
+
+- **One call, one rubric, a score and a grade.** Building its research system
+  (2025-06-13), Anthropic tried several specialised judges and found that "a
+  single LLM call with a single prompt outputting scores from 0.0-1.0 and a
+  pass-fail grade was the most consistent and aligned with human judgements".
+  The runner's PASS/FAIL verdict with a `reason` is that shape minus the score;
+  a rubric that names its criteria gets the rest. People still caught what the
+  judge missed there (a bias toward low-quality sources), so read a sample of
+  judged transcripts by hand (`/agent-sdk:eval-analyze`).
+- **Keep the evaluator separate from the generator, and expect leniency.** The
+  long-running-apps harness (2026-03-24) found agents praise their own mediocre
+  work; a standalone judge is lenient at first too, but "tuning a standalone
+  evaluator to be skeptical turns out to be far more tractable than making a
+  generator critical of its own work". That is the case for a separate judge
+  model, or at least a separate, skeptical rubric.
+- **Calibrate with examples.** The same article calibrated its evaluator with
+  few-shot examples carrying detailed score breakdowns, which aligned it with
+  the author's taste and reduced score drift across iterations. Put two or three
+  worked PASS/FAIL examples, with the reason for each, in a rubric that keeps
+  flipping.
+
 ## Where judge graders belong
 
 | Tier | Judges? | Why |
@@ -130,6 +155,13 @@ spec); https://code.claude.com/docs/en/agent-sdk/structured-outputs
 https://platform.claude.com/docs/en/about-claude/models/overview and
 https://code.claude.com/docs/en/model-config#haiku-5-5-context-window-and-pricing
 (Haiku 5.5's price, context window and the 2.1.293 alias);
-https://code.claude.com/docs/en/plugin-evals (the `--judge-model` default).
+https://code.claude.com/docs/en/plugin-evals (the `--judge-model` default);
+<https://www.anthropic.com/research/multi-agent-research-system> ("How we built
+our multi-agent research system", 2025-06-13, the single 0.0–1.0 rubric call with
+a pass/fail grade, human review still needed);
+<https://www.anthropic.com/research/harness-design-long-running-apps> ("Harness
+design for long-running apps", 2026-03-24, evaluator separate from generator,
+leniency, few-shot score breakdowns against drift).
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
 Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

@@ -32,6 +32,12 @@ line up. So:
 Writing `max_turns: 1` in a budget grader because the option says 1 produces a
 grader that fails every time.
 
+Size the **option** the way the docs now say: count each turn with tool calls,
+plus one for the final text-only response; without that extra turn the run ends
+with `error_max_turns` and no final response. Measured 2026-10-29: one needed
+tool call with `max_turns=1` ended `subtype: error_max_turns`, `stop_reason:
+tool_use`, `is_error: true`, `num_turns: 2`, no answer; with 2 it succeeded.
+
 ## Cost is a delta, and on a subscription it is an estimate
 
 `ResultMessage.total_cost_usd` is computed client-side from a bundled price
@@ -121,11 +127,13 @@ fields as measured); https://code.claude.com/docs/en/agent-sdk/python
 (`ResultMessage.usage`, `total_cost_usd`, `max_budget_usd`);
 https://code.claude.com/docs/en/agent-sdk/cost-tracking (what the figure
 counts), https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom
-(the soft cap),
+(the soft cap), https://code.claude.com/docs/en/agent-sdk/agent-loop (the
+`max_turns` "+1" rule),
 https://platform.claude.com/docs/en/about-claude/models/overview (cache-read
 percentages). `costBasis`, `thinkingTokens`, the two-model `model_usage` and the
 $0.20/Mtok cache read of the bundled CLI 2.1.294 were measured by this plugin on
 2026-10-11, the $0.10/Mtok of 2.1.301 on 2026-10-17 and of 2.1.310 on
 2026-10-24. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.

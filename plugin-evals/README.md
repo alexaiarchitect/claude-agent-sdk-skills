@@ -20,7 +20,9 @@ case can fail for a reason that is not in the plugin. From **2.1.299** a run tha
 ends on an API error scores 0 without grading and the suite exits 1 (before, such
 a run was graded on whatever it had produced), and `--disallow-tools <tools...>`
 keeps built-in tools such as `Agent` out of every case (listed in the 2.1.301
-help, and still in the 2.1.310 help on 2026-10-24). The changelog also names a `disallowed_tools` case field; it is not in
+help, still in the 2.1.310 help on 2026-10-24, and in the 2.1.312 help on
+2026-10-29, whose example now reads `Agent TaskStop`; nothing about `plugin
+eval` changed in 2.1.311 or 2.1.312). The changelog also names a `disallowed_tools` case field; it is not in
 the plugin-evals docs yet and no case here uses it until a local run has
 accepted it.
 
@@ -69,6 +71,9 @@ exceeded.
 
 ## What each case pins
 
+Thirteen cases. `design-review` arrived with the `agent-design` skill in 0.2.0;
+the other twelve are unchanged.
+
 | Case | Asserts |
 |---|---|
 | `routing-ambiguous` | a vague request goes to the router, which discovers before advising |
@@ -83,6 +88,7 @@ exceeded.
 | `case-validate` | a validation request reaches `eval-review`, runs the validator before pronouncing, and finds the planted `EVC003` |
 | `criteria-choice` | grader advice comes with cost on a subscription, and nothing is written unasked |
 | `create-edge-cases` | coverage is measured before cases are written, and no existing case is edited |
+| `design-review` | a tool-design and "should this be a subagent" question reaches `agent-design`, which runs its checker, names the `DSG` findings, decides fold-versus-keep by context, cites an article and the subagents doc, and writes nothing; measured 2026-10-29 on 2.1.312: with 1.0, without 0.667, Δ +0.333, $0.76 |
 
 ## Shared setup
 
