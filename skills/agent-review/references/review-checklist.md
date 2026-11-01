@@ -128,6 +128,14 @@ internal service). Ask a reviewer agent to tie each finding to a rule id or a
 concrete failure, and have a human review the **intent** of the change rather
 than re-litigating every line.
 
+**Keep a reviewer agent honest.** The Claude Code team posts an AI review finding only after a
+separate group of verifier agents votes it real, and scores its reviewer against an eval built
+from past incident and revert PRs plus PRs known to be clean, counting the reports that would
+have led to a harmful change (Osmani, Westlee Lunt, Wang, 2026-10-15; Claude Code's own
+process, not an SDK feature). For an agent that applies this checklist, that means a second
+pass that confirms each finding before it is reported, and a case set of reverted bugs and
+known-clean agents (`/agent-sdk:eval-create`).
+
 ---
 
 Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
@@ -162,7 +170,10 @@ re-pinned to 0.2.174 (`types.py` gained one line, at 2558, in 0.2.169).
 `max_turns` "+1" rule);
 <https://www.anthropic.com/research/redesigning-source-control> ("Redesigning
 source control at Anthropic", 2026-10-13, reviewer agents that over-engineer
-against hypothetical concerns; humans review intent). Re-read 2026-11-04 against
+against hypothetical concerns; humans review intent);
+<https://claude.dev/blog/solving-code-review-at-anthropic/> ("How the Claude Code team does
+code review", 2026-10-15, verifier agents that vote before a finding is posted, an
+incident-derived eval and known-clean inputs). Re-read 2026-11-05 against
 claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs, with the line numbers above
-re-pinned to 0.2.178 (`types.py` gained 13 lines for `on_failure`: +11 from line 855,
+re-pinned to 0.2.178 on 2026-11-04 (`types.py` gained 13 lines for `on_failure`: +11 from line 855,
 +13 from 2321).

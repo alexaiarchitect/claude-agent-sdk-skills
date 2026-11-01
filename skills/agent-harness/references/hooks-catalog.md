@@ -17,12 +17,11 @@ error — it is simply never called (`HOK020`).
 | `PreCompact` | compaction is about to run | — | **none** |
 | `PermissionRequest` | a call needs a permission decision | `tool_name`, `tool_input` | `decision` (a dict) |
 
-`PreCompact` is the only Python event with no `hookSpecificOutput` **type at
-all**. `Stop` and `SubagentStop` gained one in 0.2.166 (`hookEventName` plus
-`additionalContext`; the dict shape works on older SDKs too). **Blocking a stop
-is still a common field**: `decision: "block"` with `reason` sends the agent
-back to work; `continue_: False` with `stopReason` ends the turn. A check that
-demands `hookSpecificOutput` on `PreCompact`, or rejects it on `Stop`, is wrong.
+`PreCompact` is the only Python event with no `hookSpecificOutput` **type at all**. `Stop` and
+`SubagentStop` gained one in 0.2.166 (`hookEventName` plus `additionalContext`; the dict shape
+works on older SDKs too). **Blocking a stop is still a common field**: `decision: "block"` with
+`reason` sends the agent back to work; `continue_: False` with `stopReason` ends the turn. A
+check that demands `hookSpecificOutput` on `PreCompact`, or rejects it on `Stop`, is wrong.
 
 `updatedToolOutput` must match the tool's own output shape, or the original is kept.
 
@@ -64,17 +63,15 @@ options = ClaudeAgentOptions(
 )
 ```
 
-`HookMatcher` is a dataclass with four fields: `matcher: str | None`,
-`hooks: list[HookCallback]`, `timeout: float | None` and, from **0.2.177**,
-`on_failure: Literal["continue", "block"] | None` (next section; below 0.2.177
-passing it is a `TypeError`). **There is no `probability` field**: randomness
-goes inside the callback, with a seeded RNG.
+`HookMatcher` is a dataclass with four fields: `matcher: str | None`, `hooks:
+list[HookCallback]`, `timeout: float | None` and, from **0.2.177**, `on_failure:
+Literal["continue", "block"] | None` (next section; below 0.2.177 passing it is a `TypeError`).
+**There is no `probability` field**: randomness goes inside the callback, with a seeded RNG.
 
-The matcher is compared against the tool name for tool events and the
-notification type for `Notification` (`permission_prompt`, `idle_prompt`, …,
-`plugin_notification` when a mod calls `$.ui.notify`); it is an exact string or a
-regular expression, so an invalid pattern is a real error (`HOK003`). Omitting
-it fires on every occurrence. **Matchers on one event are dispatched
+The matcher is compared against the tool name for tool events and the notification type for
+`Notification` (`permission_prompt`, `idle_prompt`, …, `plugin_notification` when a mod calls
+`$.ui.notify`); it is an exact string or a regular expression, so an invalid pattern is a real
+error (`HOK003`). Omitting it fires on every occurrence. **Matchers on one event are dispatched
 concurrently**: a callback must not assume another has already run.
 
 ## Concurrency, precedence and timeouts
@@ -97,20 +94,18 @@ concurrently**: a callback must not assume another has already run.
 
 ## When a callback fails: `on_failure` (SDK 0.2.177+, CLI 2.1.317+)
 
-A callback **fails** when it raises, returns `None` (a path with no `return`),
-or returns a value the CLI rejects. By default (unset or `"continue"`) that is
-no decision: the action goes ahead and the app gets a `SystemMessage`
-(`subtype="informational"`, `data["tag"] == "hook_callback_failed"`, "…Its
-answer was treated as empty."). So **a crashing `PreToolUse` guard fails open**
-(measured on 2.1.318: the guarded `ls` ran).
+A callback **fails** when it raises, returns `None` (a path with no `return`), or returns a
+value the CLI rejects. By default (unset or `"continue"`) that is no decision: the action goes
+ahead and the app gets a `SystemMessage` (`subtype="informational"`, `data["tag"] ==
+"hook_callback_failed"`, "…Its answer was treated as empty."). So **a crashing `PreToolUse`
+guard fails open** (measured on 2.1.318: the guarded `ls` ran).
 
-`HookMatcher(matcher="Bash", hooks=[guard], on_failure="block")` blocks the
-action instead. Measured on 0.2.178 / 2.1.318, the same informational message
-arrives, ending "onFailure is "block", so this failure counts as a block." (the
-docs describe it only for the default path), then an `is_error` tool result
-`PreToolUse:Bash hook error: [callback]: failed; blocking because onFailure is
-"block"` without the guard's error text; the call lands in `permission_denials`,
-Claude may retry it, and the result is still `subtype: "success"`.
+`HookMatcher(matcher="Bash", hooks=[guard], on_failure="block")` blocks the action instead.
+Measured on 0.2.178 / 2.1.318, the same informational message arrives, ending "onFailure is
+"block", so this failure counts as a block." (the docs describe it only for the default path),
+then an `is_error` tool result `PreToolUse:Bash hook error: [callback]: failed; blocking
+because onFailure is "block"` without the guard's error text; the call lands in
+`permission_denials`, Claude may retry it, and the result is still `subtype: "success"`.
 
 - **`return {}` when the callback has no opinion**; with `"block"` a path with
   no `return` blocks. A guard that catches its own error and returns `{}` is not
@@ -161,30 +156,26 @@ output) fail the action the way exit 2 would. It has **no effect** on `Stop`,
 
 ## Released in 0.2.166 (gate as "0.2.166+")
 
-The pinned 0.2.178 (bundled CLI 2.1.318) has all of this; code for 0.2.140–0.2.165
-reads these fields with `.get()`. Hook inputs gained `prompt_id` (the OTel
-`prompt.id`) and `effort` (a `HookEffort`, `{level: str}`; `$CLAUDE_EFFORT` in
-command hooks), `duration_ms` on `PostToolUse`/`PostToolUseFailure`, and
-`last_assistant_message`, `background_tasks`, `session_crons` on
-`Stop`/`SubagentStop`. **21 `*HookSpecificOutput` types are exported, 12 of them
-for events still not registrable from Python** (`SessionStart`,
-`PermissionDenied`, `Elicitation`, `WorktreeCreate`, …), so `HOK020` still fires
-on those: the ten `HookEvent` literals are unchanged. From 0.2.169 `SessionStart`
-and `Setup` hook events are emitted regardless of `include_hook_events`.
+The pinned 0.2.178 (bundled CLI 2.1.318) has all of this; code for 0.2.140–0.2.165 reads these
+fields with `.get()`. Hook inputs gained `prompt_id` (the OTel `prompt.id`) and `effort` (a
+`HookEffort`, `{level: str}`; `$CLAUDE_EFFORT` in command hooks), `duration_ms` on
+`PostToolUse`/`PostToolUseFailure`, and `last_assistant_message`, `background_tasks`,
+`session_crons` on `Stop`/`SubagentStop`. **21 `*HookSpecificOutput` types are exported, 12 of
+them for events still not registrable from Python** (`SessionStart`, `PermissionDenied`,
+`Elicitation`, `WorktreeCreate`, …), so `HOK020` still fires on those: the ten `HookEvent`
+literals are unchanged. From 0.2.169 `SessionStart` and `Setup` hook events are emitted
+regardless of `include_hook_events`.
 
 ## Claude Code changes that reach hook authors (2.1.299–2.1.318)
 
-- **2.1.299–2.1.310**: `updatedInput` is validated like Claude's own input
-  (rejected input denies the call); `UserPromptSubmit` sees the typed `/skill …`
-  line; hooks that start a background process print the decision first or are
-  blocked; failing shell-form guards on Windows and PowerShell fail closed (for
-  a PowerShell guard set `"onFailure": "block"`).
+- **2.1.299–2.1.310**: `updatedInput` is validated like Claude's own input;
+  `UserPromptSubmit` sees the typed `/skill …` line; failing shell-form guards
+  on Windows and PowerShell fail closed (set `"onFailure": "block"`).
 - **Prompt and agent hooks run at most 24 at a time per session, sub-agents
   included, plus at most 12 that have waited longer than their event's timeout;
   a `timeout` under 1 second counts as 1 second** (changelog 2.1.312; from
-  2.1.302 the cap was 12 per event). The hooks page read 2026-11-04 still says
-  "If more than 12 of them are prompt or agent hooks, 12 of those run at once"
-  per event: the docs lag the changelog.
+  2.1.302 the cap was 12 per event); the hooks page still says "If more than 12
+  of them are prompt or agent hooks, 12 of those run at once" per event.
 - **`SubagentStop` fires once per subagent (2.1.311)**. **Skill hooks are capped
   per source (2.1.304+)**: 1,024 hooks and 16,384 matcher characters per session.
 - **A `PreCompact` hook's output is cut at 10,000 characters (2.1.314)**; very
@@ -206,21 +197,29 @@ and `Setup` hook events are emitted regardless of `include_hook_events`.
 
 ## The one thing hooks are uniquely good for
 
-`can_use_tool` fires **only** when the CLI's rules evaluate to "ask", not for a
-tool already allowed by `allowed_tools`, a mode or a `permissions.allow` setting
-(the SDK emits a `CanUseToolShadowedWarning` when you set both). So **to observe
-or gate every tool call, use a `PreToolUse` hook**, as this plugin's runner does.
+`can_use_tool` runs only when the evaluation flow resolves to a prompt. A call that
+`allowed_tools`, a `permissions.allow` setting or the mode (`acceptEdits`, `bypassPermissions`)
+approves skips it, while `PreToolUse` sees rule- and mode-approved calls too: "To check those
+calls, use a `PreToolUse` hook, which runs for them too" (docs 2026-11-05). So **a guard that
+must cover them belongs in a `PreToolUse` hook**, as this plugin's runner does; a hook deny
+applies even in `bypassPermissions` (the SDK emits a `CanUseToolShadowedWarning` when a bare
+allow entry or that mode shadows your callback).
 
 Measured: `include_hook_events=True` alone emits no `HookEventMessage`.
 
 ## Hooks in `.claude/settings.json`
 
-Command hooks in a settings file load only when `setting_sources` includes
-`project` (or `user`/`local`). An eval with `setting_sources=[]` will not run
-them, usually correctly; `HOK030` reports the situation rather than judging it.
-Frontmatter hooks in a **project subagent** file run only after the workspace
-trust dialog was accepted for the folder the file came from, and "a `-p`
-session doesn't count as accepting it" — do not rely on them in a headless run.
+Command hooks in a settings file load only when `setting_sources` includes `project` (or
+`user`/`local`). An eval with `setting_sources=[]` will not run them, usually correctly;
+`HOK030` reports the situation rather than judging it. Frontmatter hooks in a **project
+subagent** file run only after the workspace trust dialog was accepted for the folder the file
+came from, and "a `-p` session doesn't count as accepting it" — do not rely on them in a
+headless run.
+
+**Bare mode runs no hooks.** `claude -p --bare` skips hook discovery, and "Hooks still don't
+run in bare mode when you pass them with `--settings`, or in the `hooks/hooks.json` or `hooks`
+manifest key of a plugin you load with a flag" (`headless`): don't use bare mode for a run that
+needs a hook.
 
 ---
 
@@ -229,6 +228,7 @@ callback inputs and outputs, asynchronous output, hook timeout, "Block the
 action when a callback fails"), <https://code.claude.com/docs/en/hooks> (matcher
 patterns, JSON output, per-event sections, `updatedInput` in auto mode),
 <https://code.claude.com/docs/en/agent-sdk/permissions#how-permissions-are-evaluated>,
+<https://code.claude.com/docs/en/headless> (bare mode),
 <https://code.claude.com/docs/en/hooks#hooks-that-start-a-background-process>,
 <https://code.claude.com/docs/en/hooks#failed-hooks-on-windows-without-git-bash>,
 <https://code.claude.com/docs/en/hooks#pretooluse> (`@` mentions, `"defer"`, `ask`
@@ -245,6 +245,4 @@ for SDK callbacks), the SDK `CHANGELOG.md` (0.2.169; 0.2.177 `on_failure`);
 (`HookEffort`). Measured by this plugin: "emits nothing without a registered hook"
 (2026-09-30), both `on_failure` paths on 0.2.178 / 2.1.318 (2026-11-04). 0.2.178's
 `types.py` adds only `on_failure` (13 lines) to what 0.2.174 had.
-Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs;
-re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

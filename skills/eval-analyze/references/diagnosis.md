@@ -45,6 +45,13 @@ symptom is at the end; the cause is at the start.
 trace and the case's `trajectory` grader; this skill tells you which trace to
 hand it (the worst run's `trace` field in the result file).
 
+Fix one divergence at a time, at one surface, and re-run: two fixes in one round
+leave no way to say which moved the score (keep it only if train and held-out both
+improve, `reliability.md`). After two or three rounds that do not move it, stop
+editing and sort every remaining failure by cause: an ambiguous case, a harness
+error, variance, or a legitimate failure of the agent (Martin, 2026-09-28, the
+`claude-api` skill's hillclimbing method).
+
 ## Signatures worth recognising in a trace
 
 - **loop**: the same tool with the same arguments three or more times running;
@@ -62,4 +69,8 @@ Sources: this plugin's `lib/agent_sdk_skills/trajectory.py` and
 framing follows Anthropic's engineering post
 <https://www.anthropic.com/research/demystifying-evals-for-ai-agents>
 ("Demystifying evals for AI agents", 2026-01-09, judging outcomes versus
-trajectories). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+trajectories);
+<https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval
+design and hillclimbing with Claude", 2026-09-28, one change per round, sorting failures by cause after two or three stalled rounds; written for the `claude-api`
+skill's `hillclimb` command, cited for its method).
+Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

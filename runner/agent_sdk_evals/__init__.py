@@ -46,6 +46,7 @@ MODEL_ENV_VAR = "CLAUDE_MODEL"
 
 #: The Claude Code version whose documentation the references were read against
 #: (a test keeps it equal to the plugin library's copy; re-read 2026-11-04).
+#: docs re-read 2026-11-05 (lastmod 2026-11-04), no CLI release.
 DOCS_READ_AT_CLI = "2.1.318"
 
 #: The plugin's model policy, copied here so a run can grade a model id without

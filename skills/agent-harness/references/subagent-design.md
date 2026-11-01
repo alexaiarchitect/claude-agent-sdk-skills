@@ -174,19 +174,17 @@ which an exact-match grader on that message should know.
 
 ## When not to delegate: fold first
 
-Anthropic's Applied AI team found that enterprise agents often improved when
-routers, planners and domain subagents were **folded into one loop** with skills
-and tools (article of 2026-10-22). Keep a subagent only for one of three
-reasons: the single loop shows **measurable** degradation from context bloat;
-several tasks need parallel, fresh, disposable context windows; or one agent
-struggles to choose tools, or its prompt carries conflicting instructions. When
-you do split, "divide by context", not by problem type or team — a split per
-team mirrors the org chart and turns every handoff into a lossy summary. Fold
-**one subagent at a time**: call it as a tool first, then move its prompt into a
-skill and its API calls into MCP tools, compare per task (which tasks flipped,
-not just the score), run each task more than once, and keep it a subagent only
-when the folded version scores worse. Tool choice tends to degrade past 30–50
-tool definitions in the prompt, which is what tool search and skills avoid.
+Anthropic's Applied AI team found that enterprise agents often improved when routers, planners
+and domain subagents were **folded into one loop** with skills and tools (article of
+2026-10-22). Keep a subagent only for one of three reasons: the single loop shows
+**measurable** degradation from context bloat; several tasks need parallel, fresh, disposable
+context windows; or one agent struggles to choose tools, or its prompt carries conflicting
+instructions. When you do split, "divide by context", not by problem type or team — a split per
+team mirrors the org chart and turns every handoff into a lossy summary. Fold **one subagent at
+a time**: call it as a tool first, then move its prompt into a skill and its API calls into MCP
+tools, compare per task (which tasks flipped, not just the score), run each task more than
+once, and keep it a subagent only when the folded version scores worse. Tool choice tends to
+degrade past 30–50 tool definitions in the prompt, which is what tool search and skills avoid.
 
 The case for multi-agent comes from the research system (2025-06-13): an
 orchestrator-worker setup beat a single agent by 90.2 % on Anthropic's internal
@@ -195,6 +193,12 @@ explains 80% of the variance" in their browsing eval — breadth-first, parallel
 high-value work pays for it; tightly coupled work such as most coding does not.
 Each delegated task needs an objective, an output format, tool guidance and a
 boundary. For the decision itself use `/agent-sdk:agent-design`.
+
+A reviewer is the clearest case for fresh context. In the Claude Code team's own process the
+author agent first shows its change working, "Then a subagent reviews the diff with fresh
+context" (Osmani, Westlee Lunt, Wang, 2026-10-15, about Claude Code, not the SDK). In the SDK
+that reviewer is an `AgentDefinition` whose prompt carries the diff and the acceptance criteria
+but none of the author's reasoning (our mapping).
 
 A third shape has no orchestrator at all. In Anthropic's C-compiler project
 (2026-02-05) 16 `claude -p` loops, each in its own container with permissions
@@ -223,13 +227,9 @@ whether Claude waits for subagents"),
 <https://code.claude.com/docs/en/model-config> (effort after a fallback, "Effort level of
 subagents and teammates", per-model `autoCompactWindow`),
 <https://code.claude.com/docs/en/sub-agents#subagent-auto-compact-window>,
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 MCP
-`tools:` scoping, 2.1.302 fork and foreground defaults, 2.1.304 headless
-stop, 2.1.307 fork identity and transcript usage, 2.1.311 late-connecting MCP
-servers, 2.1.312 `autoCompactWindow` lowering, 2.1.314 subagent tool results,
-2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT` and inherited-model fix, 2.1.317 subagent effort on
-another model and the no-answer notice, 2.1.318 "Ask each time" stop and 3-minute shell
-backgrounding);
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299–2.1.314 as named
+above, 2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT`, 2.1.317 subagent effort on another model and the
+no-answer notice, 2.1.318 "Ask each time" stop and 3-minute shell backgrounding);
 <https://www.anthropic.com/research/building-c-compiler> ("Building a C compiler with
 parallel Claudes", 2026-02-05, lock-file task claiming without an orchestrator, tests
 as a near-perfect oracle, containers);
@@ -244,7 +244,6 @@ product, not the SDK's background default);
 `claude-agent-sdk` 0.2.178 `types.py:2660` (`agents`), `:2576-2586`
 (`parent_tool_use_id` and subagent text), `:1832` (`HookEventMessage`). The
 `Task` / `Agent` naming difference was measured by this plugin on 2026-09-30
-from the CLI's own `init.tools` list. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-04 against
-claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+from the CLI's own `init.tools` list; <https://claude.dev/blog/solving-code-review-at-anthropic/>
+("How the Claude Code team does code review", 2026-10-15, a fresh-context reviewer subagent).
+Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

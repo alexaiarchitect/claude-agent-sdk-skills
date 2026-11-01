@@ -105,8 +105,20 @@ every judge call fails and every judged case reports `NOT_EVALUATED`.
 
 ## What Anthropic's own judges taught
 
-Three published findings, as design guidance for the rubric and the judge set-up
+Published findings, as design guidance for the rubric and the judge set-up
 (the runner's call above is this plugin's own contract):
+
+- **The cheapest grader that fits, and a judge that is not the model under test.**
+  *Automating eval design and hillclimbing with Claude* (Martin, 2026-09-28;
+  written for the `claude-api` skill's `build-eval` and `hillclimb` commands, not
+  the SDK) uses a programmatic check whenever the output space is constrained
+  (exact match, a label from a fixed set, schema-valid JSON, passing tests: here
+  `regex`, `tool_used`, `structured_output`) and a judge only for open-ended
+  output, with a rubric of checkable claims rather than a 1–5 scale. "You pick
+  the judge model, and it should not be the model you are testing." Before
+  trusting a judge, grade a handful by hand and ask whether a person would have
+  scored them differently, run it twice on the same output to see that its
+  verdict holds, and read a sample of scored transcripts against its verdicts.
 
 - **One call, one rubric, a score and a grade.** Building its research system
   (2025-06-13), Anthropic tried several specialised judges and found that "a
@@ -179,7 +191,9 @@ leniency, few-shot score breakdowns against drift);
 <https://www.anthropic.com/research/agents-judgment-calls> ("How AI agents shape
 experts' judgment calls", 2026-10-27, deferral measured by randomising the lean
 rather than against a reference answer; the mirrored pair is this plugin's
-adaptation).
-Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
-Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+adaptation);
+<https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval
+design and hillclimbing with Claude", 2026-09-28, the cheapest grader that fits, a
+judge model other than the model under test, judge verdicts checked against
+transcripts; its prices and API claims are not cited).
+Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

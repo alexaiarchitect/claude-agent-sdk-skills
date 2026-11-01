@@ -102,7 +102,12 @@ to reproduce can be found later and replayed as a targeted eval — here, a
 production session converted with `agent-debug/scripts/import_session.py` and
 frozen with `trace_to_case.py`.
 The Agent SDK write-up (2025-09-29) adds the source: build the set from real
-customer usage, and read the failures before the passes.
+customer usage, and read the failures before the passes. **Past reverts are a
+second source**: the Claude Code team scores its review agent against the pull
+requests behind past incidents, with their fix-forwards and reverts (Osmani,
+Westlee Lunt, Wang, 2026-10-15, Claude Code's own process). A revert says which
+trajectory must not happen again; freeze the run that follows the fix as the
+golden trace and keep the bad one as a `regression` case.
 
 Sources: `lib/agent_sdk_skills/trajectory.py` (`calls_from_events`, the match
 modes, `Call` normalization); `lib/agent_sdk_skills/trace.py` (`load_trace`,
@@ -116,4 +121,6 @@ carries); https://code.claude.com/docs/en/agent-sdk/python (`ToolUseBlock`,
 targeted evals);
 <https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk>
 ("Building agents with the Claude Agent SDK", 2025-09-29, evals from customer
-usage). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+usage); <https://claude.dev/blog/solving-code-review-at-anthropic/> ("How the Claude
+Code team does code review", 2026-10-15, incident and revert pull requests as an eval
+set). Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

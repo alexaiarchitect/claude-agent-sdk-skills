@@ -30,14 +30,14 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `mcp_servers` | `dict \| str \| Path` | `{}` | R | the runner substitutes mocks here |
 | `strict_mcp_config` | `bool` | `False` | O | ignore `.mcp.json`, user settings, plugin servers and claude.ai connectors |
 | `permission_prompt_tool_name` | `str \| None` | `None` | R | |
-| `can_use_tool` | `CanUseTool \| None` | `None` | R | a callable; fires only when the rules evaluate to "ask" |
+| `can_use_tool` | `CanUseTool \| None` | `None` | R | a callable the SDK calls when the permission flow resolves to a prompt; skipped for a call an `allowed_tools` entry, a settings allow rule or the mode approves (use a `PreToolUse` hook to check those) |
 
 ## How it behaves
 
 | Field | Type | Default | | Note |
 |---|---|---|---|---|
 | `system_prompt` | `str \| preset \| custom \| file \| None` | `None` | O | unset = the SDK's minimal prompt, not the `claude_code` preset |
-| `permission_mode` | `PermissionMode \| None` | `None` | O | `default` `acceptEdits` `plan` `bypassPermissions` `dontAsk` `auto`. `None` is **not** the same as `"default"` — see below |
+| `permission_mode` | `PermissionMode \| None` | `None` | O | `default` `acceptEdits` `plan` (docs: "Claude explores and plans") `bypassPermissions` `dontAsk` `auto`. `None` is **not** the same as `"default"` — see below |
 | `agents` | `dict[str, AgentDefinition] \| None` | `None` | O | programmatic subagents; take precedence over `.claude/agents/*.md` of the same name |
 | `hooks` | `dict[HookEvent, list[HookMatcher]] \| None` | `None` | R | callables; the runner adds its capture and fault hooks here. `HookMatcher` fields: `matcher`, `hooks`, `timeout`, and from 0.2.177 `on_failure` (`"continue"`/`"block"`/`None`; `HOK011`, `hooks-catalog.md`) |
 | `output_format` | `dict \| None` | `None` | O | only `{"type":"json_schema","schema":{...}}` is acted on |
@@ -245,5 +245,5 @@ the `-p` JSON keys); the CHANGELOG 2.1.318 (`credential_expires_at`). Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (line numbers
 re-pinned); `max_turns=1` re-measured 2026-10-29; `[1m]` from the 2.1.311 changelog.
-Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs (line
-numbers re-pinned).
+Line numbers re-pinned to 0.2.178 on 2026-11-04. Re-read 2026-11-05 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

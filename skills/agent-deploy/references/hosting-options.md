@@ -49,8 +49,8 @@ eviction, memory growth — is harder.
 
 ## Patterns from Anthropic's own agent infrastructure
 
-Two engineering write-ups describe how Anthropic hosts agents; they are design
-rationale, and the SDK mechanics that implement them are in the docs.
+These write-ups describe how Anthropic hosts agents; they are design rationale,
+and the SDK mechanics that implement them are in the docs.
 
 - **Decouple the brain from the hands** (Managed Agents, 2026-04-08). Keep three
   things apart: the **session**, a durable, append-only event log that lives
@@ -64,7 +64,12 @@ rationale, and the SDK mechanics that implement them are in the docs.
   and reach external services through a proxy that adds them per call. In SDK
   terms: a `SessionStore` (or the transcript under a per-session
   `CLAUDE_CONFIG_DIR`) is the log, resume is `resume=<session_id>`, the egress
-  proxy holds the credentials (`secure-deployment.md`).
+  proxy holds the credentials (`secure-deployment.md`). Claude Code's own cloud
+  sessions apply the same shape (Osmani, 2026-10-06; about Claude Code, which an
+  SDK app does not run in): a fresh, disposable VM per task, the GitHub token held
+  outside it by a proxy, a network level per environment (None, Trusted, Custom,
+  Full: "Pick the narrowest network level that works."), and all outbound traffic
+  through a proxy that logs hostnames.
 - **Production lessons from the research system** (2025-06-13). Agents are
   stateful and errors compound, so **resume from a checkpoint** where the error
   happened rather than restart; tell the agent a tool is failing and let it
@@ -72,6 +77,18 @@ rationale, and the SDK mechanics that implement them are in the docs.
   and new versions both run, so in-flight sessions finish on the code they
   started on; and keep **full tracing** of decisions and tool calls without
   reading conversation contents (`observability-otel.md`).
+- **Unattended scheduled agents** (Martin, Avilla, 2026-10-08; a Managed Agents and
+  `ant` CLI reference implementation, so the patterns transfer, not the tooling).
+  Give each source its own **bookmark** (the newest item read) instead of a fixed
+  time window, so a late run leaves no gap and an early one repeats nothing.
+  "Report a failed read as unreadable, never as a quiet day", and keep that source's
+  bookmark. Count an action as done only when the **destination confirms it**
+  (check first whether today's post already exists), and move bookmarks and the
+  ledger only after that, so a re-run is idempotent. Give the agent scoped,
+  read-only credentials kept out of the sandbox (the article uses a vault; in the
+  SDK, a host proxy that injects them) and cap each run's spend: the article's cap
+  pauses a Managed Agents run, while `max_budget_usd` **ends** an SDK run with
+  `error_max_budget_usd` (`cost-controls.md`).
 
 ## Provisioning
 
@@ -164,6 +181,9 @@ Its system is internal; the lessons are what to borrow.
   changed, and a non-interactive launch no longer replaces one that is not valid
   JSON with defaults: the start fails, says how to restore the file and leaves it
   as is — a corrupted file now stops the job instead of being silently reset.
+  The `errors` page (read 2026-11-05) says such a start "exits with code 1 each
+  time until you repair the file", and a `-p` run whose organization settings
+  cannot load prints the message and exits with status 1.
 - **A stored claude.ai sign-in ends on a date.** From 2.1.318 `claude -p` text
   output warns on stderr 10 days before it, `claude -p` JSON carries
   `credential_expires_at` and `claude auth status` `loginExpiresAt` (changelog;
@@ -210,9 +230,15 @@ checkpoints, rainbow deployments, tracing without contents);
 source control at Anthropic", 2026-10-13, agents as the main repository clients,
 post-merge testing over global locks, source-control queries as APIs); Claude
 Code `CHANGELOG.md` 2.1.316 (shell commands on self-exit), 2.1.317 (`-p` exit 1 on lost
-writes) and 2.1.318 (`~/.claude.json` handling, sign-in expiry). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
+writes) and 2.1.318 (`~/.claude.json` handling, sign-in expiry);
+<https://code.claude.com/docs/en/errors> (`claude -p` exit 1 on a broken
+`~/.claude.json` or unloaded organization settings);
+<https://claude.dev/blog/building-effective-agent-automations/> ("Building effective
+agent automations", 2026-10-08, per-source bookmarks, failed reads, destination-confirmed
+completion, scoped read-only credentials, a per-run budget cap);
+<https://claude.dev/blog/claude-code-in-the-cloud/> ("Claude Code in the cloud: a field
+guide to cloud sessions", 2026-10-06, a disposable VM per task, network levels, a
+hostname-logging egress proxy). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
 was measured by this plugin on 2026-10-11, the $0.10/Mtok of 2.1.301 on
-2026-10-17 and of 2.1.310 on 2026-10-24. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-04 against
+2026-10-17 and of 2.1.310 on 2026-10-24. Re-read 2026-11-05 against
 claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

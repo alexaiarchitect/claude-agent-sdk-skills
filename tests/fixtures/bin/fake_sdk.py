@@ -54,7 +54,7 @@ def _runner_version() -> str:
     try:
         return version_file.read_text(encoding="utf-8").strip()
     except OSError:
-        return "0.2.2"
+        return "0.2.3"
 
 
 def _probe(code: str, args: list[str]) -> int:

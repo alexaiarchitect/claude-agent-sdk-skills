@@ -38,24 +38,24 @@ session do not count. At the cap Claude Code does three things: refuses to spawn
 more subagents (`Budget limit reached`), stops background subagents still
 running, and ends the query with `subtype="error_max_budget_usd"`.
 
-It is a **soft cap.** The figure it compares against is the running client-side
-estimate, and that estimate can pass the value before the query stops — the docs
-say so in as many words and tell you to leave headroom. Treat `max_budget_usd`
-as the point at which the run is wound up, not as a figure the bill cannot
-exceed: set it above what you can afford to spend, not equal to it.
+It is a **soft cap.** The figure it compares against is the running client-side estimate, and
+that estimate can pass the value before the query stops — the docs say so in as many words and
+tell you to leave headroom. Treat `max_budget_usd` as the point at which the run is wound up,
+not as a figure the bill cannot exceed: set it above what you can afford to spend, not equal to
+it. For a scheduled agent, start the cap at three to five times a normal run's cost and tighten
+it from real runs (Martin, Avilla, 2026-10-08, about Managed Agents, where the cap pauses a
+run); in the SDK the run ends, so a cap set too low reads as a short, quiet result.
 
-Caveat that matters for reporting: `total_cost_usd` is a **client-side
-estimate** from a bundled price table, unless an administrator's `modelPricing`
-table (managed settings) is in effect; for authoritative billing the cost-tracking
-page now points to `costs#manage-costs-for-your-organization` (docs read
-2026-11-04), and says not to bill end users from these fields. On a subscription it is an
-API-equivalent figure, not a bill — the real ceiling there is the plan's usage
-limits. Each `model_usage` row also carries `costBasis` — `list` (the public
-price list), `managed` (a `modelPricing` table) or `unknown`, needing
-Claude Code **2.1.246+**. It is not on the 0.2.178 `ModelUsage` TypedDict, so
-read it with `.get()`; measured 2026-10-11 on an API key it was `"list"` on
-every row. A cost figure reported without its basis is not comparable between
-two accounts.
+Caveat that matters for reporting: `total_cost_usd` is a **client-side estimate** from a
+bundled price table, unless an administrator's `modelPricing` table (managed settings) is in
+effect; for authoritative billing the cost-tracking page now points to
+`costs#manage-costs-for-your-organization` (docs read 2026-11-04), and says not to bill end
+users from these fields. On a subscription it is an API-equivalent figure, not a bill — the
+real ceiling there is the plan's usage limits. Each `model_usage` row also carries `costBasis`
+— `list` (the public price list), `managed` (a `modelPricing` table) or `unknown`, needing
+Claude Code **2.1.246+**. It is not on the 0.2.178 `ModelUsage` TypedDict, so read it with
+`.get()`; measured 2026-10-11 on an API key it was `"list"` on every row. A cost figure
+reported without its basis is not comparable between two accounts.
 
 And it is **cumulative per session**, not per turn. Measured across two turns of
 one `ClaudeSDKClient` session: `0.004991` then `0.0061734`. To get a per-turn
@@ -226,9 +226,8 @@ fix shortcut, cache misses, `modelPricing`), <https://code.claude.com/docs/en/co
 cache-read percentages),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
 limit), <https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom>,
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.301
-usage-limit wait, 2.1.305 usage-limit recheck and `/usage` fixes, 2.1.311 200K
-compaction and `/usage` cache misses, 2.1.312 "5-hour limit" wording);
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.301,
+2.1.305, 2.1.311 and 2.1.312 as named above);
 <https://code.claude.com/docs/en/model-config> (effort order and defaults);
 <https://claude.com/resources/articles/message-threads> ("Make long-running
 agents faster with message threads", 2026-11-02, threads as a latency lever with
@@ -238,13 +237,13 @@ pricing and rate limits unchanged);
 <https://claude.com/resources/articles/how-to-manage-costs-and-demonstrate-roi-for-claude-code-on-google-cloud>
 ("Manage costs and demonstrate ROI for Claude Code on Google Cloud", 2026-10-27,
 gateway spend caps, 75 %/95 % warnings, 429 at the cap, model allowlists, cost per
-task; interactive Claude Code, not the SDK).
+task; interactive Claude Code, not the SDK);
+<https://claude.dev/blog/building-effective-agent-automations/> ("Building effective agent
+automations", 2026-10-08, a per-run budget cap at 3–5× a normal run, then tightened).
 The 17x and 4x figures, the cumulative-cost behaviour, the
 `max_turns=1 → num_turns=2` result and the `RateLimitEvent` shape were measured
 by this plugin on 2026-09-30 on a Claude Max subscription with no API key set;
 `costBasis` and the $0.20/Mtok cache-read price of the bundled CLI 2.1.294 were
 measured 2026-10-11 with `ANTHROPIC_API_KEY` set, and the $0.10/Mtok of the
 bundled CLI 2.1.301 on 2026-10-17 and of 2.1.310 on 2026-10-24. Re-read
-2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
-2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

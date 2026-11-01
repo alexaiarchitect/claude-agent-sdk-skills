@@ -2,7 +2,7 @@
 
 Fourteen skills for building, reviewing and evaluating agents written with the
 Claude Agent SDK (Python). Checked against `claude-agent-sdk` 0.2.178 with its
-bundled Claude Code 2.1.318; documentation read at Claude Code 2.1.318.
+bundled Claude Code 2.1.318; documentation read at Claude Code 2.1.318 (re-read 2026-11-05).
 
 The premise: an agent's system prompt is a promise written in prose, and **eval
 cases are the only form of that promise a machine can check**. The SDK ships no
@@ -158,7 +158,7 @@ SDK behaviour is cited from `anthropics/claude-agent-sdk-python` (MIT) and the
 documentation at `code.claude.com`; the evaluation practices draw on Anthropic's
 engineering writing and the `skill-creator` grader design. The design guidance
 (`/agent-sdk:agent-design` and the cross-links in the other skills) is grounded
-in 25 published Anthropic articles, paraphrased and cited with their dates — see
+in 29 published Anthropic articles, paraphrased and cited with their dates — see
 [Cited Anthropic articles](THIRD_PARTY_NOTICES.md#cited-anthropic-articles). See
 `THIRD_PARTY_NOTICES.md` for every snapshot consulted. Fixtures use an original
 library-reservations domain; nothing from a non-redistributable source is

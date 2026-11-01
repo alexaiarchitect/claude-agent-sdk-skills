@@ -134,6 +134,16 @@ meaning is given first.
   2026-10-22, governs the base Agent Skills open standard (and MCP). The
   `SKILL.md` folder format is unchanged; Claude Code's own skill extensions are
   not part of the donated spec.
+- **Hillclimbing** — improving an agent against an eval by repeated small edits,
+  each kept or reverted on the score. It needs one attributable surface per
+  change and a held-out set, or it overfits (`/agent-sdk:eval-analyze`).
+- **Held-out (test) set** — cases the person or agent tuning never reads; a
+  change is kept only when it improves these as well as the cases it tuned on.
+  The runner has no split field: it is a convention of which cases you read.
+- **Destination-confirmed completion** — counting an action (a post, a write
+  to another system) as done only when the destination confirms it, and moving
+  bookmarks or ledgers only after that, so a re-run of a scheduled agent is
+  idempotent (`/agent-sdk:agent-design`, `long-running-harness.md`).
 
 ---
 
@@ -173,4 +183,9 @@ and `https://code.claude.com/docs/en/skills` (Claude Code's extensions).
 Fail open / fail closed per
 `https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails`
 and `https://code.claude.com/docs/en/hooks` (`onFailure`).
-Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+The three 2026-11-05 terms follow
+<https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval design
+and hillclimbing with Claude", 2026-09-28, hillclimbing and the held-out test set) and
+<https://claude.dev/blog/building-effective-agent-automations/> ("Building effective agent
+automations", 2026-10-08, destination-confirmed completion).
+Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

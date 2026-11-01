@@ -95,6 +95,22 @@ trusting it (`runs:` above 1, or `--runs`): that article's fold broke a
 process in only one run out of two. Size is not the goal; a small set taken
 from traffic beats a large invented one.
 
+Two more sources, and one split. **Incidents and reverts**: the Claude Code team
+turned the pull requests behind past incidents, with their fix-forwards and
+reverts, into the eval its review agent runs daily, and ran that reviewer on
+pull requests **known to be clean** to count the reports that would have led to a
+harmful change (Osmani, Westlee Lunt, Wang, 2026-10-15, Claude Code's own
+process). Here that is a `regression` case per reverted bug, plus restraint cases
+whose right answer is to change or report nothing. **Not chosen for failing**:
+picking cases because today's model fails them measures that model's failure
+fingerprint (Martin, 2026-09-28, written for the `claude-api` skill's
+`build-eval` command); pick cases a person judged hard and can say why. **A
+held-out (test) set**: if you will tune the agent against the suite, keep some
+cases apart that the person or agent tuning never reads. The runner has no split
+field, so this is a convention of which cases you look at, checked as in
+`/agent-sdk:eval-analyze` (`reliability.md`, keep a change only when both sets
+improve).
+
 ## Live-web cases are a separate suite
 
 A case whose agent can reach the internet is a different experiment from one
@@ -141,5 +157,11 @@ customer usage, read failures first);
 versions, explicit scope statements, transcript review at scale);
 <https://www.anthropic.com/research/alignment-assessment-ukaisi> ("An alignment
 assessment of the UK AISI cybertesting incident", 2026-10-23, an alignment
-write-up; the isolation rules drawn from it are this plugin's inferences).
-Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+write-up; the isolation rules drawn from it are this plugin's inferences);
+<https://claude.dev/blog/solving-code-review-at-anthropic/> ("How the Claude Code team
+does code review", 2026-10-15, an eval built from past incidents and reverts,
+known-clean inputs to count false reports);
+<https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval
+design and hillclimbing with Claude", 2026-09-28, the adversarial-sampling trap and a
+held-out test set). Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude
+Code 2.1.318 docs.

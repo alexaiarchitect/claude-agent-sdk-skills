@@ -65,6 +65,15 @@ The FAIL clause is where the value is. The near-misses are the answers that
 A criterion with "FAIL otherwise" leaves all of these to the judge's
 imagination, which is where sample-to-sample disagreement comes from.
 
+**A failing transcript is evidence, not prompt text.** When a case fails, the
+temptation is to paste the failing exchange into the agent's system prompt (or
+the rubric) as a "don't do this" example. Lance Martin's hillclimbing method
+(2026-09-28, written for the `claude-api` skill's `hillclimb` command) forbids
+pasting failure content into the prompt; this plugin extends the rule to
+rubrics. Name the near-miss in general terms here, and fix the agent at the
+cause (a tool description, a missing instruction), rather than example-stuffing
+either one: a prompt that quotes its test cases passes them and teaches nothing.
+
 ## One claim
 
 If the criterion needs "and", it is two graders. That is cheaper than it
@@ -145,5 +154,8 @@ split); https://code.claude.com/docs/en/agent-sdk/structured-outputs
 (`output_format` as the judge's return shape);
 <https://www.anthropic.com/research/agents-judgment-calls> ("How AI agents shape
 experts' judgment calls", 2026-10-27, judgment calls with no reference answer,
-deferral measured by varying the lean). Re-read 2026-11-04 against
-claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+deferral measured by varying the lean);
+<https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval
+design and hillclimbing with Claude", 2026-09-28, never paste failing transcript content
+into the prompt; extending it to rubrics is this plugin's rule). Re-read 2026-11-05
+against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

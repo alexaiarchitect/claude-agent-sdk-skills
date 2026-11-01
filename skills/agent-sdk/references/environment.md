@@ -118,8 +118,8 @@ checked against — `claude-agent-sdk` **0.2.178** with its bundled Claude Code
 work, and the note exists so a surprising behaviour can be attributed to the
 version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
 The documentation behind this plugin's references was read at Claude Code
-**2.1.318** (2026-11-04; before that at 2.1.316 on 2026-11-02 and 2.1.312 on
-2026-10-29), the same build
+**2.1.318** (2026-11-04, and re-read 2026-11-05: docs lastmod 2026-11-04, no CLI
+release; before that at 2.1.316 on 2026-11-02 and 2.1.312 on 2026-10-29), the same build
 0.2.178 bundles (and the Homebrew `claude` on the build machine, byte for byte).
 0.2.177 is the first SDK API change since 0.2.166: `HookMatcher` gained
 `on_failure` (`types.py` grew by 13 lines, so line citations moved); 0.2.178
@@ -139,7 +139,9 @@ stderr on both 2.1.310 and 2.1.316, and the SDK raised `ProcessError`
 `ultrathink_typed_raises` key; read them with `.get()`. From 2.1.317 `claude -p`
 also exits 1 when a full disk loses its transcript or `~/.claude.json` writes, and
 from 2.1.318 a stored claude.ai sign-in is announced on stderr 10 days before it
-ends (`credential_expires_at` in `-p` JSON; absent with an API key).
+ends (`credential_expires_at` in `-p` JSON; absent with an API key). The `errors`
+page (read 2026-11-05) adds that a `claude -p` start exits 1 while `~/.claude.json`
+is broken, until someone repairs it, and when organization settings fail to load.
 
 ---
 
@@ -160,5 +162,6 @@ Claude Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
 Claude Code 2.1.310 docs. The `-p` startup-failure and Ultra notes per the Claude Code `CHANGELOG.md`
 (2.1.314) and the `authentication` docs; exit codes, init `capabilities` and
 `ultrathink_available` measured by this plugin on 2026-11-02; the 2.1.318 init keys and
-`-p` JSON keys on 2026-11-04; 2.1.317–2.1.318 changelog entries. Re-read 2026-11-04
+`-p` JSON keys on 2026-11-04; 2.1.317–2.1.318 changelog entries;
+`https://code.claude.com/docs/en/errors` (`claude -p` exit 1). Re-read 2026-11-05
 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

@@ -26,7 +26,9 @@ eval` changed in 2.1.311 or 2.1.312). The local `claude` is **2.1.318**
 (Homebrew cask, upgraded 2026-11-04; byte-identical to the CLI bundled with
 claude-agent-sdk 0.2.178); the 2.1.314, 2.1.316, 2.1.317 and 2.1.318 changelog
 entries say nothing about `plugin eval` (2.1.318 changes only `claude plugin
-validate`, which now rejects a custom-named marketplace file), so these notes stand. The changelog also names a `disallowed_tools` case field; it is not in
+validate`, which now rejects a custom-named marketplace file), so these notes stand.
+The `plugin-evals` docs page was re-read 2026-11-05 (no CLI release): nothing changed
+in `plugin eval`, and no case was re-run. The changelog also names a `disallowed_tools` case field; it is not in
 the plugin-evals docs yet and no case here uses it until a local run has
 accepted it.
 

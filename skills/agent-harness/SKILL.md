@@ -77,7 +77,7 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 | Surface | The decision | What goes wrong |
 |---|---|---|
 | **Hooks** | which of the ten Python events, which matcher, what the callback returns | not `async`; a dict with no `hookSpecificOutput`; a `hookEventName` that does not match the event; an invalid matcher regex; `SessionStart`, which the Python SDK does not have |
-| **Permissions** | `tools` (availability) vs `allowed_tools` (permission) vs `disallowed_tools` (both), and the mode | believing `allowed_tools` restricts anything; `bypassPermissions` because a prompt was in the way; `can_use_tool` set where it can never fire |
+| **Permissions** | `tools` (availability) vs `allowed_tools` (permission) vs `disallowed_tools` (both), and the mode | believing `allowed_tools` restricts anything; `bypassPermissions` because a prompt was in the way; `can_use_tool` set where an allow rule or the mode approves every call first |
 | **MCP** | in-process, stdio or HTTP; and the server key, which becomes the tool prefix | an `mcp__x__` name with no server `x`; a stdio command missing on the target host; ambient servers loading because `strict_mcp_config` is unset |
 | **Subagents** | what to delegate, with which tools, under which ceiling | no `tools`, so it inherits everything; no `maxTurns`, so nothing bounds it; the Agent/Task tool not allowed, so nothing delegates at all |
 
@@ -87,8 +87,9 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
   built-ins; a bare name in `disallowed_tools` removes one tool. Say this
   whenever an allow list is the subject.
 - **To observe every tool call, use a `PreToolUse` hook, not `can_use_tool`.**
-  `can_use_tool` fires only when the rules evaluate to "ask", so it never sees a
-  pre-approved call — and setting both raises `CanUseToolShadowedWarning`.
+  The SDK calls `can_use_tool` when the flow resolves to a prompt; a call an allow
+  rule or the mode approves skips it, while a `PreToolUse` hook runs for those calls
+  too. A bare allow entry or `bypassPermissions` beside it raises `CanUseToolShadowedWarning`.
 - **`return {}` is the safe hook return.** It means allow, unchanged. Only
   reach for `hookSpecificOutput` when the hook is meant to change something.
 - **Only `PreCompact` has no `hookSpecificOutput` type.** `Stop` and

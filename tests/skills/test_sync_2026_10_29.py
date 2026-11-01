@@ -33,6 +33,7 @@ NEW_NOTE = "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.
 LATER_REREAD_NOTES = (
     "re-read 2026-11-02 against claude-agent-sdk 0.2.176 / claude code 2.1.316 docs",
     "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
+    "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
 )
 
 
@@ -133,7 +134,9 @@ def test_the_max_turns_plus_one_rule_is_stated(relative):
 def test_the_permission_model_carries_the_2026_10_29_docs_facts():
     text = read("skills/agent-harness/references/permission-model.md")
     lowered = flat(text)
-    assert "file-edit tools" in lowered
+    # "file-edit tools" until 2026-11-04; the 2026-11-05 docs say "file-tool edits",
+    # which permission-model.md words as "edits with claude's file tools".
+    assert any(n in lowered for n in ("file-edit tools", "file-tool edits", "claude's file tools"))
     assert "shell-write" not in lowered, "plan mode sends file-edit tools only (docs 2026-10-29)"
     assert "4,096" in text or "4096" in text
     assert "Dangerous rm operation not ruled out" in text
@@ -296,7 +299,9 @@ def _flat(text: str) -> str:
 
 LANE_B_PRESENT = (
  ("skills/agent-harness/references/hooks-catalog.md", ("at most 24 at a time per session", "plus at most 12 that have waited longer than their event's timeout", "a `timeout` under 1 second counts as 1 second", "if more than 12 of them are prompt or agent hooks, 12 of those run at once", "subagenthandback", "up to three times", "before 2.1.210", "fires once per subagent (2.1.311)", "a `-p` session doesn't count as accepting it", "$claude_effort")),
- ("skills/agent-harness/references/permission-model.md", ("sends file-edit tools to your `canusetool` callback regardless of allow rules", "more than 4,096 `updated_permissions` items", "dangerous rm operation not ruled out", "claude_code_disable_dangerous_rm_timeout", "claude_code_even_more_dangerously_skip_permissions", "`mkdir`, `touch`, `rm`, `rmdir`, `mv`, `cp`, `sed`", "typescript-only (agent sdk v0.3.301+)", "reasoning-blind by design", "17 % miss rate", "0.4 % false-positive rate", "claude code doesn't stop the run", "https://www.anthropic.com/research/claude-code-auto-mode")),
+ # permission-model: "sends file-edit tools to your `canusetool` callback regardless of allow
+ # rules" until 2026-11-04, reworded after the 2026-11-05 docs rewrite of plan mode.
+ ("skills/agent-harness/references/permission-model.md", ("reach `can_use_tool` even when an allow rule matches", "more than 4,096 `updated_permissions` items", "dangerous rm operation not ruled out", "claude_code_disable_dangerous_rm_timeout", "claude_code_even_more_dangerously_skip_permissions", "`mkdir`, `touch`, `rm`, `rmdir`, `mv`, `cp`, `sed`", "typescript-only (agent sdk v0.3.301+)", "reasoning-blind by design", "17 % miss rate", "0.4 % false-positive rate", "claude code doesn't stop the run", "https://www.anthropic.com/research/claude-code-auto-mode")),
  ("skills/agent-harness/references/subagent-design.md", ("taskstop", "killshell", "`sonnet`, `opus`, `haiku`, or `fable`", "claude_code_disable_background_tasks", "never raise", "finish connecting after the subagent started", "divide by context", "90.2 %", "15×", "token usage by itself explains 80% of the variance", "/agent-sdk:agent-design")),
  ("skills/agent-harness/references/context-and-settings.md", ("new, private temp directory", "claude_code_oauth_token", "claude setup-token", "claude_code_effort_level", "claude_effort", "can also load from the repository's root", "a finite resource with diminishing marginal returns", "precompact", "about an hour", "usage credits required for 1m context")),
  ("skills/agent-harness/references/mcp-patterns.md", ("search over list", "response_format", "25,000 tokens", "max_mcp_output_tokens", "user_id", "150,000", "mcp_server_errors", "system/init", "destructivehint", "/agent-sdk:agent-design")),

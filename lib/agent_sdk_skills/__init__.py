@@ -11,11 +11,11 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.2.2"
+RUNNER_VERSION = "0.2.3"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the
@@ -31,6 +31,7 @@ SDK_MIN_SUPPORTED = "0.2.140"
 CLI_BUNDLED_WITH_TARGET = "2.1.318"
 #: The Claude Code version whose documentation the references were read against
 #: (docs and changelog re-read 2026-11-04).
+#: docs re-read 2026-11-05 (lastmod 2026-11-04), no CLI release.
 DOCS_READ_AT_CLI = "2.1.318"
 
 #: Model policy. Ids from platform.claude.com/docs/en/models/overview and

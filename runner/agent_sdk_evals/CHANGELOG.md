@@ -3,6 +3,38 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.2.3 — 2026-11-05
+
+Docs-only re-read: no SDK or Claude Code release since 0.2.2, so the pins stay
+`claude-agent-sdk` 0.2.178 with its bundled CLI 2.1.318 and the documentation is
+re-read at Claude Code 2.1.318 (13 pages with lastmod 2026-11-04); minimum
+supported SDK stays 0.2.140. `types.py` is unchanged (2,914 lines), so every
+`types.py:<line>` citation, the 49 options, 6 permission modes and 10 Python hook
+events hold as checked for 0.2.2. Nothing in the runner's behaviour changed:
+version strings and comments only. A project copy at 0.2.2 behaves the same and
+is reported as older (`DEP001`) only so it picks up the new version string.
+
+- **What a 0.2.2 copy should know.**
+  - Reading `permission_denials`: the `agent-sdk/permissions` page now says that
+    a call an `allowed_tools` entry or a settings allow rule approves, and a call
+    the permission mode approves (a file edit in `acceptEdits`), runs without
+    calling `can_use_tool`; a `PreToolUse` hook still runs for those calls. So an
+    entry in `ResultMessage.permission_denials` came from a deny rule, a hook
+    `deny`, a `can_use_tool` deny, or the mode turning a prompt into a denial
+    (the runner's default `dontAsk`); a call an allow rule or the mode approved
+    never reaches `can_use_tool` and is not there. A scoped allow rule's other
+    calls fall through to the permission mode, not to the callback. The
+    runner's capture and fault hooks are `PreToolUse` hooks, so they see
+    rule- and mode-approved calls as before; no trace field changed.
+  - Startup exits: per the `errors` page (2.1.318), `claude -p` exits 1 each
+    time while `~/.claude.json` is broken, until it is repaired, and a
+    non-interactive run whose organization settings fail to load prints the
+    error and exits 1. Through the SDK such a child surfaces as
+    `ProcessError(exit_code=1)` before the first message, which the runner
+    classifies as before (exit 2, outcome `NOT_EVALUATED`, never a FAIL).
+    Docs only, not reproduced here.
+- `DOCS_READ_AT_CLI = "2.1.318"` (unchanged).
+
 ## 0.2.2 — 2026-11-04
 
 Re-checked against `claude-agent-sdk` 0.2.178 with its bundled CLI 2.1.318

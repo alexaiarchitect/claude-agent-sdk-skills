@@ -69,6 +69,22 @@ change an improvement or a regression:
   With 10 runs a single flip is 10 points, so small suites need more runs, not
   finer reading.
 
+## Keeping a change: train and held-out both improve
+
+Hillclimbing on an eval (edit, re-run, keep or revert) overfits unless the method
+guards against it. Lance Martin's write-up (2026-09-28; the `claude-api` skill's
+`hillclimb` command, not the SDK) sets the rules this plugin follows:
+
+- first check that run-to-run noise is smaller than the smallest improvement worth
+  acting on; if not, add repeats or cases before changing anything;
+- change **one attributable surface per round** (a prompt section, a tool
+  description, the model or effort), so the score moves because of that surface;
+- split the cases into a train set the person or agent editing may read and a
+  **held-out (test) set** it never sees (`/agent-sdk:eval-create`, `case-taxonomy.md`);
+- **keep a change only when train and held-out both improve**; revert on a
+  regression, and treat train up with held-out flat as overfitting;
+- a gain within noise is not a gain: do not merge it.
+
 ## Where the samples come from
 
 `results.samples_by_case` merges the runs inside each result file with the runs
@@ -83,4 +99,8 @@ the standard unbiased form; the pass@k versus pass^k distinction follows
 ("Demystifying evals for AI agents", 2026-01-09, pass@k versus pass^k);
 <https://www.anthropic.com/research/infrastructure-noise> ("Infrastructure noise
 in agentic coding evals", 2026-02-05, resource configuration, repeats across
-times and days, the 3-point threshold). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+times and days, the 3-point threshold);
+<https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval
+design and hillclimbing with Claude", 2026-09-28, one attributable surface per change, keep a change only when train and held-out both improve, noise below the smallest worthwhile gain; written for the `claude-api`
+skill's `hillclimb` command, cited for its method).
+Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

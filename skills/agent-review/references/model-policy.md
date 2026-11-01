@@ -17,7 +17,7 @@ of eight grades. The grade decides the finding, not the string.
 | `unknown` | anything else: a string that is not a Claude id at all — a typo, or another provider's name | none, but the review says it could not grade it |
 
 The lists live in `lib/agent_sdk_skills/__init__.py` and are re-pinned at each
-upstream sync from the deprecations page. **As of 2026-11-04** (no id, price or
+upstream sync from the deprecations page. **As of 2026-11-05** (no id, price or
 date changed since 2026-10-11). "Default effort" below is the Claude API's
 default from the models overview; Claude Code's own default differs for the 5.5
 family (next section):
@@ -192,6 +192,5 @@ set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165
 0.2.168 (bundled CLI 2.1.301) and on 2026-10-24 on SDK 0.2.174 (bundled CLI
 2.1.310). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code
-2.1.318 docs (model ids, prices and dates unchanged; line numbers re-pinned to
-0.2.178).
+2.1.310 docs; line numbers re-pinned to 0.2.178 on 2026-11-04. Re-read 2026-11-05 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs (model ids, prices and dates unchanged).

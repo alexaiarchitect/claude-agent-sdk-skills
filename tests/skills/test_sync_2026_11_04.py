@@ -40,6 +40,10 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN_ROOT / "skills"
 
 NEW_NOTE = "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs"
+#: A later sync may replace the note above with its own; either shows a re-read.
+LATER_REREAD_NOTES = (
+    "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
+)
 
 
 def flat(text: str) -> str:
@@ -81,25 +85,29 @@ def test_the_runner_reads_the_docs_at_the_same_version():
 
 
 def test_the_release_is_0_2_2_everywhere_lane_a_owns():
+    # 0.2.2 at this sync; every carrier follows `__version__` from 0.2.3 on.
     import agent_sdk_skills as plugin
-    assert plugin.__version__ == plugin.RUNNER_VERSION == "0.2.2"
-    assert read("runner/agent_sdk_evals/VERSION").strip() == "0.2.2"
-    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == "0.2.2"
-    assert 'version = "0.2.2"' in read("pyproject.toml")
-    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == "0.2.2"
+    version = plugin.__version__
+    assert plugin.RUNNER_VERSION == version
+    assert read("runner/agent_sdk_evals/VERSION").strip() == version
+    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == version
+    assert f'version = "{version}"' in read("pyproject.toml")
+    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == version
 
 
 def test_the_fixtures_carry_the_new_runner_version_and_pins():
     """Synthetic fixtures follow the pin; the measured `init_2_1_3xx` traces are history."""
+    # 0.2.2 / 0.2.178 / 2.1.318 at this sync; the fixtures follow the current constants.
+    from agent_sdk_skills import CLI_BUNDLED_WITH_TARGET, RUNNER_VERSION, SDK_TARGET
     for aggregate in (PLUGIN_ROOT / "tests" / "fixtures" / "results").glob("*/aggregate.json"):
         payload = json.loads(aggregate.read_text(encoding="utf-8"))
         assert (payload["runner_version"], payload["sdk_version"], payload["cli_version"]) \
-            == ("0.2.2", "0.2.178", "2.1.318"), aggregate
+            == (RUNNER_VERSION, SDK_TARGET, CLI_BUNDLED_WITH_TARGET), aggregate
     for config in (PLUGIN_ROOT / "tests" / "fixtures").rglob("eval_config.json"):
         if "stale_runner" in config.parts:
             continue                       # stale on purpose (0.0.1)
-        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == "0.2.2", config
-    assert "claude-agent-sdk==0.2.178" in read("tests/fixtures/agents/ci_ready/requirements.txt")
+        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == RUNNER_VERSION, config
+    assert f"claude-agent-sdk=={SDK_TARGET}" in read("tests/fixtures/agents/ci_ready/requirements.txt")
 
 
 def test_the_changelog_records_the_release_and_why_the_runner_hooks_fail_open():
@@ -370,7 +378,8 @@ REREAD = (  # awaits lanes B/C; the orchestrator appends what the lanes report
 
 @pytest.mark.parametrize("name", REREAD)
 def test_every_reference_re_read_in_this_sync_carries_the_new_note(name):  # awaits lanes B/C
-    assert NEW_NOTE in flat((SKILLS / name).read_text(encoding="utf-8"))
+    text = flat((SKILLS / name).read_text(encoding="utf-8"))
+    assert any(note in text for note in (NEW_NOTE, *LATER_REREAD_NOTES))
 
 
 ARTICLE_24 = "https://www.anthropic.com/research/alignment-assessment-ukaisi"
@@ -405,10 +414,11 @@ PRESENT = (  # awaits lanes B/C
     ("skills/eval-simulation/references/fault-injection.md", ("on_failure",)),
     ("skills/agent-sdk/references/environment.md", ("0.2.178", "2.1.318")),
     ("skills/agent-sdk/SKILL.md", ("0.2.178",)),
-    ("README.md", ("documentation read at claude code 2.1.318", "25 published anthropic articles")),
+    # the article count and the cookbooks head move each sync: 25 and 785d7a0 here;
+    # 29 and ce8b262 from 2026-11-05, checked in `test_sync_2026_11_05.py`
+    ("README.md", ("documentation read at claude code 2.1.318",)),
     ("THIRD_PARTY_NOTICES.md",
-     ("3be907edb9c86269d30d1427a77937dd788d6419", "26382c08758260c9f5deb2019d8fe851f89fa9ae",
-      "785d7a06457b3413727f386b9c470083feb23c49")),
+     ("3be907edb9c86269d30d1427a77937dd788d6419", "26382c08758260c9f5deb2019d8fe851f89fa9ae")),
 )
 
 ABSENT = (  # awaits lanes B/C
@@ -492,7 +502,8 @@ LANE_PRESENT = (
       "let the error propagate from a guard",
       'fails open** unless `onfailure: "block"`',
       "a hook changed this call's input after auto mode reviewed it",
-      "the hooks page read 2026-11-04 still says",
+      # "the hooks page read 2026-11-04 still says" until the 2026-11-05 re-read
+      'still says "if more than 12 of them are prompt or agent hooks, 12 of those run at once"',
       "the pinned 0.2.178 (bundled cli 2.1.318) has all of this")),
     ("skills/agent-harness/references/permission-model.md",
      ("can stop the turn after ten responses in a row with no verdict",
@@ -515,7 +526,7 @@ LANE_PRESENT = (
     ("skills/agent-review/references/options-reference.md",
      ("from 0.2.177 `on_failure`", "it is **not** a `resultmessage` field",
       "no `permission_mode` key", "`ultrathink_typed_raises`", "types.py:2339-2799")),
-    ("skills/agent-review/references/model-policy.md", ("as of 2026-11-04",)),
+    # model-policy's "as of 2026-11-04" moves each sync ("as of 2026-11-05" from 2026-11-05)
     ("skills/agent-review/references/load-check.md",
      ("the **0.2.178** wheel bundles **2.1.318**",)),
     ("skills/agent-deploy/references/secure-deployment.md",

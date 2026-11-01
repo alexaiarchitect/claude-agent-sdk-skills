@@ -53,6 +53,11 @@ REFERENCES = sorted((PLUGIN_ROOT / "skills").rglob("references/*.md"))
 REREAD_NOTE = (
     "re-read 2026-10-11 against claude-agent-sdk 0.2.165 / claude code 2.1.296 docs"
 )
+#: A later sync may replace the note above with its own when it trims a footer
+#: (permission-model.md, 2026-11-05); either shows the file was re-read.
+LATER_REREAD_NOTES = (
+    "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
+)
 
 
 def findings(script: Path, project: str, *extra: str) -> list[dict]:
@@ -233,7 +238,8 @@ def test_every_reference_touched_by_this_sync_carries_the_reread_note():
     }
     missing = sorted(
         name for name in expected
-        if REREAD_NOTE not in flat((PLUGIN_ROOT / "skills" / name).read_text(encoding="utf-8"))
+        if not any(note in flat((PLUGIN_ROOT / "skills" / name).read_text(encoding="utf-8"))
+                   for note in (REREAD_NOTE, *LATER_REREAD_NOTES))
     )
     assert missing == [], f"these were re-read but carry no dated note: {missing}"
 
