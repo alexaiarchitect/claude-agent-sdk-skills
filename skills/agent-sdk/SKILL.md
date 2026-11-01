@@ -131,7 +131,7 @@ results, CI. Read down the columns and the next piece of work names itself.
 
 - **Never guess the entry point, the SDK version or the credential.** Run the
   discovery script. It reports which versions this plugin was checked against —
-  `claude-agent-sdk` 0.2.176 with bundled Claude Code 2.1.316 — and raises
+  `claude-agent-sdk` 0.2.178 with bundled Claude Code 2.1.318 — and raises
   `ENV003` at info level when the installed SDK is newer; that is a note, never
   a blocker.
 - **Say what a run spends before running it.** Sessions and judge calls, in

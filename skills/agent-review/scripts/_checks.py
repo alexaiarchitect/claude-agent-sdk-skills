@@ -17,6 +17,7 @@ Ids and bands are fixed by `skills/agent-sdk/references/gap-report-format.md`:
 
 from __future__ import annotations
 
+import ast
 import re
 import shutil
 import sys
@@ -28,7 +29,7 @@ from agent_sdk_skills import (  # noqa: E402
     HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT, PERMISSION_MODES, PYTHON_HOOK_EVENTS,
     SUBAGENT_TOOL_NAMES,
 )
-from agent_sdk_skills.env import classify_model_id  # noqa: E402
+from agent_sdk_skills.env import classify_model_id, version_at_least  # noqa: E402
 from agent_sdk_skills.layout import ClaudeFiles  # noqa: E402
 from agent_sdk_skills.options_ast import OptionsCall, ProjectFacts  # noqa: E402
 from agent_sdk_skills.report import Finding  # noqa: E402
@@ -43,8 +44,8 @@ except ImportError:                      # pragma: no cover - older library copy
 DOCS = "https://code.claude.com/docs/en/agent-sdk"
 SRC_HOOKS = f"{DOCS}/hooks#available-hooks"
 SRC_HOOKS_OUTPUT = f"{DOCS}/hooks#outputs"
-SRC_HOOK_TYPES = "claude-agent-sdk 0.2.174 types.py:284 (HookEvent), :728-815 (HookJSONOutput)"
-SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.174 types.py:840 (HookMatcher)"
+SRC_HOOK_TYPES = "claude-agent-sdk 0.2.178 types.py:284 (HookEvent), :728-815 (HookJSONOutput)"
+SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.178 types.py:840 (HookMatcher)"
 SRC_PERMISSIONS = f"{DOCS}/permissions#how-permissions-are-evaluated"
 SRC_PERMISSION_RULES = f"{DOCS}/permissions#allow-and-deny-rules"
 SRC_TOOL_ACCESS = f"{DOCS}/custom-tools#control-tool-access"
@@ -58,10 +59,18 @@ SRC_SETTINGS = f"{DOCS}/claude-code-features#control-filesystem-settings-with-se
 SRC_DEPRECATIONS = "https://platform.claude.com/docs/en/about-claude/model-deprecations"
 SRC_PERMISSION_MODES = "https://code.claude.com/docs/en/permission-modes"
 SRC_NETWORK_PATHS = "https://code.claude.com/docs/en/permissions#network-paths"
-SRC_PERMISSION_MODE_FIELD = "claude-agent-sdk 0.2.174 types.py:2380 (permission_mode)"
+SRC_PERMISSION_MODE_FIELD = "claude-agent-sdk 0.2.178 types.py:2393 (permission_mode)"
 SRC_CHANGELOG = "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"
+SRC_ON_FAILURE = f"{DOCS}/hooks#block-the-action-when-a-callback-fails"
+SRC_ON_FAILURE_FIELD = "claude-agent-sdk 0.2.178 types.py:864 (HookMatcher.on_failure)"
 #: Hooks that `onFailure: "block"` cannot rescue, so the advice is wrong there.
 ON_FAILURE_EXEMPT_EVENTS = ("Stop", "SubagentStop", "TaskCompleted", "TeammateIdle")
+#: `HookMatcher.on_failure` first shipped in this SDK release (CLI 2.1.317 honours it).
+ON_FAILURE_SINCE_SDK = "0.2.177"
+#: Events where a hook callback decides a tool call, so failing open lets it run.
+GUARD_EVENTS = ("PreToolUse", "PermissionRequest")
+#: Return values that make a callback a guard: it refuses or gates the call.
+GUARD_DECISIONS = ("deny", "ask", "block")
 
 #: `allowed_tools` accepts a tool-name glob only after a literal server prefix.
 _MCP_PREFIX = re.compile(r"^mcp__([A-Za-z0-9_.\-]+)__")
@@ -209,7 +218,7 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             message='"Skill" in allowed_tools is deprecated',
             fix="use the `skills` option instead: it configures everything, including "
                 "allowing the Skill tool. Pass exact skill names.",
-            source="claude-agent-sdk 0.2.174 types.py:2346; " + SRC_OPTIONS,
+            source="claude-agent-sdk 0.2.178 types.py:2359; " + SRC_OPTIONS,
         ))
 
     mode = primary.get("permission_mode")
@@ -252,16 +261,101 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             id="OPT060", severity="error", area="options", path=path, locator=line,
             message=f'permission_mode="{mode_value}" is not one of the six the SDK accepts',
             fix="one of: " + ", ".join(PERMISSION_MODES),
-            source="claude-agent-sdk 0.2.174 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
+            source="claude-agent-sdk 0.2.178 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
         ))
     return findings
 
 
 # -- HOK: hooks ------------------------------------------------------------
 
-def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> list[Finding]:
-    """HOK001-HOK003, HOK010, HOK020, HOK030: does this hook do anything?"""
+_SDK_PIN = re.compile(r"claude[-_]agent[-_]sdk\s*(==|<=|~=|<)\s*([0-9][0-9A-Za-z.\-]*)")
+
+
+def _release(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", version.split("+")[0])[:3])
+
+
+def sdk_pin_below(project: Path | str | None, floor: str) -> tuple[str, str] | None:
+    """`(file, "<op><version>")` when the project's SDK pin cannot reach `floor`.
+
+    Only an upper bound counts (`==`, `<=`, `<`, `~=`); `>=` or no pin at all
+    says nothing about the installed version, so it never suppresses a finding.
+    """
+    if project is None:
+        return None
+    root = Path(project)
+    if root.is_file():
+        root = root.parent
+    for name in ("requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.py"):
+        path = root / name
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for match in _SDK_PIN.finditer(text):
+            op, version = match.groups()
+            want, have = _release(floor), _release(version)
+            if op in ("==", "<="):
+                below = have < want
+            elif op == "<":
+                below = have <= want
+            else:                                   # ~=X.Y.Z allows up to X.Y.*
+                prefix = have[:-1] if len(have) > 1 else have
+                below = prefix < want[:len(prefix)]
+            return (name, op + version) if below else None
+    return None
+
+
+_PARSED: dict[str, ast.AST | None] = {}
+
+
+def _tree(path: str | None) -> ast.AST | None:
+    if not path:
+        return None
+    if path not in _PARSED:
+        try:
+            _PARSED[path] = ast.parse(Path(path).read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, SyntaxError, ValueError):
+            _PARSED[path] = None
+    return _PARSED[path]
+
+
+def _denies_permission_request(callback) -> bool:
+    """A PermissionRequest guard returns `decision: {"behavior": "deny"}`, which
+    the shared facts do not record; read it from the callback's own source."""
+    tree = _tree(callback.path)
+    if tree is None:
+        return False
+    for node in ast.walk(tree):
+        if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == callback.name and node.lineno == callback.lineno):
+            for inner in ast.walk(node):
+                if not isinstance(inner, ast.Dict):
+                    continue
+                for key, value in zip(inner.keys, inner.values):
+                    if (isinstance(key, ast.Constant) and key.value == "behavior"
+                            and isinstance(value, ast.Constant) and value.value == "deny"):
+                        return True
+    return False
+
+
+def _is_guard(event: str, callback) -> bool:
+    if any(d in GUARD_DECISIONS for d in callback.permission_decisions):
+        return True
+    return event == "PermissionRequest" and _denies_permission_request(callback)
+
+
+def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None,
+                  project: Path | str | None = None) -> list[Finding]:
+    """HOK001-HOK003, HOK010, HOK011, HOK020, HOK030: does this hook do anything?
+
+    `project` is the root whose requirements decide whether `on_failure` exists
+    in the pinned SDK; without it HOK011 assumes it does.
+    """
     findings: list[Finding] = []
+    old_pin = sdk_pin_below(project, ON_FAILURE_SINCE_SDK)
     for registration in facts.hooks:
         path = next((c.path for c in facts.options_calls if registration in c.hooks), None)
         locator = f"hooks[{registration.event}] line {registration.lineno}"
@@ -300,7 +394,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     message=f"hook callback {name}() is a plain `def`; the SDK awaits it",
                     fix="make it `async def cb(input_data, tool_use_id, context)`. A "
                         "synchronous callback raises as soon as the event fires.",
-                    source="claude-agent-sdk 0.2.174 types.py:828 (HookCallback)",
+                    source="claude-agent-sdk 0.2.178 types.py:828 (HookCallback)",
                 ))
             if callback.param_count != 3 and not any(p.startswith("*") for p in callback.params):
                 findings.append(Finding(
@@ -309,7 +403,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     message=f"hook callback {name}() takes {callback.param_count} "
                             "parameter(s); the SDK always passes three",
                     fix="the signature is (input_data, tool_use_id, context).",
-                    source="claude-agent-sdk 0.2.174 types.py:828 (HookCallback)",
+                    source="claude-agent-sdk 0.2.178 types.py:828 (HookCallback)",
                 ))
             needs_specific = registration.event not in HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT
             if (needs_specific and callback.returns_nonempty_dict
@@ -353,6 +447,35 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     source=SRC_HOOKS_OUTPUT,
                 ))
 
+        if registration.event in GUARD_EVENTS and registration.uses_hook_matcher and not old_pin:
+            on_failure = getattr(registration, "on_failure", None)
+            dynamic = getattr(registration, "on_failure_dynamic", False)
+            if on_failure != "block" and not dynamic:
+                for name in registration.callbacks:
+                    callback = facts.function(name)
+                    if callback is None or not _is_guard(registration.event, callback):
+                        continue
+                    findings.append(Finding(
+                        id="HOK011", severity="warn", area="hooks", path=path,
+                        locator=locator,
+                        message=f"guard `{name}()` fails open: a crash, a `None` return "
+                                "or a rejected value lets the call through",
+                        fix='set `on_failure="block"` on this HookMatcher (claude-agent-sdk '
+                            "0.2.177+, Claude Code 2.1.317+): then a callback that raises, "
+                            "returns `None` (a path with no `return`) or returns a value the "
+                            "CLI rejects blocks the call instead of counting as no decision. "
+                            "Return `{}` on every path where the guard has no opinion, and "
+                            "let an error propagate rather than catching it and returning "
+                            "`{}`. "
+                            + ", ".join(ON_FAILURE_EXEMPT_EVENTS)
+                            + " ignore the option; on PermissionRequest a block counts only "
+                              "if it lands before `can_use_tool` answers. Against a CLI too "
+                              "old to honour it, connecting raises `CLIConnectionError` "
+                              '("does not honor"), and one that did not apply the hooks '
+                              'raises "did not register your hooks".',
+                        source=f"{SRC_ON_FAILURE}; {SRC_ON_FAILURE_FIELD}",
+                    ))
+
     if claude is not None and claude.hooks_in_settings and not loads_project_settings(facts):
         findings.append(Finding(
             id="HOK030", severity="info", area="hooks",
@@ -361,13 +484,16 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None) -> lis
                     "excludes `project`, so they do not load in an SDK run",
             fix="that is usually what an eval wants (the run stays reproducible); if "
                 "those hooks are part of the agent, register them in the `hooks` option "
-                "instead of the settings file. A settings-file `command` or `http` hook "
-                "that must not fail open can also set `onFailure: \"block\"` (Claude Code "
-                "2.1.295+), which turns a failure to start, a non-0/2 exit, an HTTP error, "
-                "a timeout or unparseable output into a block — it has no effect on "
+                "instead of the settings file — an SDK `HookMatcher` can now fail closed "
+                "too, with `on_failure=\"block\"` (claude-agent-sdk 0.2.177+, Claude Code "
+                "2.1.317+; see HOK011). A settings-file `command` or `http` hook that must "
+                "not fail open can set `onFailure: \"block\"` (Claude Code 2.1.295+), which "
+                "turns a failure to start, a non-0/2 exit, an HTTP error, a timeout or "
+                "unparseable output into a block — it has no effect on "
                 + ", ".join(ON_FAILURE_EXEMPT_EVENTS)
                 + " or on background (`async`/`asyncRewake`) command hooks.",
-            source=f"{SRC_SETTINGS}; https://code.claude.com/docs/en/hooks#onfailure",
+            source=f"{SRC_SETTINGS}; https://code.claude.com/docs/en/hooks#onfailure; "
+                   + SRC_ON_FAILURE,
         ))
     return findings
 

@@ -116,5 +116,5 @@ in agentic coding evals", 2026-02-05, repeats across times and days, the 3-point
 threshold). <https://www.anthropic.com/research/formal-verification> ("LLMs are
 making formal software verification feasible at a much larger scale",
 2026-10-22, three independent attempts at a 5M-token budget per task as the
-worked example); `task_budget` per the claude-agent-sdk 0.2.176 `types.py`
-docstring. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+worked example); `task_budget` per the claude-agent-sdk 0.2.178 `types.py`
+docstring (`types.py:2799`). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

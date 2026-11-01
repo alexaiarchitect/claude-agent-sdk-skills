@@ -92,7 +92,9 @@ def test_opt013_fires_when_permission_mode_is_never_passed():
     assert "2.1.285" in finding["message"], "and the release the behaviour starts at"
     assert "dontAsk" in finding["fix"] and "default" in finding["fix"], \
         "the fix offers both explicit modes"
-    assert "types.py:2380" in finding["source"], "cite the field it read"
+    # `types.py:2380` from 0.2.165 to 0.2.176; `:2393` from 0.2.178 (0.2.177 added
+    # 13 lines above it, renumbered 2026-11-04).
+    assert "types.py:2393" in finding["source"], "cite the field it read"
     assert "permission-modes" in finding["source"], "and the page for the auto default"
 
 

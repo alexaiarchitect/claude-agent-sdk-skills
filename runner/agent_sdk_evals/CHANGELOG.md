@@ -3,6 +3,79 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.2.2 — 2026-11-04
+
+Re-checked against `claude-agent-sdk` 0.2.178 with its bundled CLI 2.1.318
+(docs and changelog read at Claude Code 2.1.318); minimum supported SDK stays
+0.2.140. **The first SDK API change since 0.2.166:** 0.2.177 added
+`HookMatcher.on_failure` (`types.py:864`); 0.2.178 changes only
+`_cli_version.py`, `_version.py` and the bundled binary. `types.py` grew by 13
+lines (up to 854 unchanged, 855-2320 +11, 2321 on +13), so every `types.py:<line>`
+the plugin cites was renumbered and re-checked against the wheel. The 49
+options, 6 permission modes, 10 Python hook events, 21 `HookSpecificOutput`
+members (only `PreCompact` lacks one), 159 exports and 19 `ResultMessage` fields
+are unchanged. No runner behaviour changed: pins, comments and tests only. A
+project copy at 0.2.1 behaves the same and is reported as older (`DEP001`) only so
+it picks up the new version string.
+
+- **`HookMatcher.on_failure` (SDK 0.2.177+, Claude Code 2.1.317+).** A field of
+  the matcher, not a `ClaudeAgentOptions` option, so `OPTION_NAMES` stays 49 and
+  no case or override can name it. What it means for the hook callbacks a
+  project registers:
+  - Unset or `"continue"` (the default, as before): a callback that raises,
+    returns `None` (a path with no `return`) or returns a value the CLI rejects
+    counts as no decision, so a crashing `PreToolUse` guard lets the call reach
+    the normal permission flow. Measured on 2.1.318: the CLI sends a
+    `SystemMessage` with `subtype "informational"`, `level "warning"`,
+    `data["tag"] == "hook_callback_failed"` and content ending "Its answer was
+    treated as empty.", and the tool runs.
+  - `"block"`: the same failures block the action. Measured: the same
+    informational message, ending "onFailure is \"block\", so this failure counts
+    as a block." (so it appears in both modes, not only the default one the docs
+    describe), then a tool result with `is_error: true` reading `PreToolUse:Bash
+    hook error: [callback]: failed; blocking because onFailure is "block"` (the
+    callback's own error text is not shown to Claude). The blocked call is listed
+    in `ResultMessage.permission_denials`, the run still ends `subtype
+    "success"`, and the model may retry the call, which spends a turn (size
+    `max_turns` for it).
+  - A callback with no opinion must `return {}`; unrecognised keys are not a
+    failure; a guard that catches its own error and returns `{}` is not failing.
+    `Stop`, `SubagentStop`, `TaskCompleted` and `TeammateIdle` ignore the field;
+    a `PermissionRequest` block counts only before `can_use_tool` answers;
+    `PostToolUse` failures arrive after the tool ran; with `"block"` a timeout
+    also blocks `PreCompact`, `Elicitation` and `WorktreeCreate`.
+  - With any value but `"continue"` (the SDK does not validate it), connecting
+    raises `CLIConnectionError` before a prompt is sent if the CLI is too old to
+    honour it ("does not honor on_failure") or the session was already running
+    ("did not register your hooks").
+- **The runner's own hooks stay on the default.** The capture and fault-injection
+  matchers (`faults.build_hooks`) leave `on_failure` unset on purpose: a crash in
+  them is a harness bug, and with `"block"` it would block the agent's tool call
+  and fail the case for a reason the case never tested. A crash still leaves the
+  informational message in the trace as a plain `system` event with
+  `data.tag == "hook_callback_failed"`, so it is visible, not silent. Leaving the
+  field unset also keeps the runner working with SDKs before 0.2.177.
+- **What a 0.2.1 copy should know about 2.1.317/2.1.318.**
+  - The 2.1.318 `init` still carries the same 14 `capabilities`; its new key
+    `ultrathink_typed_raises` is not a `SystemInitData` field and is dropped like
+    every undeclared key (measured; no new fixture).
+  - Changelog only, not measured here: `claude -p` now exits 1 (text and json)
+    when a full disk or quota loses transcript or `~/.claude.json` writes
+    (2.1.317); `claude -p` and SDK sessions no longer report success when an API
+    error cut off a reply while a mod hooked `turn.step` (2.1.318); failing custom
+    slash commands now print in `-p`/SDK sessions (2.1.318); unattended runs stop
+    rewriting `~/.claude.json`, and a non-interactive start no longer replaces an
+    invalid one (2.1.318).
+  - `credential_expires_at` in `claude -p` JSON (2.1.318) appears only with a
+    stored claude.ai sign-in: absent with an API key (measured). It is not a
+    `ResultMessage` field (the SDK drops unknown keys) and the runner never parses
+    `-p` JSON, so nothing reads it.
+  - Subagents and teammates on a different model from the session now use that
+    model's saved effort level or its default, not the session's (2.1.317
+    changelog; the `model-config` docs carry the rule): set `effort` on an
+    `AgentDefinition` when a case depends on it.
+- `DOCS_READ_AT_CLI = "2.1.318"`.
+
 ## 0.2.1 — 2026-11-02
 
 Re-checked against `claude-agent-sdk` 0.2.176 with its bundled CLI 2.1.316

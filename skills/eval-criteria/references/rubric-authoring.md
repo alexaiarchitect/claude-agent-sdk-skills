@@ -145,5 +145,5 @@ split); https://code.claude.com/docs/en/agent-sdk/structured-outputs
 (`output_format` as the judge's return shape);
 <https://www.anthropic.com/research/agents-judgment-calls> ("How AI agents shape
 experts' judgment calls", 2026-10-27, judgment calls with no reference answer,
-deferral measured by varying the lean). Re-read 2026-11-02 against
-claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+deferral measured by varying the lean). Re-read 2026-11-04 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

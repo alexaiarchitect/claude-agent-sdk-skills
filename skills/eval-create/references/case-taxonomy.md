@@ -117,7 +117,13 @@ Anthropic's own policy, not an SDK default; for this plugin it means:
   is blocked) and grade that the agent stops and reports rather than finding a
   way around;
 * review transcripts at scale, not just verdicts: the article found these
-  behaviours by reading runs, and rare ones appear only across many repeats.
+  behaviours by reading runs, and rare ones appear only across many repeats;
+* isolate the live suite the way the UK AISI cybertesting incident (2026-10-23)
+  shows it must be: no account creation or outbound messages (sign-ups, email,
+  pull requests), no credential in a file the agent can read, a fresh account
+  and writable state per run so concurrent runs cannot reach each other, and a
+  guard hook with `on_failure="block"` (claude-agent-sdk 0.2.177+) rather than an
+  instruction in the prompt.
 
 Sources: `lib/agent_sdk_skills/evalcase.py` (`CATEGORIES`, `EVC030`, `EVC031`,
 the restraint checks behind `EVC041`); `lib/agent_sdk_skills/coverage.py`
@@ -132,5 +138,8 @@ customer usage, read failures first);
 <https://www.anthropic.com/research/investigating-unintended-model-actions>
 ("Investigating unintended model actions in our evaluations and internal use",
 2026-10-09, unintended actions concentrated in live-internet evals, offline
-versions, explicit scope statements, transcript review at scale).
-Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+versions, explicit scope statements, transcript review at scale);
+<https://www.anthropic.com/research/alignment-assessment-ukaisi> ("An alignment
+assessment of the UK AISI cybertesting incident", 2026-10-23, an alignment
+write-up; the isolation rules drawn from it are this plugin's inferences).
+Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

@@ -71,19 +71,16 @@ ClaudeAgentOptions(
 
 **Values in `env` — and in a settings file's `env` block — are not
 shell-expanded.** `"$HOME/.cache"`, `"~/state"` and `"${TMPDIR}/x"` are passed
-through as those literal strings, so the subprocess sees a path that does not
-exist. Expand in Python and pass an **absolute** path:
-`env={"CLAUDE_CONFIG_DIR": str(Path.home() / ".cache" / tenant)}`. Boolean
-settings are read more loosely than they used to be (`"true"`, `"1"`, `"yes"`
-and their negatives all parse), but a path is still a path.
+through literally, so the subprocess sees a path that does not exist. Expand in
+Python and pass an **absolute** path:
+`env={"CLAUDE_CONFIG_DIR": str(Path.home() / ".cache" / tenant)}`.
 
 **What the subprocess does not inherit.** `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB`
 governs a published list: `ANTHROPIC_API_KEY`, `AWS_SECRET_ACCESS_KEY`,
-`CLAUDE_CONFIG_DIR` (added in 2.1.251) and anything matching the credential
-name/value patterns are removed from commands Claude runs, while `GITHUB_TOKEN`,
-`GH_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`,
-`HTTP_PROXY`/`HTTPS_PROXY` and `GIT_CONFIG_*` are kept. Before 2.1.251 only the
-first two were removed. A hook or a test that needs the key has to be given it
+`CLAUDE_CONFIG_DIR` and anything matching the credential name/value patterns are
+removed from commands Claude runs, while `GITHUB_TOKEN`, `GH_TOKEN`,
+`GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, `HTTP_PROXY`/`HTTPS_PROXY` and
+`GIT_CONFIG_*` are kept. A hook or a test that needs the key has to be given it
 explicitly.
 
 ## A version trap
@@ -113,14 +110,10 @@ page lists every key with its scope.
 
 **`CLAUDE_CODE_AUTO_COMPACT_WINDOW`** sets how full the context gets before
 compaction, "from `100000` to `1000000` tokens". From 2.1.304 it takes `k`/`M`
-suffixes (`200k`, `1M`) and warns on a bad value: "reads as <N> tokens, so
-Claude Code treats it as the 100k minimum", "is too large, so Claude Code treats
-it as the 1M maximum", or "isn't a usable size, so Claude Code ignores it".
-Before 2.1.304 `200k` silently set a 100K window. A bare number is tokens:
-`CLAUDE_CODE_AUTO_COMPACT_WINDOW=200` means 200 tokens (clamped to 100k), though
-`/autocompact 200` means 200,000. After a compaction Claude is sent the skill
-list again (2.1.304), and from 2.1.310 `-p` and Agent SDK sessions use less
-memory compacting a very large transcript file. From **2.1.311** a
+suffixes (`200k`, `1M`) and warns on a bad value (before, `200k` silently set a
+100K window); a bare number is tokens (`200` clamps to 100k, though
+`/autocompact 200` means 200,000). After a compaction Claude is sent the skill
+list again (2.1.304). From **2.1.311** a
 standard-context session whose request runs over 200K tokens compacts and
 continues instead of stopping with "Usage credits required for 1M context", and
 Claude no longer sees stale `MEMORY.md`/`CLAUDE.md` right after an
@@ -151,13 +144,11 @@ reads the full conversation), so it is a latency lever, not a cost lever: median
 time to first token fell about 35 % on 500K–1M-token requests in Claude Code, where
 threads are on by default for most users. The article does not say whether the
 Agent SDK or a `claude -p` child uses them, the Claude Code docs and changelog
-through 2.1.316 do not mention them, and `ClaudeAgentOptions` has no field for them.
+through 2.1.318 do not mention them, and `ClaudeAgentOptions` has no field for them.
 
-Two settings keys arrived since the last read: `sandbox.allowNestedUserNamespaces`
-(2.1.305+, user or managed scope; lets sandboxed Linux/WSL2 commands create user
-namespaces, and "you turn off a security boundary" — see `secure-deployment.md`)
-and `sshHostCommands` (Desktop's SSH-from-a-command connections; irrelevant to
-an SDK agent).
+`sandbox.allowNestedUserNamespaces` (2.1.305+, user or managed scope) lets sandboxed
+Linux/WSL2 commands create user namespaces, and "you turn off a security boundary"
+(`secure-deployment.md`); `sshHostCommands` is Desktop-only.
 
 ## What this means for each situation
 
@@ -178,9 +169,10 @@ option); (4) settings — a saved per-model level or `effortLevel`, precedence a
 Haiku 5.5 (`medium`) and Opus 4.7 (`xhigh`). `CLAUDE_CODE_EFFORT_LEVEL=auto` or
 `unset` sends no level, so the API default applies. A variable in `env` therefore
 beats the `effort` option. Bash subprocesses and hook commands see the level in
-force as `CLAUDE_EFFORT`. From 2.1.316 a subagent that nothing else gives a level
-runs at `CLAUDE_CODE_SUBAGENT_EFFORT` instead of inheriting the session's (Claude
-Code `CHANGELOG.md` 2.1.316; not yet on the env-vars page read 2026-11-02).
+force as `CLAUDE_EFFORT`. A subagent or teammate with no `effort` of its own gets the
+session's level only on the session's model; on another model it uses that model's
+saved level or default (2.1.317; see `subagent-design.md`), unless
+`CLAUDE_CODE_SUBAGENT_EFFORT` (2.1.316, changelog only) names one.
 
 ## Where state lives when nothing is configured
 
@@ -199,7 +191,12 @@ private temp directory in `env` (a run resumed from the store already deletes
 its local copy). That directory holds no login, so a claude.ai sign-in or a user
 `apiKeyHelper` fails with `Not logged in`: pass `CLAUDE_CODE_OAUTH_TOKEN` from
 `claude setup-token` (model requests only — no claude.ai connectors in that
-run) or `ANTHROPIC_API_KEY` in `env`, or copy the config files in.
+run) or `ANTHROPIC_API_KEY` in the SDK's `env`, or copy the config files in. The
+OAuth variables (`CLAUDE_CODE_OAUTH_TOKEN`, `_REFRESH_TOKEN`, `_SCOPES`) are ignored
+in a project or local settings file's `env` block (docs read 2026-11-04). From
+2.1.317 a `claude -p` started inside a cloud or self-hosted runner session gets its own
+session id and transcript; `CLAUDE_CODE_DISABLE_NESTED_SESSION_ID=1` on a self-hosted
+runner restores the shared one (changelog only; not on the env-vars page).
 
 ## Hooks and subagents from the filesystem
 
@@ -230,7 +227,9 @@ values are not shell-expanded, `DISABLE_AUTO_COMPACT`,
 <https://code.claude.com/docs/en/model-config> (values and warnings for
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.304,
-2.1.305, 2.1.310, 2.1.311 compaction entries; 2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT`);
+2.1.305, 2.1.310, 2.1.311 compaction entries; 2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT`;
+2.1.317 subagent effort and `CLAUDE_CODE_DISABLE_NESTED_SESSION_ID`);
+<https://code.claude.com/docs/en/settings-reference#variables-claude-code-ignores-in-env>;
 <https://code.claude.com/docs/en/settings-reference> (`permissions.blockWritesOutsideWorkingDirectories`,
 what stays writable); <https://claude.com/resources/articles/message-threads> ("Make
 long-running agents faster with message threads", 2026-11-02, threads, 5-minute expiry,
@@ -241,10 +240,10 @@ and deletion, ZDR);
 ("Effective context engineering for AI agents", 2025-09-29, context as a finite
 resource, compaction tuned for recall then precision, note-taking, just-in-time
 retrieval);
-`claude-agent-sdk` 0.2.174 `types.py:2653` (`setting_sources`), `:2460`
-(`settings`), `:2373` (`strict_mcp_config`), `:2451` (`cwd`). The 17x cost figure
+`claude-agent-sdk` 0.2.178 `types.py:2666` (`setting_sources`), `:2473`
+(`settings`), `:2386` (`strict_mcp_config`), `:2464` (`cwd`). The 17x cost figure
 and the list of what still loaded under `setting_sources=[]` were measured by
 this plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
 Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude
-Code 2.1.310 docs (`types.py` byte-identical in 0.2.176). Re-read 2026-11-02 against
-claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+Code 2.1.310 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code
+2.1.318 docs.

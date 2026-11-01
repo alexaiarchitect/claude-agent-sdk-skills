@@ -47,6 +47,7 @@ measure of success is pass@1 going up, not one green run.
 | passes with `setting_sources` loaded, fails isolated | context | the agent depended on the developer's `CLAUDE.md` or settings; put the instruction in the system prompt |
 | many cases drop at once with no change of yours, and the gap follows the CLI build | harness (CLI or SDK upgrade) | pin the build, set `effort` explicitly; see "harness regression" in `failure-shapes.md` |
 | the agent reached a host, form or credential the case never named | prompt + permissions | state scope and forbidden actions, enforce them in tools or hooks; see "persistence around a restriction" in `failure-shapes.md` |
+| a call the guard hook should have refused ran, after a `hook_callback_failed` system event | harness (hook wiring) | `on_failure="block"` on the guard's `HookMatcher` (0.2.177+); see "guard failed open" in `failure-shapes.md` |
 
 ## Step 4 — close the loop
 
@@ -60,6 +61,6 @@ prompt edit.
 Sources: this plugin's `lib/agent_sdk_skills/trajectory.py` (signatures) and
 `skills/agent-debug/scripts/analyze_trace.py`; permission behaviour per
 `https://code.claude.com/docs/en/agent-sdk/permissions`; turn and budget caps
-per `https://code.claude.com/docs/en/agent-sdk/agent-loop`; the two hand-read
-shapes per `failure-shapes.md`. Re-read 2026-11-02 against claude-agent-sdk
-0.2.176 / Claude Code 2.1.316 docs.
+per `https://code.claude.com/docs/en/agent-sdk/agent-loop`; the three hand-read
+shapes per `failure-shapes.md`. Re-read 2026-11-04 against claude-agent-sdk
+0.2.178 / Claude Code 2.1.318 docs.

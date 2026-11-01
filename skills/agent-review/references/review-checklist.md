@@ -82,8 +82,9 @@ branch on them and a test may assert them.
 | `HOK002` | **error** | a callback returns a dict the SDK does not read — no `hookSpecificOutput` **and** a key outside the common fields — or a `hookSpecificOutput` whose `hookEventName` is not the event it is registered on | nothing in that dict reaches the decision. Not flagged: `return {}` (allow, unchanged), and a return made only of common top-level fields (`continue_`, `stopReason`, `decision`, `reason`, `systemMessage`, `suppressOutput`, `async_`), which every event accepts — that is how a hook halts a turn (and how a `Stop`/`SubagentStop` hook blocks a stop). Only `PreCompact` has no `hookSpecificOutput` type and is skipped; `Stop` and `SubagentStop` take `additionalContext` (typed from 0.2.166) |
 | `HOK003` | **error** | the matcher is not a valid regular expression | it can never match |
 | `HOK010` | warn | a `PreToolUse` deny with no `permissionDecisionReason` | the reason is the only thing the model reads; without it the agent is told no and cannot correct |
+| `HOK011` | warn | a `PreToolUse` or `PermissionRequest` guard (a callback that denies, asks or blocks) whose `HookMatcher` has no `on_failure="block"`; not reported when the project pins claude-agent-sdk below 0.2.177 | the guard **fails open**: a callback that raises, returns `None` (a path with no `return`) or returns a value the CLI rejects counts as no decision, and the call goes ahead (measured on 2.1.318). `on_failure="block"` (0.2.177+, Claude Code 2.1.317+) refuses it instead. Return `{}` where the guard has no opinion and let errors propagate. `Stop`, `SubagentStop`, `TaskCompleted`, `TeammateIdle` ignore the option; on `PermissionRequest` a block counts only before `can_use_tool` answers; an old CLI makes connecting raise `CLIConnectionError` (`does not honor`) |
 | `HOK020` | **error** | an event the Python SDK does not have, e.g. `SessionStart` | the Python `HookEvent` literal has **ten** values. `SessionStart` and `SessionEnd` are TypeScript-only, even though a `SessionStartHookSpecificOutput` type exists in Python |
-| `HOK030` | info | hooks in `.claude/settings.json` while `setting_sources` excludes `project` | they do not load in an SDK run. Usually what an eval wants. A settings-file `command` or `http` hook that must not fail open can set `onFailure: "block"` (2.1.295+), which turns a failure to start, a non-0/2 exit, an HTTP error, a timeout or unparseable output into a block — it does nothing on `Stop`, `SubagentStop`, `TaskCompleted`, `TeammateIdle` or background (`async`/`asyncRewake`) command hooks |
+| `HOK030` | info | hooks in `.claude/settings.json` while `setting_sources` excludes `project` | they do not load in an SDK run. Usually what an eval wants, and moving a hook into the `hooks` option no longer costs fail-closed behaviour: an SDK `HookMatcher` can block on failure too, with `on_failure="block"` (0.2.177+, 2.1.317+; `HOK011`). A settings-file `command` or `http` hook that must not fail open can set `onFailure: "block"` (2.1.295+), which turns a failure to start, a non-0/2 exit, an HTTP error, a timeout or unparseable output into a block — it does nothing on `Stop`, `SubagentStop`, `TaskCompleted`, `TeammateIdle` or background (`async`/`asyncRewake`) command hooks |
 
 ## MCP servers and tools (`MCP0xx`)
 
@@ -135,12 +136,14 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
 `.../agent-sdk/claude-code-features`, `.../agent-sdk/modifying-system-prompts`,
 `.../agent-sdk/structured-outputs`, `.../agent-sdk/agent-loop`,
 `.../agent-sdk/migration-guide`, `.../agent-sdk/python`;
-`claude-agent-sdk` 0.2.174 `types.py:25` (`PermissionMode`), `:37`
+`claude-agent-sdk` 0.2.178 `types.py:25` (`PermissionMode`), `:37`
 (`EffortLevel`), `:284` (`HookEvent`), `:728-815` (`HookJSONOutput`), `:828`
-(`HookCallback`), `:840` (`HookMatcher`), `:2346` (the `Skill` deprecation),
-`:2380` (`permission_mode`, the field `OPT013` reads),
-`:2504` (`debug_stderr`), `:2706` (`max_thinking_tokens`), `:2326-2786` (the 49
-fields); `__init__.py:267` (`SdkMcpTool`);
+(`HookCallback`), `:840` (`HookMatcher`), `:864` (`on_failure`, the field `HOK011`
+reads), `:2359` (the `Skill` deprecation), `:2393` (`permission_mode`, the field
+`OPT013` reads), `:2517` (`debug_stderr`), `:2719` (`max_thinking_tokens`),
+`:2339-2799` (the 49 fields); `__init__.py:267` (`SdkMcpTool`);
+<https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails>
+(`HOK011`);
 <https://platform.claude.com/docs/en/about-claude/model-deprecations>;
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (the rule behind `OPT013`, "Tool calls denied in `claude -p` and Agent SDK runs"),
@@ -159,6 +162,7 @@ re-pinned to 0.2.174 (`types.py` gained one line, at 2558, in 0.2.169).
 `max_turns` "+1" rule);
 <https://www.anthropic.com/research/redesigning-source-control> ("Redesigning
 source control at Anthropic", 2026-10-13, reviewer agents that over-engineer
-against hypothetical concerns; humans review intent). Re-read 2026-11-02 against
-claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs (`types.py` byte-identical
-in 0.2.176, so the 0.2.174 line numbers hold).
+against hypothetical concerns; humans review intent). Re-read 2026-11-04 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs, with the line numbers above
+re-pinned to 0.2.178 (`types.py` gained 13 lines for `on_failure`: +11 from line 855,
++13 from 2321).

@@ -26,7 +26,7 @@ money rather than plan quota, so it is opt-in on top of `AGENT_SDK_LIVE=1`:
 
     set -a; source ../.env; set +a
     AGENT_SDK_LIVE=1 AGENT_SDK_LIVE_CREDENTIAL=api_key PYTHONPATH=runner \\
-        ../tmp/venvs/casdk-venv-0.2.176/bin/python -m pytest tests/runner/test_live.py -q
+        ../tmp/venvs/casdk-venv-0.2.178/bin/python -m pytest tests/runner/test_live.py -q
 
 The CLI prints one stderr notice on every API-key run ("claude.ai connectors are
 disabled because ANTHROPIC_API_KEY … takes precedence"), which is not a failure.

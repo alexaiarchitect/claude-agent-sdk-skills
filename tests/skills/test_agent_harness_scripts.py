@@ -37,7 +37,7 @@ def lint(run_script, agent_dir):
 # -- the linter -----------------------------------------------------------
 
 @pytest.mark.parametrize("fixture,expected", [
-    ("hooks_bad", {"HOK001", "HOK002", "HOK003", "HOK010", "HOK020", "HOK030"}),
+    ("hooks_bad", {"HOK001", "HOK002", "HOK003", "HOK010", "HOK011", "HOK020", "HOK030"}),
     ("external_mcp", {"MCP001", "MCP002", "OPT001"}),
     ("subagents", {"SUB001", "SUB002", "SUB003", "SUB010"}),
     ("good", set()),
@@ -67,12 +67,15 @@ def test_hooks_without_include_hook_events_is_an_informational_finding(run_scrip
     project = tmp_agent("hooks_bad")
     source = (project / "agent.py").read_text()
     (project / "agent.py").write_text(source.replace("        include_hook_events=True,\n", ""))
-    assert "HOK031" in ids_of(run_script(LINT, str(project), "--json"))
+    result = json.loads(run_script(LINT, str(project), "--json").stdout)
+    hok031 = [f for f in result["findings"] if f["id"] == "HOK031"]
+    assert hok031 and "0.2.178 types.py:2567" in hok031[0]["source"]
 
 
 def test_the_found_block_lists_every_matcher_and_server(lint):
     discovered = json.loads(lint("hooks_bad").stdout)["discovered"]
     assert discovered["hooks"]["unsupported_events"] == ["SessionStart"]
+    assert all("on_failure" in m for m in discovered["hooks"]["matchers"])
     assert discovered["context"]["setting_sources"] == []
     discovered = json.loads(lint("external_mcp").stdout)["discovered"]
     kinds = {s["name"]: s["kind"] for s in discovered["mcp"]["servers"]}
@@ -203,6 +206,65 @@ def test_generated_hooks_pass_the_linter(run_script, tmp_agent, tmp_path):
     for generated in (tmp_path / "hooks").glob("*.py"):
         ast.parse(generated.read_text())     # it is valid Python
         assert "async def" in generated.read_text()
+
+
+@pytest.mark.parametrize("event,purpose,on_failure", [
+    ("PreToolUse", "deny", "block"),
+    ("PermissionRequest", "deny", "block"),
+    ("PreToolUse", "audit", None),
+    ("PreToolUse", "latency", None),
+    ("PostToolUse", "audit", None),
+    ("PostToolUse", "inject", None),
+    ("Stop", "deny", None),                  # Stop ignores on_failure
+])
+def test_only_a_guard_is_registered_with_on_failure_block(run_script, tmp_path,
+                                                           event, purpose, on_failure):
+    result = run_script(GEN_HOOK, "--event", event, "--purpose", purpose, "--json",
+                        cwd=tmp_path)
+    assert result.returncode == EXIT_OK
+    payload = json.loads(result.stdout)
+    assert payload["on_failure"] == on_failure
+    source = next((tmp_path / "hooks").glob("*.py")).read_text()
+    if on_failure:
+        assert 'on_failure="block")' in payload["registration"]
+        assert 'on_failure="block"),' in source
+        assert "# a guard fails closed" in source
+    else:
+        assert "on_failure" not in payload["registration"]
+        assert "on_failure=" not in source
+
+
+def test_a_permission_request_guard_decides_with_behavior(run_script, tmp_path):
+    run_script(GEN_HOOK, "--event", "PermissionRequest", "--purpose", "deny", cwd=tmp_path)
+    source = (tmp_path / "hooks" / "permission_request_deny.py").read_text()
+    assert '"behavior": "deny"' in source
+    assert "permissionDecision" not in source, "that field belongs to PreToolUse"
+
+
+def test_the_help_says_why_a_guard_fails_closed(run_script):
+    result = run_script(GEN_HOOK, "--help")
+    assert result.returncode == EXIT_OK
+    assert 'on_failure="block"' in result.stdout and "0.2.177" in result.stdout
+
+
+def test_a_generated_guard_registration_is_clean_under_hok011(run_script, tmp_path):
+    """Register what gen_hook printed; HOK011 must not fire on it."""
+    run_script(GEN_HOOK, "--event", "PreToolUse", "--purpose", "deny", "--tool", "Bash",
+               cwd=tmp_path)
+    hook = (tmp_path / "hooks" / "pre_tool_use_deny.py").read_text()
+    registration = json.loads(run_script(
+        GEN_HOOK, "--event", "PreToolUse", "--purpose", "deny", "--tool", "Bash",
+        "--dry-run", "--json", cwd=tmp_path).stdout)["registration"]
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "agent.py").write_text(
+        hook + "\n\nfrom claude_agent_sdk import ClaudeAgentOptions, HookMatcher\n\n\n"
+        "def build_options():\n"
+        f"    return ClaudeAgentOptions(model=\"claude-sonnet-5-5\", "
+        f"hooks={{\"PreToolUse\": [{registration}]}})\n"
+    )
+    ids = ids_of(run_script(LINT, str(project), "--json"))
+    assert "HOK011" not in ids and "HOK010" not in ids and "HOK002" not in ids
 
 
 # -- gen_mcp_config -------------------------------------------------------

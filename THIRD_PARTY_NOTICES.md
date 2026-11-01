@@ -16,16 +16,18 @@ exact tree it came from.
     Licensed under the MIT License
     https://github.com/anthropics/claude-agent-sdk-python
 
-Snapshot: `e0da9b95223d3d112bfbccad41d2a32bad923bb5` (2026-11-02, `main`, two
-commits past `v0.2.176`, which bundles CLI 2.1.316; `v0.2.174` → `v0.2.176`
-changed only the two version files under `src/`, so `types.py` is byte-identical
-and every `types.py:N` citation labelled 0.2.174 holds for 0.2.176; previously
+Snapshot: `3be907edb9c86269d30d1427a77937dd788d6419` (2026-11-04, `main` =
+`v0.2.178`, which bundles CLI 2.1.318; `v0.2.177` added `HookMatcher.on_failure`,
+13 lines in `types.py` plus its handling in `_internal/query.py`, so every
+`types.py:N` citation is re-pinned to 0.2.178 (+11 from line 855, +13 from line
+2321); previously `e0da9b95223d3d112bfbccad41d2a32bad923bb5` on 2026-11-02 (after
+`v0.2.176`, `types.py` byte-identical to 0.2.174 then),
 `27858cbba9ecee26a06a90b8d39d3b5596121d11` on 2026-10-29,
 `0e89b298e771259378a6cd3734e00d323dff5703` on 2026-10-24, `f93e29cc` after
 `v0.2.168`, `b6e9d12f` and `bbf09e3c`, which was `v0.2.162`). Behaviour was
-measured against the installed `claude-agent-sdk` **0.2.176 wheel (bundled CLI
-2.1.316)** on 2026-11-02, and against the 0.2.174 wheel (bundled CLI 2.1.310)
-up to 2026-10-29; earlier
+measured against the installed `claude-agent-sdk` **0.2.178 wheel (bundled CLI
+2.1.318)** on 2026-11-04, the 0.2.176 wheel (bundled CLI 2.1.316) on 2026-11-02,
+and the 0.2.174 wheel (bundled CLI 2.1.310) up to 2026-10-29; earlier
 figures in this plugin's references name the wheel they came from (0.2.174 with
 CLI 2.1.310, 0.2.168 with CLI 2.1.301, 0.2.165 with CLI 2.1.294, or 0.2.162 with
 CLI 2.1.285). Names first released in 0.2.166 are
@@ -44,8 +46,9 @@ transcript shape of the SDK's `tests/test_sessions.py::_parallel_tool_turn`
     Proprietary license; see LICENSE.md in that repository
     https://github.com/anthropics/claude-code
 
-Snapshot: `1a0f9a9d18e1272d3fbaa817d192b6b057bba623` (2026-11-02, Claude Code
-2.1.316; previously `58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102` at 2.1.312 on
+Snapshot: `26382c08758260c9f5deb2019d8fe851f89fa9ae` (2026-11-04, Claude Code
+2.1.318; previously `1a0f9a9d18e1272d3fbaa817d192b6b057bba623` at 2.1.316 on
+2026-11-02, `58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102` at 2.1.312 on
 2026-10-29, `318b7e6ac4e726e88a4ad326214866a93c373b1b` at 2.1.310 on
 2026-10-24, `c017428c` at 2.1.302, `3deb8736` at 2.1.296 and `732e167e` at
 2.1.285). Consulted for the changelog and the hooks examples. At this snapshot
@@ -62,8 +65,11 @@ are redistributed; the repository's own license terms apply to its contents.
     Licensed under the MIT License
     https://github.com/anthropics/claude-cookbooks
 
-Snapshot: `c43f56d0360b9b1f631bd090fd199231d4c880cc` (2026-10-29: model-default
-bumps only; unmoved on 2026-11-02; previously `a162e0184e71` from 2026-10-17, `9c1e493d` and `d7265d6a`).
+Snapshot: `785d7a06457b3413727f386b9c470083feb23c49` (2026-11-02, read 2026-11-04:
+the `claude_agent_sdk/` notebooks move to Haiku 5.5 defaults and pass
+`setting_sources=[]` explicitly; nothing under `observability/` changed;
+previously `c43f56d0360b9b1f631bd090fd199231d4c880cc` from 2026-10-29,
+`a162e0184e71` from 2026-10-17, `9c1e493d` and `d7265d6a`).
 The `claude_agent_sdk/` notebooks informed the hooks, MCP, session and hosting
 guidance; the `tool_evaluation/` notebook informed the tool-description advice;
 the OpenTelemetry tracing cookbook (`observability/opentelemetry_tracing.ipynb`)
@@ -76,7 +82,7 @@ No notebook content is redistributed.
     https://github.com/anthropics/skills
 
 Snapshot: `ca45fc496a3436251f191354091d557da31c15b5` (2026-10-29, unmoved on
-2026-11-02; the one new commit touches `mcp-builder` only; previously `dbd4588f`, unmoved from
+2026-11-02 and 2026-11-04; the one new commit touches `mcp-builder` only; previously `dbd4588f`, unmoved from
 2026-10-09 to 2026-10-24, and `8a1541c4`. The `skill-creator` content is
 byte-identical across all three). The grader design (burden of
 proof on the expectation, no partial credit, critique of weak assertions)
@@ -89,7 +95,7 @@ files apply to that repository's contents; nothing from it is redistributed.
     Licensed under the Apache License, Version 2.0
     https://github.com/anthropics/cwc-workshops
 
-Snapshot: `4c34ec4863df` (2026-10-17, unmoved on 2026-10-24, 2026-10-29 and 2026-11-02; previously `068b84bb`. The new commit adds
+Snapshot: `4c34ec4863df` (2026-10-17, unmoved on 2026-10-24, 2026-10-29, 2026-11-02 and 2026-11-04; previously `068b84bb`. The new commit adds
 a managed-agents workshop outside the part this plugin reads). The
 `eval-driven-agent-development` workshop's code-versus-judge grader split and
 baseline comparison informed the grader catalog. No files are redistributed.
@@ -100,7 +106,7 @@ baseline comparison informed the grader catalog. No files are redistributed.
     No repository-level license file at the snapshot
     https://github.com/anthropics/claude-agent-sdk-demos
 
-Snapshot: `826b2685` (unmoved since 2026-03-13; re-checked 2026-11-02). Used as
+Snapshot: `826b2685` (unmoved since 2026-03-13; re-checked 2026-11-04). Used as
 example projects for the read-only sweep that checks this plugin's static
 readers on real code. Nothing is redistributed.
 
@@ -115,7 +121,8 @@ Code **2.1.310** (the same 86 pages, none added or removed), and on
 and on **2026-11-02** at Claude Code **2.1.316** (the same 86 files, 31 pages
 byte-changed, nine with text changes), with the Messages API page on message
 threads (`https://platform.claude.com/docs/en/build-with-claude/message-threads`)
-added on 2026-11-02;
+added on 2026-11-02, and on **2026-11-04** at Claude Code **2.1.318** (the same 86
+files, 23 pages byte-changed, all with text changes);
 every reference names the pages it distills and carries the re-read date in its
 `Sources:` footer. The TypeScript SDK repository, whose contents are under
 Anthropic's commercial terms, was consulted for its documentation only and
@@ -126,7 +133,7 @@ nothing from it is included.
 Anthropic's published engineering and product articles supply the design
 rationale in this plugin's references; current mechanics are always cited from
 the documentation above. Articles 1–14 were read on 2026-10-29 and articles
-15–23 on 2026-11-02, each at the canonical URL below
+15–23 on 2026-11-02, and articles 24–25 on 2026-11-04, each at the canonical URL below
 (the older engineering-blog paths under `anthropic.com` now redirect to
 `anthropic.com/research/<slug>`). The references **paraphrase** them, with at
 most a short attributed quote; no article text is reproduced at length, and the
@@ -157,6 +164,8 @@ articles remain Anthropic's.
 | 21 | "LLMs are making formal software verification feasible at a much larger scale" | https://www.anthropic.com/research/formal-verification | 2026-10-22 | `eval-run/references/cost-estimation.md`, `agent-design` |
 | 22 | "Donating Agent Skills to the Agentic AI Foundation" | https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation | 2026-10-22 | `agent-sdk/references/glossary.md`, `agent-design` |
 | 23 | "Redesigning source control at Anthropic" (updated 2026-10-15) | https://www.anthropic.com/research/redesigning-source-control | 2026-10-13 | `agent-deploy/references/hosting-options.md`, `agent-review/references/review-checklist.md` |
+| 24 | "An alignment assessment of the UK AISI cybertesting incident" (Bogdan, Qi, Smilkov, Henighan et al.; an alignment write-up about an external evaluation, not SDK guidance: the isolation rules drawn from it are this plugin's inferences) | https://www.anthropic.com/research/alignment-assessment-ukaisi | 2026-10-23 | `agent-deploy/references/secure-deployment.md`, `agent-debug/references/failure-shapes.md`, `eval-create/references/case-taxonomy.md` |
+| 25 | "Manage costs and demonstrate ROI for Claude Code on Google Cloud" (interactive Claude Code behind the Claude apps gateway; only its gateway and OpenTelemetry patterns are cited) | https://claude.com/resources/articles/how-to-manage-costs-and-demonstrate-roi-for-claude-code-on-google-cloud | 2026-10-27 | `agent-deploy/references/cost-controls.md`, `agent-deploy/references/observability-otel.md` |
 
 Two articles cited before this set: "How we contain Claude across products"
 (https://www.anthropic.com/research/how-we-contain-claude, 2026-05-25), cited by

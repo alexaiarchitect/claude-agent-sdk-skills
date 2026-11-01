@@ -24,6 +24,17 @@ So this generates the shape rather than describing it. Four purposes:
     gen_hook.py --event PreToolUse --purpose deny [--tool Bash]
                 [--probability 0.25] [--out path] [--dry-run] [--force] [--json]
 
+A guard fails open by default: a deny callback that raises, returns `None` or
+returns a value the CLI rejects counts as "no decision", and the call it was
+written to stop goes ahead. So a `deny` hook on PreToolUse or PermissionRequest
+is registered with `HookMatcher(..., on_failure="block")` (claude-agent-sdk
+0.2.177+, Claude Code 2.1.317+; an older SDK rejects the keyword), which turns
+any of those failures into a refusal; the generated callback returns `{}` on
+every path where it has no opinion. Observers (audit, inject, latency, every
+PostToolUse hook) and Stop/SubagentStop blockers keep the default: an observer
+that crashes should not stop the agent, and Stop, SubagentStop, TaskCompleted
+and TeammateIdle ignore `on_failure` anyway. `--json` reports the value.
+
 Exit codes: 0 written (or planned, under --dry-run), 1 nothing to write,
 2 the event and purpose do not go together.
 """
@@ -62,10 +73,10 @@ Registered with:
     from claude_agent_sdk import ClaudeAgentOptions, HookMatcher
 
     options = ClaudeAgentOptions(
-        hooks={{"{event}": [HookMatcher(matcher={matcher!r}, hooks=[{func}])]}},
+        hooks={{"{event}": {registration}}},
         include_hook_events=True,   # so the hook shows up in the message stream
     )
-
+{on_failure_note}
 Matchers on one event are dispatched concurrently by the CLI, so this callback
 must not depend on another one having run first. The default timeout is 600
 seconds for most events (30 for UserPromptSubmit); set `timeout=` on the
@@ -104,21 +115,16 @@ async def {func}(input_data, tool_use_id, context):
 
     The reason is the only thing the model reads. Without it the agent is told
     "no" and has nothing to correct from, which usually shows up as the same
-    call being retried until the turn limit.
+    call being retried until the turn limit. Let an error in the rule raise:
+    with `on_failure="block"` that refuses the call, whereas catching it and
+    returning `{{}}` would let the call through.
     """
     arguments = input_data.get("tool_input") or {{}}
     if not _is_allowed(arguments):
         return {{
-            "hookSpecificOutput": {{
-                "hookEventName": "{event}",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    "refused by policy: {tool} may not touch that path. "
-                    "Use the project directory instead."
-                ),
-            }}
+{deny_output}
         }}
-    return {{}}
+    return {{}}   # no opinion: with on_failure="block" a path with no return blocks
 
 
 def _is_allowed(arguments: dict[str, Any]) -> bool:
@@ -129,8 +135,7 @@ def _is_allowed(arguments: dict[str, Any]) -> bool:
     "defer" is not a quieter deny: it ends the turn, and the `ResultMessage`
     then carries `stop_reason: "tool_deferred"`, so assert on that rather than
     on the text. A `command` or `http` hook written in settings instead of here
-    can also set `onFailure: "block"` (Claude Code 2.1.295+) so that a crash or
-    a timeout fails the call rather than letting it through.
+    has the same switch, `onFailure: "block"` (Claude Code 2.1.295+).
     """
     return "/etc/" not in str(arguments.get("file_path", ""))
 '''
@@ -196,6 +201,58 @@ def _work_is_finished(input_data: dict[str, Any]) -> bool:
 '''
 
 
+PRE_TOOL_USE_DENY = '''            "hookSpecificOutput": {{
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": (
+                    "refused by policy: {tool} may not touch that path. "
+                    "Use the project directory instead."
+                ),
+            }}'''
+
+#: PermissionRequest decides with `decision.behavior`, not `permissionDecision`.
+PERMISSION_REQUEST_DENY = '''            "hookSpecificOutput": {{
+                "hookEventName": "PermissionRequest",
+                "decision": {{
+                    "behavior": "deny",
+                    "message": (
+                        "refused by policy: {tool} may not touch that path. "
+                        "Use the project directory instead."
+                    ),
+                }},
+            }}'''
+
+ON_FAILURE_NOTE = '''
+`on_failure="block"` makes this guard fail closed: if the callback raises,
+returns None or returns a value the CLI rejects, the call is refused instead of
+going ahead. It needs claude-agent-sdk 0.2.177+ and Claude Code 2.1.317+ (an
+older CLI makes connecting raise CLIConnectionError). On PermissionRequest a
+block counts only if it lands before can_use_tool answers.
+'''
+
+
+def on_failure_for(event: str, purpose: str) -> str | None:
+    """`"block"` for a guard (a deny hook that decides a tool call), else None."""
+    return "block" if purpose == "deny" and event in DECIDING_EVENTS else None
+
+
+def registration_line(event: str, purpose: str, matcher: str | None, func: str) -> str:
+    """The `HookMatcher(...)` expression, with `on_failure` on a guard."""
+    if on_failure_for(event, purpose) == "block":
+        return f'HookMatcher(matcher={matcher!r}, hooks=[{func}], on_failure="block")'
+    return f"HookMatcher(matcher={matcher!r}, hooks=[{func}])"
+
+
+ON_FAILURE_COMMENT = "# a guard fails closed: a callback that crashes refuses the call"
+
+
+def _registration_in_header(event: str, purpose: str, matcher: str | None, func: str) -> str:
+    line = registration_line(event, purpose, matcher, func)
+    if on_failure_for(event, purpose) != "block":
+        return f"[{line}]"
+    return f"[\n            {ON_FAILURE_COMMENT}\n            {line},\n        ]"
+
+
 def build(event: str, purpose: str, tool: str | None, probability: float,
           seed: int) -> tuple[str, str, str]:
     """Return `(function_name, matcher, source)`."""
@@ -222,12 +279,18 @@ def build(event: str, purpose: str, tool: str | None, probability: float,
         body = BLOCKING_BODY
         imports = ["", "from typing import Any"]
         title = f"{event} hook: decide whether the agent may stop."
+    guard = on_failure_for(event, purpose) == "block"
+    tool_text = tool or "the matched tool"
+    deny_output = (PERMISSION_REQUEST_DENY if event == "PermissionRequest"
+                   else PRE_TOOL_USE_DENY).format(tool=tool_text)
     source = HEADER.format(
-        title=title, event=event, func=func, matcher=matcher,
+        title=title, event=event,
+        registration=_registration_in_header(event, purpose, matcher, func),
+        on_failure_note=ON_FAILURE_NOTE if guard else "",
         imports="\n".join(imports),
     ) + body.format(
-        func=func, event=event, tool=tool or "the matched tool",
-        probability=probability, seed=seed,
+        func=func, event=event, tool=tool_text,
+        probability=probability, seed=seed, deny_output=deny_output,
     )
     return func, matcher or "(every occurrence)", source.rstrip() + "\n"
 
@@ -292,7 +355,9 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = {
         "event": args.event, "purpose": args.purpose, "callback": func,
-        "matcher": args.tool, "out": str(out), "dry_run": args.dry_run,
+        "matcher": args.tool, "on_failure": on_failure_for(args.event, args.purpose),
+        "registration": registration_line(args.event, args.purpose, args.tool, func),
+        "out": str(out), "dry_run": args.dry_run,
         "plan": plan.to_dict(),
     }
     if args.json:
@@ -314,8 +379,10 @@ def main(argv: list[str] | None = None) -> int:
     if not args.json:
         for path in written:
             print(f"wrote {path}")
-        print(f"Register it: hooks={{\"{args.event}\": [HookMatcher("
-              f"matcher={args.tool!r}, hooks=[{func}])]}}")
+        registration = registration_line(args.event, args.purpose, args.tool, func)
+        comment = (f"  {ON_FAILURE_COMMENT}"
+                   if on_failure_for(args.event, args.purpose) else "")
+        print(f"Register it: hooks={{\"{args.event}\": [{registration}]}}{comment}")
     return EXIT_OK
 
 

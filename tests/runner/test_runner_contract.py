@@ -48,7 +48,7 @@ def test_the_runner_version_matches_the_library():
 
 
 def test_the_docs_read_at_version_matches_the_library():
-    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.316"
+    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.318"
 
 
 def test_the_option_list_matches_the_stub():
@@ -77,22 +77,44 @@ _CONTRACT_TUPLES = (
 
 
 def test_on_failure_is_in_no_contract_constant():
-    """2026-11-02: `on_failure` is a `HookMatcher` field on upstream `main`
-    (`d38e51e`), not a `ClaudeAgentOptions` option, and not in the pinned 0.2.176.
-    The option list stays 49 names; nothing the runner or a case accepts names it."""
+    """`on_failure` is a `HookMatcher` field (on upstream `main` only on 2026-11-02;
+    shipped in 0.2.177, pinned 0.2.178 on 2026-11-04), not a `ClaudeAgentOptions`
+    option. The option list stays 49 names; nothing the runner or a case accepts
+    names it, and the runner's own matchers leave it unset."""
     assert len(plugin.OPTION_NAMES) == len(runner.OPTION_NAMES) == 49
     for name in _CONTRACT_TUPLES:
         values = getattr(runner, name)
         assert "on_failure" not in values and "onFailure" not in values, name
 
 
-def test_the_stub_hook_matcher_mirrors_the_pin_without_on_failure():
-    """The stub mirrors 0.2.176's `HookMatcher` (matcher, hooks, timeout). The live
-    twin is `test_hook_matcher_on_the_pin_has_no_on_failure` in
-    `tests/lib/test_sdk_surface_live.py`; flip both when the pin passes `d38e51e`."""
+def test_the_stub_hook_matcher_mirrors_the_pin_with_on_failure():
+    """The stub mirrors 0.2.178's `HookMatcher` (matcher, hooks, timeout, on_failure;
+    without `on_failure` up to 0.2.176). The live twin is
+    `test_hook_matcher_on_the_pin_has_on_failure` in `tests/lib/test_sdk_surface_live.py`."""
     import claude_agent_sdk as sdk
 
-    assert tuple(sdk.HookMatcher.__dataclass_fields__) == ("matcher", "hooks", "timeout")
+    assert tuple(sdk.HookMatcher.__dataclass_fields__) == (
+        "matcher", "hooks", "timeout", "on_failure")
+    assert sdk.HookMatcher().on_failure is None, "unset is the default (fail open)"
+
+
+def test_the_runner_hooks_leave_on_failure_unset():
+    """A crash in the capture or a fault hook is the harness's bug; with
+    `on_failure="block"` it would block the agent's tool call and fail a case for
+    a reason the case never tested (CHANGELOG 0.2.2)."""
+    import claude_agent_sdk as sdk
+    from agent_sdk_evals.faults import build_hooks
+
+    class _Probe:
+        hook_events_installed: set = set()
+
+        def hook(self, *args, **kwargs):
+            pass
+
+    hooks = build_hooks(_Probe(), None, sdk)
+    assert hooks, "the capture hook is always installed"
+    for matchers in hooks.values():
+        assert all(m.on_failure is None for m in matchers)
 
 
 def test_the_schema_strings_are_the_frozen_ones():
@@ -118,7 +140,7 @@ def test_the_result_file_carries_every_required_key(mini_evals: Path):
         config={"tier": "nightly", "model": "claude-sonnet-5-5",
                 "judge": {"model": "claude-sonnet-5-5", "samples": 3},
                 "isolation": {"setting_sources": [], "strict_mcp_config": True},
-                "cost_basis": "subscription", "sdk_version": "0.2.176", "cli_version": "2.1.316"},
+                "cost_basis": "subscription", "sdk_version": "0.2.178", "cli_version": "2.1.318"},
         runs=[RunRecord(run=1, trace="c.1.trace.jsonl", status="PASSED",
                         graders=[{"name": "g", "type": "regex", "status": "PASSED", "score": 1.0}],
                         result={"subtype": "success", "terminal_reason": "completed",
@@ -148,7 +170,7 @@ def test_the_aggregate_carries_every_required_key():
     from agent_sdk_evals.results import Aggregate, CaseResult, RunRecord
 
     aggregate = Aggregate(
-        tier="nightly", sdk_version="0.2.176", cli_version="2.1.316",
+        tier="nightly", sdk_version="0.2.178", cli_version="2.1.318",
         credential={"kind": "login", "cost_basis": "subscription", "plan": "max",
                     "auth_method": "claude.ai", "api_provider": "firstParty"},
         rate_limit={"status": "allowed_warning", "windows": {"seven_day": {"utilization": 0.83}}},

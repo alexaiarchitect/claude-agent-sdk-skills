@@ -174,7 +174,7 @@ test also replays the SDK test's four result orders.
 
 **The SDK venv.** `tests/lib/test_sdk_surface_live.py` and the encoding test in
 `test_trace.py` need the real wheel. `tests/conftest.py` looks for it at
-`$AGENT_SDK_TEST_PYTHON`, then at `../tmp/venvs/casdk-venv-0.2.176/bin/python`
+`$AGENT_SDK_TEST_PYTHON`, then at `../tmp/venvs/casdk-venv-0.2.178/bin/python`
 next to the repo (`/Users/alex/Documents/Business/adk-evanl-skills/tmp/venvs/` on
 the machine that syncs it), then at the old `/tmp/casdk-venv-*` paths, and skips
 without one. It moved out of `/tmp` because macOS cleared it on 2026-10-22.

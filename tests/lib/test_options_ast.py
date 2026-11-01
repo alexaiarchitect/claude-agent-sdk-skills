@@ -212,6 +212,95 @@ def test_an_empty_dict_return_is_not_mistaken_for_a_malformed_one(facts):
     assert not callback.returns_nonempty_dict
 
 
+# -- HookMatcher.on_failure (claude-agent-sdk 0.2.177+, `types.py:864`) ------
+
+ON_FAILURE_MODULE = '''
+    from claude_agent_sdk import ClaudeAgentOptions, HookMatcher
+
+    MODE = "block"
+    EXTRA = {"on_failure": "block"}
+
+    async def guard(input_data, tool_use_id, context):
+        raise RuntimeError("unreachable")
+
+    def build_options():
+        return ClaudeAgentOptions(hooks={
+            "PreToolUse": [
+                HookMatcher(matcher="Bash", hooks=[guard], on_failure="block"),
+                HookMatcher(matcher="Write", hooks=[guard], timeout=5, on_failure="continue"),
+                HookMatcher(matcher="Edit", hooks=[guard]),
+                HookMatcher(matcher="Read", hooks=[guard], on_failure=None),
+                HookMatcher(matcher="Glob", hooks=[guard], on_failure=MODE),
+                HookMatcher(matcher="Grep", hooks=[guard], **EXTRA),
+                HookMatcher("WebFetch", [guard], 10, "block"),
+                HookMatcher(matcher="Task", hooks=[guard], on_failure="Block"),
+            ],
+        })
+'''
+
+
+@pytest.fixture
+def on_failure_hooks(tmp_path):
+    module = tmp_path / "agent.py"
+    module.write_text(textwrap.dedent(ON_FAILURE_MODULE))
+    return {h.matcher: h for h in extract_module(module).options_calls[0].hooks}
+
+
+def test_on_failure_is_read_as_the_literal_written(on_failure_hooks):
+    hooks = on_failure_hooks
+    assert hooks["Bash"].on_failure == "block" and not hooks["Bash"].on_failure_dynamic
+    assert hooks["Write"].on_failure == "continue" and hooks["Write"].timeout == 5
+
+
+def test_an_unset_or_none_on_failure_is_none_and_not_dynamic(on_failure_hooks):
+    """Unset and `None` both mean the default: a failing callback counts as no decision."""
+    for matcher in ("Edit", "Read"):
+        registration = on_failure_hooks[matcher]
+        assert registration.on_failure is None and not registration.on_failure_dynamic, matcher
+
+
+def test_a_non_literal_on_failure_is_flagged_dynamic(on_failure_hooks):
+    """A name or a `**kwargs` splat may set it; a check must not assume either way."""
+    for matcher in ("Glob", "Grep"):
+        registration = on_failure_hooks[matcher]
+        assert registration.on_failure is None and registration.on_failure_dynamic, matcher
+
+
+def test_positional_timeout_and_on_failure_follow_the_field_order(on_failure_hooks):
+    """`HookMatcher(matcher, hooks, timeout, on_failure)` is the 0.2.177+ order."""
+    registration = on_failure_hooks["WebFetch"]
+    assert registration.timeout == 10 and registration.on_failure == "block"
+
+
+def test_an_unknown_on_failure_string_is_kept_verbatim(on_failure_hooks):
+    """The SDK does not validate the literal (any value but "continue" arms the startup
+    check, and the CLI reads an unknown value as block), so the reader keeps the
+    string as written and leaves the judgement to the check."""
+    assert on_failure_hooks["Task"].on_failure == "Block"
+
+
+def test_on_failure_is_part_of_the_json_shape(on_failure_hooks):
+    shape = on_failure_hooks["Bash"].to_dict()
+    assert shape["on_failure"] == "block" and shape["on_failure_dynamic"] is False
+    assert on_failure_hooks["Grep"].to_dict()["on_failure_dynamic"] is True
+
+
+def test_a_dict_matcher_has_no_on_failure(tmp_path):
+    module = tmp_path / "agent.py"
+    module.write_text(textwrap.dedent('''
+        from claude_agent_sdk import ClaudeAgentOptions
+
+        async def guard(input_data, tool_use_id, context):
+            return {}
+
+        def build_options():
+            return ClaudeAgentOptions(hooks={"PreToolUse": [{"matcher": "Bash", "hooks": [guard]}]})
+    '''))
+    (registration,) = extract_module(module).options_calls[0].hooks
+    assert not registration.uses_hook_matcher
+    assert registration.on_failure is None and not registration.on_failure_dynamic
+
+
 # -- agents ---------------------------------------------------------------
 
 def test_agent_definitions_are_read_with_tools_model_and_turns(facts):

@@ -15,7 +15,8 @@ Ten dimensions:
     and whether `permission_mode` is left for the CLI to pick
 6.  limits — `max_turns`, `max_budget_usd`
 7.  context — `setting_sources`, and what the host machine leaks into a run
-8.  hooks — async, three parameters, the right return shape, a valid matcher
+8.  hooks — async, three parameters, the right return shape, a valid matcher,
+    and a guard that fails closed (`on_failure="block"`, claude-agent-sdk 0.2.177+)
 9.  MCP — servers that exist, commands on PATH, readable `@tool` schemas
 10. subagents, system prompt, structured output
 
@@ -190,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
                            fix="use `thinking={\"type\": \"adaptive\"}` (or "
                                "`{\"type\": \"enabled\", \"budget_tokens\": N}`). On newer "
                                "models the old field is read as on/off only.",
-                           source="claude-agent-sdk 0.2.174 types.py:2706")
+                           source="claude-agent-sdk 0.2.178 types.py:2719")
             else:
                 report.add("AGT031", "warn", "options",
                            "`debug_stderr` is deprecated and is no longer read by the "
@@ -198,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
                            path=module.path,
                            fix="pass the `stderr` callback instead: "
                                "`stderr=lambda line: log.debug(line)`.",
-                           source="claude-agent-sdk 0.2.174 types.py:2504")
+                           source="claude-agent-sdk 0.2.178 types.py:2517")
 
     # -- 3. model policy --------------------------------------------------
     option_models = [
@@ -309,7 +310,7 @@ def main(argv: list[str] | None = None) -> int:
                            source=f"{DOCS}/python#claudeagentoptions")
 
     # -- 8, 9. hooks and MCP (shared) -------------------------------------
-    report.extend(hook_findings(facts, claude))
+    report.extend(hook_findings(facts, claude, project=root))
     report.extend(mcp_findings(facts, check_path=not args.no_path_check))
 
     # -- 10. subagents, prompt, structured output -------------------------
@@ -364,7 +365,7 @@ def main(argv: list[str] | None = None) -> int:
                        f'effort="{effort_value}" is not one of the five levels',
                        path=primary.path, locator=f"line {primary.lineno}",
                        fix="one of: " + ", ".join(EFFORT_LEVELS),
-                       source="claude-agent-sdk 0.2.174 types.py:37 (EffortLevel)")
+                       source="claude-agent-sdk 0.2.178 types.py:37 (EffortLevel)")
     report.extend(subagent_findings(facts, claude))
 
     # -- what was found ---------------------------------------------------

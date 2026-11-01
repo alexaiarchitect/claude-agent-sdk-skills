@@ -23,7 +23,7 @@ INIT_DATA = {
     "session_id": "s-1", "tools": ["Read", "StructuredOutput"],
     "mcp_servers": [{"name": "library", "status": "connected"}],
     "model": "claude-sonnet-5-5", "permissionMode": "dontAsk",
-    "apiKeySource": "none", "claude_code_version": "2.1.316",
+    "apiKeySource": "none", "claude_code_version": "2.1.318",
     "agents": ["Explore"], "skills": [], "plugins": [],
 }
 
@@ -69,7 +69,7 @@ def test_init_records_the_cli_version_and_the_api_key_source():
     cap = Capture(run_id="r", case="c")
     cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
     init = events_of(cap, "init")[0]
-    assert init["cli_version"] == "2.1.316", "the measured field is the CLI version, not the SDK's"
+    assert init["cli_version"] == "2.1.318", "the measured field is the CLI version, not the SDK's"
     assert init["api_key_source"] == "none", "the in-band credential proof"
     assert init["permission_mode"] == "dontAsk"
     assert init["occurrence"] == 1
@@ -524,6 +524,37 @@ def test_the_2_1_316_trace_fixture_is_what_capture_writes_from_its_script():
     strip = lambda e: {k: v for k, v in e.items() if k != "t"}  # noqa: E731
     assert [strip(e) for e in cap.events] == [strip(e) for e in stored]
     assert "sk-ant" not in path.read_text() and "/Users/" not in path.read_text()
+
+
+# -- hook_callback_failed (CLI 2.1.318, measured 2026-11-04) -----------------
+
+#: The informational message 2.1.318 sends when an SDK hook callback fails, in
+#: both `on_failure` modes (`.dev/measured/2026-11-04/live/`; uuid and session id
+#: replaced). Only the last sentence differs.
+HOOK_CALLBACK_FAILED_PREFIX = ("PreToolUse: Hook callback hook_0 failed: the SDK host replied "
+                               "with an error or an invalid answer. ")
+HOOK_CALLBACK_FAILED = {
+    "type": "system", "subtype": "informational",
+    "level": "warning", "tag": "hook_callback_failed",
+    "uuid": "00000000-0000-4000-8000-000000000318", "session_id": "s-1",
+}
+
+
+@pytest.mark.parametrize("ending", [
+    'onFailure is "block", so this failure counts as a block.',
+    "Its answer was treated as empty.",
+])
+def test_a_failed_hook_callback_is_kept_as_a_system_event_with_its_tag(ending):
+    """No capture change for `on_failure`: the message falls through to a plain
+    `system` event whose `data` keeps `tag` and `content`, so a report or a debug
+    session can tell a crashed hook from a denial."""
+    data = dict(HOOK_CALLBACK_FAILED, content=HOOK_CALLBACK_FAILED_PREFIX + ending)
+    cap = Capture(run_id="r", case="c")
+    cap.add(sdk.SystemMessage(subtype="informational", data=data))
+    (event,) = cap.events
+    assert event["type"] == "system" and event["subtype"] == "informational"
+    assert event["data"]["tag"] == "hook_callback_failed"
+    assert event["data"]["content"].endswith(ending)
 
 
 # -- the result event's four fields, and is_error on success ----------------

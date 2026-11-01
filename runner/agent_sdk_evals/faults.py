@@ -2,9 +2,15 @@
 
 Two measured constraints shape this module.
 
-* **`HookMatcher` has no `probability` field** — only `matcher`, `hooks` and
-  `timeout`. Per-tool probability therefore lives *inside* the callback, driven
-  by a per-run seeded RNG so a flaky-looking failure can be reproduced exactly.
+* **`HookMatcher` has no `probability` field** — only `matcher`, `hooks`,
+  `timeout` and, from SDK 0.2.177, `on_failure` (`types.py:864`). Per-tool
+  probability therefore lives *inside* the callback, driven by a per-run seeded
+  RNG so a flaky-looking failure can be reproduced exactly. The runner's matchers
+  leave `on_failure` unset (fail open, the default): a crash in the capture or
+  fault hook is the harness's bug, and with `"block"` it would block the agent's
+  tool call, turning a runner defect into an agent failure the case never asked
+  for. The CLI still reports such a crash as an informational `SystemMessage`
+  (`data["tag"] == "hook_callback_failed"`, measured on 2.1.318, 2026-11-04).
 * **Matchers on the same event fire concurrently**, not in sequence, so no fault
   may depend on another fault having run first.
 
@@ -155,6 +161,8 @@ def build_hooks(capture: Any, plan: FaultPlan | None, sdk: Any) -> dict[str, lis
 
     events = set(CAPTURE_EVENTS) | ({f.event for f in plan.faults} if plan else set())
     for event in sorted(events):
+        # No `on_failure="block"` on purpose (see the module docstring); passing it
+        # would also make SDKs before 0.2.177 reject the matcher.
         hooks[event] = [sdk.HookMatcher(matcher=None, hooks=[_make_callback(event)])]
         capture.hook_events_installed.add(event)
     return hooks

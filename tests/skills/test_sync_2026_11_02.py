@@ -33,6 +33,10 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN_ROOT / "skills"
 
 NEW_NOTE = "re-read 2026-11-02 against claude-agent-sdk 0.2.176 / claude code 2.1.316 docs"
+#: A later sync may replace the note above with its own; either shows a re-read.
+LATER_REREAD_NOTES = (
+    "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
+)
 
 
 def flat(text: str) -> str:
@@ -54,21 +58,30 @@ def skill_docs():
 
 # -- 1. pins, version, on_failure -------------------------------------------------
 
+def _version(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in text.split("."))
+
+
 def test_the_pins_moved_to_0_2_176_and_2_1_316():
+    # 0.2.176 / 2.1.316 at this sync; the pins only move forward (0.2.178 / 2.1.318
+    # from 2026-11-04).
     import agent_sdk_skills as plugin
-    assert (plugin.SDK_TARGET, plugin.CLI_BUNDLED_WITH_TARGET) == ("0.2.176", "2.1.316")
-    assert plugin.DOCS_READ_AT_CLI == "2.1.316"
+    assert _version(plugin.SDK_TARGET) >= (0, 2, 176)
+    assert _version(plugin.CLI_BUNDLED_WITH_TARGET) >= (2, 1, 316)
+    assert _version(plugin.DOCS_READ_AT_CLI) >= (2, 1, 316)
     assert plugin.SDK_MIN_SUPPORTED == "0.2.140", "the minimum does not move with the pin"
 
 
 def test_the_release_is_0_2_1_everywhere_lane_a_owns():
+    # 0.2.1 at this sync; every carrier follows `__version__` from 0.2.2 on.
     import json
 
     import agent_sdk_skills as plugin
-    assert plugin.__version__ == plugin.RUNNER_VERSION == "0.2.1"
-    assert read("runner/agent_sdk_evals/VERSION").strip() == "0.2.1"
-    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == "0.2.1"
-    assert 'version = "0.2.1"' in read("pyproject.toml")
+    version = plugin.__version__
+    assert plugin.RUNNER_VERSION == version
+    assert read("runner/agent_sdk_evals/VERSION").strip() == version
+    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == version
+    assert f'version = "{version}"' in read("pyproject.toml")
     assert "## 0.2.1 — 2026-11-02" in read("runner/agent_sdk_evals/CHANGELOG.md")
 
 
@@ -78,20 +91,17 @@ def test_the_changelog_states_the_startup_failure_claim_as_a_claim():
     assert "processerror" in text and "not_evaluated" in text
 
 
-def test_the_runner_stale_rubric_names_0_2_1():  # awaits lane B
-    assert "0.2.1" in read("plugin-evals/runner-stale/graders/criteria.md")
+def test_the_runner_stale_rubric_names_the_current_runner_version():  # awaits lane B
+    # 0.2.1 at this sync; follows the current RUNNER_VERSION from 0.2.2 on.
+    from agent_sdk_skills import RUNNER_VERSION
+    assert RUNNER_VERSION in read("plugin-evals/runner-stale/graders/criteria.md")
 
 
-#: `HookMatcher.on_failure` is on upstream `main` only and 2.1.316 refuses it
-#: (CONTRACTS §17.2), so no shipped skill file may document the SDK field. The
-#: settings-file `onFailure` (Claude Code 2.1.295+) is a different, shipped thing.
-ON_FAILURE_SDK_NEEDLES = ("on_failure=", "hookmatcher.on_failure", "hook_on_failure_supported")
-
-
-def test_no_skill_file_documents_the_unreleased_sdk_on_failure():  # awaits lane B
-    offenders = [f"{p.relative_to(PLUGIN_ROOT)}: {n}" for p in skill_files()
-                 for n in ON_FAILURE_SDK_NEEDLES if n in flat(p.read_text(encoding="utf-8"))]
-    assert offenders == []
+# `HookMatcher.on_failure` was on upstream `main` only here and 2.1.316 refused it
+# (CONTRACTS §17.2), so a test kept every skill file from documenting it. It
+# shipped in 0.2.177 and the 0.2.178 pin's CLI 2.1.318 honours it (CONTRACTS
+# §18.2), so that test was retired on 2026-11-04; `test_sync_2026_11_04.py` now
+# checks that the files which document it name the 0.2.177 / 2.1.317 floor.
 
 
 # -- 2. the dated re-read note ------------------------------------------------------
@@ -136,7 +146,8 @@ REREAD = (
 
 @pytest.mark.parametrize("name", REREAD)
 def test_every_reference_re_read_in_this_sync_carries_the_new_note(name):  # awaits lanes B/C
-    assert NEW_NOTE in flat((SKILLS / name).read_text(encoding="utf-8"))
+    text = flat((SKILLS / name).read_text(encoding="utf-8"))
+    assert any(note in text for note in (NEW_NOTE, *LATER_REREAD_NOTES))
 
 
 # -- 3. lane B / lane C facts, checked as needles ------------------------------------
@@ -161,7 +172,7 @@ PRESENT = (  # awaits lanes B/C
      ("10,000 characters", "precompact", "monitor", "2.1.314")),
     # fast mode for Opus 4.8 (2.1.316), Ultra plan (docs 2026-11-02)
     ("skills/agent-review/references/model-policy.md",
-     ("opus 4.8", "2026-10-30", "2026-11-30", "ultra", "as of 2026-11-02")),
+     ("opus 4.8", "2026-10-30", "2026-11-30", "ultra")),  # "as of" moves each sync
     ("skills/agent-deploy/references/cost-controls.md", ("ultra",)),
     # `claude -p` startup failure exits 1 (2.1.314 changelog)
     ("skills/agent-debug/references/evidence.md", ("2.1.314", "exit")),
@@ -169,11 +180,11 @@ PRESENT = (  # awaits lanes B/C
     ("skills/agent-sdk/references/environment.md", ("2.1.316",)),
     # article #19: harness regression shape
     ("skills/agent-debug/references/failure-shapes.md", ("harness regression",)),
-    # README and notices
-    ("README.md", ("documentation read at claude code 2.1.316", "fourteen skills")),
-    ("THIRD_PARTY_NOTICES.md",
-     ("e0da9b95223d3d112bfbccad41d2a32bad923bb5", "1a0f9a9d18e1272d3fbaa817d192b6b057bba623",
-      "## cited anthropic articles")),
+    # README and notices (the docs version and the sdk-python / claude-code heads
+    # move each sync: 2.1.316, e0da9b9, 1a0f9a9 here; 2.1.318, 3be907e, 26382c0 from
+    # 2026-11-04, checked in `test_sync_2026_11_04.py`)
+    ("README.md", ("fourteen skills",)),
+    ("THIRD_PARTY_NOTICES.md", ("## cited anthropic articles",)),
     # article #16: mirrored-lean persona pair (lane C)
     ("skills/eval-simulation/references/personas.md",
      ("a mirrored pair that measures deferral",)),
@@ -295,8 +306,7 @@ LANE_PRESENT = (
      ("output is cut at 10,000 characters (2.1.314)",
       "also run on the monitor tool's shell commands (2.1.314)",
       "they can block or ask, not approve or rewrite them",
-      "`monitor(tail *)`",
-      "the pinned 0.2.176 (bundled cli 2.1.316) has all of this")),
+      "`monitor(tail *)`")),  # "the pinned 0.2.176 … has all of this" moves with the pin
     ("skills/agent-harness/references/permission-model.md",
      ("in every permission mode, including `bypasspermissions`",
       "`enterworktree`/`exitworktree` are removed",
@@ -304,7 +314,7 @@ LANE_PRESENT = (
       "no longer supplies auto-mode rules or saved permission consents",
       "entered by `claude -p --resume` or `--continue`")),
     ("skills/agent-harness/references/subagent-design.md",
-     ("the env-vars page read 2026-11-02 does not list it yet",
+     ("does not list it",  # "read 2026-11-02 … yet" moves with each re-read
       "no longer keeps each subagent's tool results until the turn ends",
       "near-perfect oracle",
       "https://www.anthropic.com/research/building-c-compiler")),
@@ -318,8 +328,7 @@ LANE_PRESENT = (
      ("https://www.anthropic.com/research/advanced-tool-use",
       '"introducing advanced tool use for claude", 2025-11-24',
       "programmatic tool calling",
-      "no `claudeagentoptions` field in 0.2.176",
-      "headershelper")),
+      "headershelper")),  # "no `claudeagentoptions` field in 0.2.176" moves with the pin
     ("skills/agent-review/references/model-policy.md",
      ("fast mode on opus 4.8 is deprecated",
       "removed on **2026-11-30**",
@@ -329,9 +338,8 @@ LANE_PRESENT = (
     ("skills/agent-review/references/review-checklist.md",
      ("https://www.anthropic.com/research/redesigning-source-control",)),
     ("skills/agent-review/references/options-reference.md",
-     ("ask_user_question_unanswered_v1", "ultrathink_available", "cli 2.1.316 sent 14")),
-    ("skills/agent-review/references/load-check.md",
-     ("the **0.2.176** wheel bundles **2.1.316**",)),
+     ("ask_user_question_unanswered_v1", "ultrathink_available")),
+    # load-check's "the **0.2.176** wheel bundles **2.1.316**" moves with the pin.
     ("skills/agent-deploy/references/secure-deployment.md",
      ("https://www.anthropic.com/research/investigating-unintended-model-actions",
       "its own policy, not an sdk default")),
@@ -375,15 +383,12 @@ LANE_PRESENT = (
     ("skills/agent-sdk/references/glossary.md",
      ("**message thread**", "**tool search tool**", "**mirrored lean (deferral)**",
       "**agentic ai foundation (aaif)**")),
+    # The pin sentences, the article count and the local `claude` version move each
+    # sync (0.2.176 / 2.1.316 / 23 here; 0.2.178 / 2.1.318 / 25 from 2026-11-04).
     ("skills/agent-sdk/references/environment.md",
-     ("`claude-agent-sdk` **0.2.176** with its bundled claude code **2.1.316**",
-      "pro, max, ultra, team, or enterprise", "ask_user_question_unanswered_v1")),
-    ("skills/agent-sdk/SKILL.md", ("0.2.176 with bundled claude code 2.1.316",)),
-    ("README.md", ("23 published anthropic articles",)),
-    ("THIRD_PARTY_NOTICES.md",
-     ("articles 1–14 were read on 2026-10-29 and articles 15–23 on 2026-11-02",)),
-    ("plugin-evals/README.md", ("the local `claude` is **2.1.316**",)),
-    ("plugin-evals/runner-stale/graders/criteria.md", ("0.2.1",)),
+     ("pro, max, ultra, team, or enterprise", "ask_user_question_unanswered_v1")),
+    ("skills/agent-sdk/SKILL.md", ("with bundled claude code",)),
+    ("THIRD_PARTY_NOTICES.md", ("articles 1–14 were read on 2026-10-29",)),
     # lane C
     ("skills/eval-simulation/references/personas.md",
      ("## a mirrored pair that measures deferral",

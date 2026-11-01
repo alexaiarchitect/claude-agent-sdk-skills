@@ -73,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     claude = layout.claude
     primary = facts.primary
 
-    report.extend(hook_findings(facts, claude))
+    report.extend(hook_findings(facts, claude, project=root))
     report.extend(mcp_findings(facts, check_path=not args.no_path_check))
     report.extend(permission_findings(facts))
     report.extend(subagent_findings(facts, claude))
@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
                    fix="set include_hook_events=True when you want hook activity in the "
                        "trace. On its own it emits nothing: a hook has to be registered "
                        "as well, which it is here.",
-                   source="claude-agent-sdk 0.2.174 types.py:2554")
+                   source="claude-agent-sdk 0.2.178 types.py:2567 (include_hook_events)")
 
     # Gaps: things absent rather than wrong.
     if not facts.hooks:
@@ -96,7 +96,9 @@ def main(argv: list[str] | None = None) -> int:
                        "it and the filesystem",
                        "a PreToolUse hook is also the only way to see every tool call: "
                        "can_use_tool fires only when the rules evaluate to \"ask\". "
-                       "Generate one with scripts/gen_hook.py.")
+                       "Generate one with scripts/gen_hook.py; a guard it writes sets "
+                       "on_failure=\"block\" (claude-agent-sdk 0.2.177+), so a callback "
+                       "that crashes refuses the call instead of letting it through.")
     if not facts.server_names:
         report.add_gap("GAP-MCP", "No MCP servers",
                        "the agent has only built-in tools, so nothing it does is specific "
@@ -117,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
             "events": sorted({h.event for h in facts.hooks}),
             "matchers": [
                 {"event": h.event, "matcher": h.matcher, "callbacks": h.callbacks,
-                 "timeout": h.timeout}
+                 "timeout": h.timeout, "on_failure": getattr(h, "on_failure", None)}
                 for h in facts.hooks
             ],
             "unsupported_events": sorted(

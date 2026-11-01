@@ -45,11 +45,14 @@ as the point at which the run is wound up, not as a figure the bill cannot
 exceed: set it above what you can afford to spend, not equal to it.
 
 Caveat that matters for reporting: `total_cost_usd` is a **client-side
-estimate** from a bundled price table. On a subscription it is an
+estimate** from a bundled price table, unless an administrator's `modelPricing`
+table (managed settings) is in effect; for authoritative billing the cost-tracking
+page now points to `costs#manage-costs-for-your-organization` (docs read
+2026-11-04), and says not to bill end users from these fields. On a subscription it is an
 API-equivalent figure, not a bill — the real ceiling there is the plan's usage
 limits. Each `model_usage` row also carries `costBasis` — `list` (the public
-price list), `managed` (an organisation's negotiated rate) or `unknown`, needing
-Claude Code **2.1.246+**. It is not on the 0.2.174 `ModelUsage` TypedDict, so
+price list), `managed` (a `modelPricing` table) or `unknown`, needing
+Claude Code **2.1.246+**. It is not on the 0.2.178 `ModelUsage` TypedDict, so
 read it with `.get()`; measured 2026-10-11 on an API key it was `"list"` on
 every row. A cost figure reported without its basis is not comparable between
 two accounts.
@@ -103,11 +106,10 @@ pays full input price every time.
 platform price list now says a cache read costs 10 % of the base input price,
 **except 5 % on Opus 5.5 and Sonnet 5.5** — so the list price for a Sonnet 5.5
 cache read is **$0.10/Mtok**. The 2.1.310 bundled with `claude-agent-sdk`
-0.2.174 charges exactly that (the pinned 0.2.176 bundles 2.1.316) — measured 2026-10-24,
-40869 cache-read tokens leaving a residual of exactly $0.10 per Mtok, as 2.1.301 did on 2026-10-17
-(40479 tokens, $0.0040479). History: the 2.1.294 bundled
-with 0.2.165 still priced it at **$0.20/Mtok** (measured 2026-10-11, exactly
-$0.20 per Mtok), and the estimate caught up somewhere in 2.1.295–2.1.301. So a
+0.2.174 charges exactly that (the pinned 0.2.178 bundles 2.1.318) — measured 2026-10-24,
+40869 cache-read tokens leaving a residual of exactly $0.10 per Mtok, as 2.1.301 did on
+2026-10-17; the 2.1.294 bundled with 0.2.165 still priced it at **$0.20/Mtok**
+(measured 2026-10-11). So a
 cost table in a report has to name the CLI version it was produced on, and a
 regression test that pins a cache-heavy total recorded on 2.1.294 or earlier
 changes value on a newer CLI.
@@ -135,6 +137,20 @@ tokens on every run. And separately, `claude -p` with no `--model` picked
 `claude-fable-5-1` and cost $0.3397 for the same prompt — about **4x** an
 explicit Sonnet. Pin the model and isolate the run before tuning anything else.
 
+## Caps at a gateway, in front of the agent
+
+`max_budget_usd` caps one query. A fleet-wide ceiling belongs in front of the
+agent. Anthropic's guide to Claude Code costs on Google Cloud (2026-10-27) is
+about interactive Claude Code behind the Claude apps gateway, but its pattern
+carries over: the gateway sets **spend caps per user, IdP group or organisation**
+by day, week or month (group and organisation caps are per-developer defaults,
+not a shared pool), warns in the CLI past 75 % and again past 95 %, and at the
+cap "returns 429 until the period resets or an admin raises the cap"; **model
+allowlists per IdP group** are enforced server-side, and it argues that cost per
+task, not price per token, is the number to track. An SDK process behind such a
+gateway sees the 429 as an API error, not the 75/95 % warnings, so handle it as
+a rate-limit failure rather than a crash.
+
 ## Subscription versus API billing
 
 | | API key | Subscription (login or `CLAUDE_CODE_OAUTH_TOKEN`) |
@@ -150,31 +166,22 @@ runs. It is the cheapest signal there is for stamping a cost basis on a result.
 
 ## Two time limits that are not budgets
 
-A **background Bash command** has its own ceiling. With `run_in_background`
-(Claude Code **2.1.285+**) the `timeout` the tool accepts is the background
-limit: default **1800000 ms** (30 minutes), ceiling **7200000 ms** (2 hours)
-unless raised. Foreground commands stay capped at 600000 ms. The raising is done
-through `BASH_DEFAULT_TIMEOUT_MS` (default 120000) and `BASH_MAX_TIMEOUT_MS`
-(default 600000): a value above the default replaces it **in unattended sessions
-only**, and an effective ceiling above two hours also becomes the maximum
-background time limit. An unattended deployment that sets those two high is
-therefore also lengthening how long a background command may burn tokens.
+A **background Bash command** has its own ceiling: with `run_in_background` the
+`timeout` defaults to **1800000 ms** (30 minutes), ceiling **7200000 ms** (2
+hours); foreground commands stay capped at 600000 ms. `BASH_DEFAULT_TIMEOUT_MS`
+and `BASH_MAX_TIMEOUT_MS` above their defaults apply **in unattended sessions
+only**, and a ceiling above two hours also raises the background limit, so
+setting them high lengthens how long a background command may burn tokens.
 
-**Retries** cost money too, and these variables bound them:
-`CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS` (**2.1.295+**) caps how long the
-watchdog waits before giving up on a stalled request;
-`CLAUDE_CODE_RETRY_WATCHDOG_MAX_USAGE_LIMIT_WAIT_MS` (**2.1.301**) makes the
-watchdog end a request at a usage limit that resets too far away instead of
-waiting for it, and `CLAUDE_CODE_RETRY_WATCHDOG_USAGE_LIMIT_RECHECK_MS`
-(**2.1.305**, `60000`–`10800000`) sets how often it checks whether a
-subscription's session or weekly limit was lifted early, so the request goes out
-at once rather than at the reset;
-`CLAUDE_CODE_OVERLOADED_RETRY_BASE_DELAY_MS` (default **500**, range 500–32000,
-**2.1.292+**) sets the backoff base when the API reports overload and
-`CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS` (default **32000**, range
-32000–64000, **2.1.296+**) its ceiling — neither applies under the watchdog; and
-`CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES` (**2.1.285+**) bounds retries of a
-non-streaming request that timed out. Also set
+**Retries** cost money too. `CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS` caps how
+long the watchdog waits on a stalled request;
+`CLAUDE_CODE_RETRY_WATCHDOG_MAX_USAGE_LIMIT_WAIT_MS` ends a request at a usage
+limit that resets too far away, and `CLAUDE_CODE_RETRY_WATCHDOG_USAGE_LIMIT_RECHECK_MS`
+(2.1.305, `60000`–`10800000`) sets how often it checks whether that limit lifted
+early; `CLAUDE_CODE_OVERLOADED_RETRY_BASE_DELAY_MS` and
+`CLAUDE_CODE_OVERLOADED_RETRY_MAX_DELAY_MS` bound overload backoff (not under the
+watchdog), and `CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES` bounds retries of a
+timed-out non-streaming request. Also set
 `CLAUDE_CODE_WEB_SEARCH_REFILLS_PER_HOUR` deliberately if the agent searches:
 the default is **100 interactive but 0 non-interactive** (**2.1.290+**), so a
 headless deployment gets no refills unless you ask for them.
@@ -188,15 +195,13 @@ dict with per-window figures. Only `rejected` means work stopped;
 the `five_hour` window the "5-hour limit" (formerly "session limit"), so match
 on `rate_limit_type`, not on message text.
 
-A long session no longer dead-ends on context: from **2.1.311** a
-standard-context session whose request runs over 200K tokens compacts and
-continues, where it used to stop with "Usage credits required for 1M context" —
-a run that used to fail cheaply now keeps spending, so keep `max_budget_usd`.
+From **2.1.311** a standard-context session whose request runs over 200K tokens
+compacts and continues instead of stopping, so a run that used to fail cheaply
+now keeps spending: keep `max_budget_usd`.
 
 For the developer's own sessions on a Pro, Max, Ultra, Team or Enterprise
-plan, `/usage` lists **Recommendations** (and the usage credits left), one per row, each starting with its share of recent usage (at least 10 %, as in
-`25%  Trim ~/code/api/CLAUDE.md · 49k tokens per request`), and from 2.1.305 `f`
-applies the ones Claude Code can. It is an interactive view, not something an
+plan, `/usage` lists **Recommendations** (each with its share of recent usage, as
+in `25%  Trim ~/code/api/CLAUDE.md · 49k tokens per request`; `f` applies them). It is an interactive view, not something an
 SDK agent reads, but its rows name the same ambient costs (oversized
 `CLAUDE.md`, many MCP tools) that `setting_sources=[]` removes from an agent.
 From 2.1.311 `/usage` also shows **large prompt-cache misses** under "What's
@@ -213,9 +218,10 @@ usage, totals, cache tokens, the 1-hour TTL and its controls),
 <https://code.claude.com/docs/en/env-vars>,
 <https://code.claude.com/docs/en/agent-sdk/quickstart> (the third-party policy
 note), <https://code.claude.com/docs/en/costs> (`/usage` recommendations, the
-fix shortcut, cache misses); `claude-agent-sdk` 0.2.174 `types.py:2405` (`max_turns`), `:2411`
-(`max_budget_usd`), `:1695-1734` (`ResultMessage`), `:1669` (`ModelUsage`),
-`:1753` (`RateLimitInfo`; `:1747` is `RateLimitType`);
+fix shortcut, cache misses, `modelPricing`), <https://code.claude.com/docs/en/costs#manage-costs-for-your-organization>
+(the billing pointer); `claude-agent-sdk` 0.2.178 `types.py:2418` (`max_turns`), `:2424`
+(`max_budget_usd`), `:1706-1745` (`ResultMessage`), `:1680` (`ModelUsage`),
+`:1764` (`RateLimitInfo`; `:1758` is `RateLimitType`);
 <https://platform.claude.com/docs/en/about-claude/models/overview> (the
 cache-read percentages),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
@@ -228,7 +234,11 @@ compaction and `/usage` cache misses, 2.1.312 "5-hour limit" wording);
 agents faster with message threads", 2026-11-02, threads as a latency lever with
 unchanged billing) and
 <https://platform.claude.com/docs/en/build-with-claude/message-threads> (expiry,
-pricing and rate limits unchanged).
+pricing and rate limits unchanged);
+<https://claude.com/resources/articles/how-to-manage-costs-and-demonstrate-roi-for-claude-code-on-google-cloud>
+("Manage costs and demonstrate ROI for Claude Code on Google Cloud", 2026-10-27,
+gateway spend caps, 75 %/95 % warnings, 429 at the cap, model allowlists, cost per
+task; interactive Claude Code, not the SDK).
 The 17x and 4x figures, the cumulative-cost behaviour, the
 `max_turns=1 → num_turns=2` result and the `RateLimitEvent` shape were measured
 by this plugin on 2026-09-30 on a Claude Max subscription with no API key set;
@@ -237,4 +247,4 @@ measured 2026-10-11 with `ANTHROPIC_API_KEY` set, and the $0.10/Mtok of the
 bundled CLI 2.1.301 on 2026-10-17 and of 2.1.310 on 2026-10-24. Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

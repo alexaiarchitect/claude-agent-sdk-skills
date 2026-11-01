@@ -175,7 +175,7 @@ def test_a_summary_reports_what_happened(happy):
     assert summary["has_result"] is True
     assert summary["result"]["terminal_reason"] == "completed"
     assert summary["result"]["cost_basis"] == "subscription"
-    assert summary["init"]["cli_version"] == "2.1.316"
+    assert summary["init"]["cli_version"] == "2.1.318"
     assert summary["init"]["api_key_source"] == "none"
     assert summary["rate_limit"]["status"] == "allowed_warning"
 
@@ -360,7 +360,7 @@ def test_the_encoding_agrees_with_the_sdks_own_answer(sdk_python):
     """A reimplemented encoding nobody checks is a way to read the wrong directory.
 
     The interpreter comes from the `sdk_python` fixture, which resolves the
-    0.2.176 venv first and the older paths as fallbacks.
+    0.2.178 venv first and the older paths as fallbacks.
     """
     cases = ["/a/b c", "/tmp/my_app.v2", "/", "/Users/x/Café", "/" + "x" * 300]
     probe = (

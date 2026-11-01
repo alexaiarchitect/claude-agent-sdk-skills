@@ -50,7 +50,7 @@ versions its allow rules quietly stop settling calls.
 
 Two cost fields worth exporting beside the token counters: every `model_usage`
 row carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
-and `thinkingTokens`, neither of which is on the 0.2.174 `ModelUsage` TypedDict
+and `thinkingTokens`, neither of which is on the 0.2.178 `ModelUsage` TypedDict
 — read both with `.get()`. A dashboard that charts cost without the basis
 cannot tell a list-price estimate from a negotiated one, and `model_usage`
 routinely holds more than one model (measured 2026-10-11: the agent's Sonnet 5.5
@@ -83,24 +83,13 @@ reject). With `OTEL_LOG_TOOL_DETAILS=1` the event carries the command.
 **`claude_code.safety_event`: sent 2.1.307–2.1.311, no longer sent from
 2.1.312.** The 2.1.312 changelog says "Changed Claude Code to stop sending the
 `claude_code.safety_event` OpenTelemetry event"; the monitoring page read
-2026-10-29 still documents it, so the docs lag the changelog. Do not build a new
-alert on it; a collector fed by 2.1.307–2.1.311 sessions may still hold it. As
-history: it was "Logged when a check refuses a tool call or requires a
-permission prompt", also for sandbox network refusals and hook-blocked results,
-with attributes `category` (`permission_rule`, `managed_policy`, `permission_mode`,
-`hook`, `auto_mode_block`, `auto_mode_no_verdict`, `safety_check`,
-`static_analysis`, `sandbox_override`, `user_rejected`, `sandbox_network`,
-`sandbox_other`, `hook_review`, `other`), `decision` (`"accept"`, `"reject"`, or
-`"sent_back"` when a hook blocked a result or turn end), `decision_source`,
-`reason_code` (e.g. `"rule:policySettings"`, `"mode:dontAsk"`,
-`"hook:PreToolUse"`, `"classifier:auto-mode"`), `reason_type`, `rule_source`,
-`grant_scope`, `circuit_breaker` (`"dangerousRemoval"`, `"outsideReadsBlocked"`,
-`"claudeSettingsFile"`), `classifier_category` (with `OTEL_LOG_TOOL_DETAILS=1`),
-`hook_event`, `tool_class`, `tool_name`, `tool_source`, `permission_mode`,
-`tool_use_id`, `sandbox_violation_count`, `sandbox_enabled`, and no command
-text. The `claude -p --output-format json` result's `safety_stops` count is a
-separate field and still present (measured `0` on 2.1.310 on 2026-10-24 and on
-2.1.312 on 2026-10-29). From **2.1.316** the `claude -p` text output says why
+2026-10-29 still documents it (and still did on 2026-11-04), so the docs lag the
+changelog. Do not build a new alert on it; a collector fed by 2.1.307–2.1.311
+sessions may still hold it (it was "Logged when a check refuses a tool call or
+requires a permission prompt", with `category`, `decision` — `"sent_back"` when a
+hook blocked a result — `reason_code` and similar attributes, and no command text). The `claude -p --output-format json`
+result's `safety_stops` count is a separate field and still present (measured
+`0` on 2.1.310, 2.1.312 and, on 2026-11-04, 2.1.318). From **2.1.316** the `claude -p` text output says why
 auto mode stopped a turn even when a background agent was still running.
 Telemetry from Claude Desktop sessions behind a Claude apps gateway is no longer
 rejected when `OTEL_EXPORTER_OTLP_HEADERS` is set (2.1.307).
@@ -112,6 +101,15 @@ fixed-URL remote servers declared by plugins from the official Anthropic
 marketplace instead of `"custom"`; and the docs now state that when `prometheus`
 is the **only** metrics exporter, the `USD`, `tokens` and `s` units are omitted
 so the scrape stays valid (combined exporters keep them).
+
+**2.1.317 additions (changelog; not on the monitoring page read 2026-11-04):**
+`anthropic.plan`, `anthropic.seat_type`, `anthropic.provider` and
+`anthropic.custom_base_url` on metrics, events and spans, so a collector can
+split usage by plan, seat or provider (and spot a custom base URL) without
+resource attributes of its own; and exports behind a proxy that never answers
+now time out after 10 seconds (`OTEL_EXPORTER_OTLP_TIMEOUT`, up to 30 seconds)
+instead of hanging. The docs call the cost metrics approximations and send
+billing questions to `costs#manage-costs-for-your-organization`.
 
 A low `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` pushed `tool_use_id`,
 `tool_source` and `tool_parameters` off `tool_decision` before 2.1.302. The
@@ -128,7 +126,7 @@ under a model the agent never named (see
 | `claude_code.interaction` | one turn of the agent loop, prompt to response |
 | `claude_code.llm_request` | one call to the API, with model, latency, token counts |
 | `claude_code.tool` | one tool invocation, with children `claude_code.tool.blocked_on_user` (the permission wait) and `claude_code.tool.execution` |
-| `claude_code.hook` | one hook execution. Needs detailed beta tracing (`ENABLE_BETA_TRACING_DETAILED=1` and `BETA_TRACING_ENDPOINT`), which also changes where logs and traces go |
+| `claude_code.hook` | one hook execution. Needs detailed beta tracing (`ENABLE_BETA_TRACING_DETAILED=1` and `BETA_TRACING_ENDPOINT`), which also changes where logs and traces go; the docs (2026-11-04) say to set it only for debugging, not in production (high export volume, content attributes outside the stable span schema) |
 
 `llm_request`, `tool` and `hook` nest under the enclosing `interaction`. When
 the agent spawns a subagent, the subagent's spans nest under the parent's
@@ -167,6 +165,13 @@ The CLI's identity attributes describe **your service's credential**, not the
 end user the agent acted for. To attribute per request, add the user and tenant
 as resource attributes on each `query()` call, percent-encoding the values —
 `OTEL_RESOURCE_ATTRIBUTES` reserves commas, spaces and equals signs.
+
+The same variable carries cost-centre tags (`department=engineering,cost_center=eng-123`):
+Anthropic's guide to Claude Code costs on Google Cloud (2026-10-27) tags every
+metric and event that way and charts usage and **estimated** cost by model, skill,
+plugin, agent and MCP server (real names on those metrics need
+`OTEL_LOG_TOOL_DETAILS=1`, below). The guide is about interactive Claude Code
+behind the Claude apps gateway; an SDK app inherits only this OTel side.
 
 ## Sensitive data: off by default, and keep it that way
 
@@ -224,15 +229,19 @@ reference, traces beta, `claude_code.safety_event` attributes and categories,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300–2.1.302
 event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default,
 2.1.307 `safety_event` and gateway headers fix; 2.1.312 `safety_event` withdrawn,
-OTel `effort` value, `mcp_server.name`; 2.1.316 `-p` auto-mode stop reason);
+OTel `effort` value, `mcp_server.name`; 2.1.316 `-p` auto-mode stop reason; 2.1.317
+`anthropic.*` attributes and export timeouts);
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (why telemetry-off sessions could start in `auto` before v2.1.302; "Default
 classifier model"), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
-`claude-agent-sdk` 0.2.174
+<https://claude.com/resources/articles/how-to-manage-costs-and-demonstrate-roi-for-claude-code-on-google-cloud>
+("Manage costs and demonstrate ROI for Claude Code on Google Cloud", 2026-10-27,
+cost-centre tags in `OTEL_RESOURCE_ATTRIBUTES`, cost by skill, plugin, agent and MCP
+server); `claude-agent-sdk` 0.2.178
 `_internal/transport/subprocess_cli.py:814-860` (env merge and trace-context
-injection), `types.py:1669` (`ModelUsage`). The two-model `model_usage` and
+injection), `types.py:1680` (`ModelUsage`). The two-model `model_usage` and
 `costBasis: "list"` were measured by this plugin on 2026-10-11 against SDK
 0.2.165 with bundled CLI 2.1.294; `safety_stops` on 2026-10-24 on CLI 2.1.310.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

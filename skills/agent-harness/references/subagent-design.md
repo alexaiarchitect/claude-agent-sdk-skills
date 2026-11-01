@@ -42,10 +42,13 @@ The **Agent tool itself** also takes an `effort` input (Claude Code **2.1.292+**
 so Claude can ask for a cheaper or harder-thinking subagent per call without the
 definition changing. Effort carries over across a model fallback: a subagent
 started at `medium` stays at `medium` on the fallback model even when that model
-defaults to `high`. From **2.1.316** `CLAUDE_CODE_SUBAGENT_EFFORT` in `env` sets the
-effort subagents run at when nothing else names one, instead of inheriting the
-session's (Claude Code `CHANGELOG.md` 2.1.316; the env-vars page read 2026-11-02 does
-not list it yet). An Agent-call `model` parameter "takes a model alias:
+defaults to `high`. **With no `effort` of its own** (docs `model-config`, "Effort level of
+subagents and teammates"), a subagent or teammate on the main conversation's model runs at
+the session's level; on another model that level does not apply, and from **2.1.317** it
+uses that model's saved level or its default (changelog). So set `effort` in the
+definition when it matters. From **2.1.316** `CLAUDE_CODE_SUBAGENT_EFFORT` in `env` sets
+the level subagents run at when nothing else names one (Claude Code `CHANGELOG.md`
+2.1.316; the env-vars page read 2026-11-04 still does not list it). An Agent-call `model` parameter "takes a model alias:
 `sonnet`, `opus`, `haiku`, or `fable`" — Claude cannot pass a full model id or
 `inherit` on that call; the definition's `model` field still can.
 
@@ -58,7 +61,7 @@ linter accepts both spellings and warns when neither is present.
 
 The docs and the SDK call it **`Agent`**; "the previous name `Task` is still
 accepted as an alias", and the init `SystemMessage`'s `tools` list still reports
-**`Task`** for backward compatibility (measured again 2026-11-02 on 2.1.316). So:
+**`Task`** for backward compatibility (measured again 2026-11-04 on 2.1.318). So:
 
 - `allowed_tools` should carry both, or delegation may silently not happen
   (`OPT040`);
@@ -93,14 +96,10 @@ lowers where auto-compaction kicks in (100000–1000000 tokens) — but only as
 `.claude/agents/*.md` frontmatter (Claude Code **2.1.296+**) or on the
 **TypeScript** SDK's agent definition (v0.3.296+); the Python `AgentDefinition`
 has no such field. From **2.1.312** a subagent's `autoCompactWindow` can
-**lower** the window set by `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (before, it had no
-effect when the variable was set) but never raises it. A value given to
-`/autocompact` is saved **per model** under `modelSettings` (2.1.288+). Where a
+**lower** the window set by `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, never raise it. Where a
 model switch would normally prompt, **in a subagent no prompt is shown** — the
-flagged request re-runs on the fallback model.
-
-**Two defaults changed in 2.1.302** for `claude -p` and the Agent SDK; the
-docs now describe both.
+flagged request re-runs on the fallback model; from **2.1.318**, with "Switch models when a
+message is flagged" set to "Ask each time", the subagent **stops** instead.
 
 **Forked subagents.** "A fork is a subagent that copies the conversation so far instead
 of starting fresh. From Claude Code v2.1.302, Claude can start forks in your application
@@ -123,14 +122,16 @@ bundle Claude Code v2.1.302 or later." With `CLAUDE_CODE_DISABLE_BACKGROUND_TASK
 commands are off too).
 
 Since 2.1.299 an agent's `tools:` list that names an MCP server takes only **that
-server's** tools; list a server whose name contains `__` as `mcp__<whole name>__*`. From
-2.1.304 a plugin can no longer keep a headless run going past `--max-turns`, Stop or
+server's** tools (`mcp__<whole name>__*` when the name contains `__`). From 2.1.304 a plugin can no longer keep a headless run going past `--max-turns`, Stop or
 ended input by spawning or re-running subagents. From 2.1.311 subagents can use MCP
 tools from servers that finish connecting after the subagent started (before, those
 tools were missing). From 2.1.314 the parent of a long headless or SDK turn no longer
 keeps each subagent's tool results until the turn ends; from 2.1.316 a subagent that
 inherited a parent subagent's model keeps it when a background job or message wakes it
-(before, it moved to the main model).
+(before, it moved to the main model). From 2.1.317 auto mode shows a notice when its check
+has no answer for a subagent's tool call (before, nothing reached the main view). From
+2.1.318 background subagents move a shell command to the background after 3 minutes on
+all providers, so the prompt cache does not expire while it runs.
 
 Opus 5 delegates more readily than earlier models, so these matter most there. With the
 `claude_code` system-prompt preset, Claude Code adds a line telling Claude not to call
@@ -160,18 +161,16 @@ There is no `SubagentStartMessage`. Subagent activity arrives as:
 The **TypeScript** Agent SDK additionally puts `agent_id` on a subagent's assistant and
 user messages from v0.3.292, equal to the `task_id` of that subagent's task events,
 which is the reliable way to attribute interleaved parallel subagents. **Python has no
-such field** on `AssistantMessage` or `UserMessage` at 0.2.174 — `parent_tool_use_id` is
+such field** on `AssistantMessage` or `UserMessage` at 0.2.178 — `parent_tool_use_id` is
 what a Python reader correlates on. (From 0.2.166, `agent_id` does appear on the four
 tool-lifecycle *hook inputs*; that is a 0.2.166+ fact and a different surface.) Subagent
 transcripts record real token usage and stop reasons for streamed responses from 2.1.307
 (before, placeholders and an empty stop reason), which matters to anyone pricing or
 grading from the session files.
 
-Before v2.1.210 the parent read the subagent's final message verbatim; since then Claude
-Code scans it for instruction-shaped patterns (control tags, turn markers) and
-neutralises them in place, prepending a `[harness: ...]` line for the first two kinds.
-It never removes or rewords the text, but a grader doing an exact-match on a subagent's
-final message should know the scan exists.
+Since v2.1.210 Claude Code scans a subagent's final message for instruction-shaped
+patterns and neutralises them in place (sometimes prepending a `[harness: ...]` line),
+which an exact-match grader on that message should know.
 
 ## When not to delegate: fold first
 
@@ -215,20 +214,22 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/subagents>
 Opus 5, output scanning), <https://code.claude.com/docs/en/sub-agents>
 (filesystem definitions, available tools, concurrent limit),
 <https://code.claude.com/docs/en/agent-sdk/permissions#available-modes>
-(subagent mode inheritance), <https://code.claude.com/docs/en/agent-sdk/subagents>
-("Forked subagents", "Choose whether Claude waits for subagents"),
+(subagent mode inheritance), the same subagents page ("Forked subagents", "Choose
+whether Claude waits for subagents"),
 <https://code.claude.com/docs/en/agent-sdk/python> (Agent tool
 `run_in_background`, `Task` alias, `TaskStop`), <https://code.claude.com/docs/en/env-vars>
 (`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS`); <https://code.claude.com/docs/en/sub-agents>
 (Agent-call `model` aliases);
-<https://code.claude.com/docs/en/model-config> (effort after a fallback,
-per-model `autoCompactWindow`),
+<https://code.claude.com/docs/en/model-config> (effort after a fallback, "Effort level of
+subagents and teammates", per-model `autoCompactWindow`),
 <https://code.claude.com/docs/en/sub-agents#subagent-auto-compact-window>,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 MCP
 `tools:` scoping, 2.1.302 fork and foreground defaults, 2.1.304 headless
 stop, 2.1.307 fork identity and transcript usage, 2.1.311 late-connecting MCP
 servers, 2.1.312 `autoCompactWindow` lowering, 2.1.314 subagent tool results,
-2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT` and inherited-model fix);
+2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT` and inherited-model fix, 2.1.317 subagent effort on
+another model and the no-answer notice, 2.1.318 "Ask each time" stop and 3-minute shell
+backgrounding);
 <https://www.anthropic.com/research/building-c-compiler> ("Building a C compiler with
 parallel Claudes", 2026-02-05, lock-file task claiming without an orchestrator, tests
 as a near-perfect oracle, containers);
@@ -240,10 +241,10 @@ as a near-perfect oracle, containers);
 our multi-agent research system", 2025-06-13, the 90.2 % / 15× / 80 % figures and
 delegation rules; its synchronous subagents describe Anthropic's Research
 product, not the SDK's background default);
-`claude-agent-sdk` 0.2.174 `types.py:2647` (`agents`), `:2563-2573`
-(`parent_tool_use_id` and subagent text), `:1821` (`HookEventMessage`). The
+`claude-agent-sdk` 0.2.178 `types.py:2660` (`agents`), `:2576-2586`
+(`parent_tool_use_id` and subagent text), `:1832` (`HookEventMessage`). The
 `Task` / `Agent` naming difference was measured by this plugin on 2026-09-30
 from the CLI's own `init.tools` list. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (`types.py` byte-identical in
-0.2.176). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-04 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

@@ -57,7 +57,10 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
    can check the claim. Never assign a severity of your own, and never report
    an id the script did not print. Describing a hook defect in prose with no id
    leaves the reader nothing to look up and nothing to re-run. When the fix is
-   a hook, offer the generator by name — `gen_hook.py` — as the next step.
+   a hook, offer the generator by name — `gen_hook.py` — as the next step. Its
+   `deny` guards on `PreToolUse`/`PermissionRequest` set `on_failure="block"`, so a
+   crashing guard blocks instead of failing open (claude-agent-sdk 0.2.177+);
+   observers keep the default (`HOK011`, `references/hooks-catalog.md`).
 
 3. **Options.** Fix the wiring errors first; then generate what is missing.
    Name the cost: every generator here is free and writes at most one file.

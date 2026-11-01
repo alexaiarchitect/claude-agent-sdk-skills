@@ -13,6 +13,7 @@
 | `tool_result` | `is_error` (truthy on error, `null` on success), `content` (truncated), `tool_use_result` |
 | `hook` | `event`, `phase`, `decision`, `fault_id` when a fault was injected |
 | `rate_limit` | `status`, `windows` (five-hour and seven-day utilization), `resets_at` |
+| `system` | any other system message, as `subtype` and `data` — including a failed hook callback (`subtype: informational`, `data.tag: hook_callback_failed`) |
 | `result` | `subtype`, `is_error`, `terminal_reason`, `stop_reason`, `num_turns`, `total_cost_usd`, `cost_delta_usd`, `usage`, `permission_denials`, `structured_output`. Read `stop_reason` before `is_error`: on `subtype: success`, `refusal` (the model declined) and `tool_deferred_unavailable` (a deferred tool gone on resume) set `is_error` without being API errors |
 
 Useful reads:
@@ -24,6 +25,15 @@ Useful reads:
 - **`synthetic: true`**: the structured-output call; not a real tool call.
 - **`cost_delta_usd`**: the cost of one turn; `total_cost_usd` is the running
   total of the session.
+- **`hook_callback_failed`**: an SDK hook callback raised, returned `None` or
+  returned a value the CLI rejected (`on_failure` needs claude-agent-sdk 0.2.177+
+  and Claude Code 2.1.317+). The `data.content` says what happened next
+  (measured on 2.1.318): "…Its answer was treated as empty." means the call went
+  ahead — a guard that failed open; "…onFailure is "block", so this failure
+  counts as a block." means it was refused, the tool result reads `failed;
+  blocking because onFailure is "block"` and the call is in
+  `permission_denials` while the result is still `success`. The guard's own
+  error text is not in the trace; read the app's logs for it.
 
 ## A Claude Code session file
 
@@ -51,7 +61,7 @@ Two differences matter:
 bundled with the SDK the runner used; both are reported. Before **2.1.311**,
 `claude -p` and SDK sessions could save transcript messages **out of order** or
 keep messages that were taken back; a session file written by an older CLI
-(the 0.2.174 wheel bundled 2.1.310; the pinned 0.2.176 bundles 2.1.316) can therefore disagree with the live
+(the 0.2.174 wheel bundled 2.1.310; the pinned 0.2.178 bundles 2.1.318) can therefore disagree with the live
 message stream. Prefer the runner's trace, which records the stream as it came,
 and order a session file by its `parentUuid` graph, never by line position.
 
@@ -68,6 +78,17 @@ JSON, a bad `--setting-sources`) all exited 1 with the error on stderr on both
 `exit_code=1` on 0.2.174 and 0.2.176 (the message itself goes to the parent's
 stderr). The runner reports that as `NOT_EVALUATED` (exit 2), so read stderr
 before reading the agent.
+
+Three later CLI changes affect what the exit code and result mean (changelog):
+from **2.1.317** `claude -p` exits 1 when a full disk or quota lost its transcript
+or `~/.claude.json` writes (it used to exit 0); from **2.1.318** `claude -p` and SDK
+sessions no longer report `success` when an API error cut off a reply while a mod
+hooked `turn.step`, so on an older CLI a truncated final text under `success` may
+be an API error. Also from 2.1.318, `claude -p` JSON carries
+`credential_expires_at` when a stored claude.ai sign-in is in use (absent with an
+API key, measured 2026-11-04), text output warns on stderr 10 days before that
+date, and a run whose sign-in has expired says so and names `claude auth login`
+and `claude setup-token`.
 
 ## Capturing fresh evidence (spends)
 
@@ -89,5 +110,8 @@ re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs;
 the transcript-order fix per the Claude Code `CHANGELOG.md` (2.1.311) and the
 `-p` startup-failure line per the same changelog (2.1.314); the startup-failure
 exit codes and `ProcessError` measured by this plugin on 2026-11-02
-(`.dev/VERIFIED-FACTS.md`). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 /
-Claude Code 2.1.316 docs.
+(`.dev/VERIFIED-FACTS.md`); `https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails`
+(`hook_callback_failed`), the Claude Code `CHANGELOG.md` 2.1.317–2.1.318 (exit 1 on
+lost writes, API-error-cut replies, `credential_expires_at`); both `on_failure` paths
+and the `-p` JSON keys measured by this plugin on 2026-11-04 on 0.2.178 / 2.1.318.
+Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

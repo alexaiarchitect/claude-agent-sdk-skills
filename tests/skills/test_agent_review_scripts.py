@@ -39,7 +39,7 @@ def lint(run_script, agent_dir):
     ("entry_env", {"OPT004"}),
     ("external_mcp", {"AGT004", "MCP001", "MCP002", "OPT001", "OPT010", "OPT011"}),
     ("subagents", {"SUB001", "SUB002", "SUB003", "SUB010"}),
-    ("hooks_bad", {"HOK001", "HOK002", "HOK003", "HOK010", "HOK020", "HOK030"}),
+    ("hooks_bad", {"HOK001", "HOK002", "HOK003", "HOK010", "HOK011", "HOK020", "HOK030"}),
     ("deploy_ready", set()),
 ])
 def test_each_fixture_reports_the_findings_it_was_built_for(lint, fixture, expected):
@@ -148,6 +148,88 @@ def test_setting_sources_empty_on_an_old_pinned_sdk_is_a_warning(run_script, tmp
     project = tmp_agent("entry_env")
     (project / "requirements.txt").write_text("claude-agent-sdk<=0.1.59\n")
     assert "OPT021" in ids_of(run_script(LINT, str(project), "--json"))
+
+
+# -- HOK011: a guard that fails open ------------------------------------
+
+GUARD_MATCHER = 'HookMatcher(matcher="mcp__loans__.*", hooks=[refuse_second_copy])'
+
+
+def hok011(result) -> list[dict]:
+    return [f for f in json.loads(result.stdout)["findings"] if f["id"] == "HOK011"]
+
+
+def test_a_guard_without_on_failure_block_is_a_warning(lint):
+    found = hok011(lint("hooks_bad"))
+    assert len(found) == 1, "only refuse_second_copy denies; the audit and gate hooks do not"
+    finding = found[0]
+    assert finding["severity"] == "warn"
+    assert finding["message"] == (
+        "guard `refuse_second_copy()` fails open: a crash, a `None` return or a "
+        "rejected value lets the call through")
+    for needle in ('on_failure="block"', "0.2.177+", "2.1.317+", "`{}`", "TeammateIdle",
+                   "can_use_tool", "CLIConnectionError", "did not register your hooks"):
+        assert needle in finding["fix"], needle
+    assert "hooks#block-the-action-when-a-callback-fails" in finding["source"]
+    assert "0.2.178 types.py:864" in finding["source"]
+
+
+@pytest.mark.parametrize("keyword,fires", [
+    (', on_failure="block"', False),
+    (', on_failure="continue"', True),
+    (", on_failure=None", True),
+    (", on_failure=MODE", False),            # dynamic: not ours to judge
+])
+def test_on_failure_block_silences_the_warning(run_script, tmp_agent, keyword, fires):
+    project = tmp_agent("hooks_bad")
+    source = (project / "agent.py").read_text()
+    assert GUARD_MATCHER in source
+    patched = source.replace(GUARD_MATCHER, GUARD_MATCHER[:-1] + keyword + ")")
+    (project / "agent.py").write_text(patched.replace("TRAIL: list", 'MODE = "block"\nTRAIL: list'))
+    assert bool(hok011(run_script(LINT, str(project), "--json"))) is fires
+
+
+@pytest.mark.parametrize("pin,fires", [
+    ("claude-agent-sdk==0.2.176", False),
+    ("claude-agent-sdk<=0.2.176", False),
+    ("claude-agent-sdk<0.2.177", False),
+    ("claude-agent-sdk~=0.1.60", False),
+    ("claude-agent-sdk==0.2.177", True),
+    ("claude-agent-sdk<0.2.178", True),
+    ("claude-agent-sdk~=0.2.170", True),
+    ("claude-agent-sdk>=0.2.100", True),
+])
+def test_a_pin_below_0_2_177_suppresses_the_warning(run_script, tmp_agent, pin, fires):
+    """Below 0.2.177 `HookMatcher` has no `on_failure` field: the fix would raise."""
+    project = tmp_agent("hooks_bad")
+    (project / "requirements.txt").write_text(pin + "\n")
+    assert bool(hok011(run_script(LINT, str(project), "--json"))) is fires
+
+
+def test_a_permission_request_guard_is_a_guard_too(run_script, tmp_path):
+    (tmp_path / "agent.py").write_text(
+        "from claude_agent_sdk import ClaudeAgentOptions, HookMatcher\n\n\n"
+        "async def refuse(input_data, tool_use_id, context):\n"
+        "    return {\"hookSpecificOutput\": {\"hookEventName\": \"PermissionRequest\",\n"
+        "            \"decision\": {\"behavior\": \"deny\", \"message\": \"no\"}}}\n\n\n"
+        "async def watch(input_data, tool_use_id, context):\n"
+        "    return {}\n\n\n"
+        "def build_options():\n"
+        "    return ClaudeAgentOptions(model=\"claude-sonnet-5-5\", hooks={\n"
+        "        \"PermissionRequest\": [HookMatcher(hooks=[refuse])],\n"
+        "        \"PostToolUse\": [HookMatcher(hooks=[watch])],\n"
+        "    })\n"
+    )
+    found = hok011(run_script(LINT, str(tmp_path), "--json"))
+    assert [f["locator"].split(" ")[0] for f in found] == ["hooks[PermissionRequest]"]
+
+
+def test_hook_sources_cite_the_0_2_178_line_numbers(run_script, lint, tmp_agent):
+    sources = " ".join(f["source"] for name in ("hooks_bad", "drift", "good")
+                       for f in json.loads(lint(name).stdout)["findings"])
+    assert "0.2.174 types.py" not in sources
+    assert "0.2.178 types.py:828 (HookCallback)" in sources
+    assert "0.2.178 types.py:2719" in sources          # max_thinking_tokens (AGT031)
 
 
 def test_a_missing_stdio_command_can_be_skipped_for_another_machine(lint):

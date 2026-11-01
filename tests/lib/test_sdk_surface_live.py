@@ -22,8 +22,14 @@ read only, never asserted on. Re-run 2026-11-02 against 0.2.176 (bundled CLI
 `_cli_version.py`, `_version.py` and the bundled binary, `types.py` is
 byte-identical to 0.2.174's, every answer unchanged. `main` (`e0da9b9`) adds
 `HookMatcher.on_failure` (`d38e51e`, unreleased); the 2.1.316 CLI does not answer
-`hook_on_failure_supported`, so it is asserted absent on the pin below and
-flips when the pin passes that commit. (History: the 2026-10-17 run against 0.2.168 / CLI
+`hook_on_failure_supported`, so it was asserted absent on the pin. Re-run
+2026-11-04 against 0.2.178 (bundled CLI 2.1.318) in
+`../tmp/venvs/casdk-venv-0.2.178`: 0.2.177 shipped `HookMatcher.on_failure`
+(`types.py:864`), so `types.py` gained 13 lines (up to 854 unchanged, 855-2320
++11, 2321 on +13) and :data:`TYPES_PY_LINES` moved with it; 2.1.318 honours the
+field (measured live), and the field test below now expects it. Options 49,
+modes 6, events 10, union members 21, exports 159 and the 19 `ResultMessage`
+fields are unchanged. (History: the 2026-10-17 run against 0.2.168 / CLI
 2.1.301 and the 2026-10-11 run against 0.2.165 / CLI 2.1.294 matched the checks
 that existed then.)
 """
@@ -49,12 +55,14 @@ from agent_sdk_skills import (
 
 #: The release and bundled CLI this sync measured. Literal on purpose: a pin
 #: moved without re-reading the wheel fails here, not just in the equality below.
-MEASURED_SDK = "0.2.176"
-MEASURED_CLI = "2.1.316"
+MEASURED_SDK = "0.2.178"
+MEASURED_CLI = "2.1.318"
 
-#: Where each symbol the plugin cites by line number sits in the 0.2.174
-#: `types.py`, byte-identical in 0.2.176 (2901 lines; lines 1-2557 as in 0.2.168, 2558+ moved by one when
-#: the `include_hook_events` docstring grew in 0.2.169). symbol -> (line, the
+#: Where each symbol the plugin cites by line number sits in the 0.2.178
+#: `types.py` (2914 lines). 0.2.177 inserted `HookMatcher.on_failure` and its
+#: comment at 855-865 and two lines at 2332-2333, so against 0.2.174/0.2.176 (2901
+#: lines, byte-identical to each other) lines up to 854 stay, 855-2320 moved by 11
+#: and 2321 on by 13 (re-measured 2026-11-04). symbol -> (line, the
 #: text that line starts with, stripped). A future shift fails loudly here
 #: before a reference cites a wrong line.
 TYPES_PY_LINES = {
@@ -62,27 +70,29 @@ TYPES_PY_LINES = {
     "HookEvent": (284, "HookEvent = ("),
     "HookSpecificOutput": (728, "HookSpecificOutput = ("),
     "HookCallback": (828, "HookCallback = Callable["),
-    "SandboxIgnoreViolations": (1126, "SandboxIgnoreViolations: TypeAlias = dict[str, list[str]]"),
-    "SandboxSettings": (1141, "class SandboxSettings("),
-    "SystemInitData": (1461, "class SystemInitData("),
-    "ModelUsage": (1669, "class ModelUsage("),
-    "ResultMessage": (1695, "class ResultMessage:"),
-    "RateLimitType": (1747, "RateLimitType = Literal["),
-    "RateLimitInfo": (1753, "class RateLimitInfo:"),
-    "ClaudeAgentOptions": (2326, "class ClaudeAgentOptions:"),
-    "permission_mode": (2380, "permission_mode:"),
-    "include_hook_events": (2554, "include_hook_events:"),
-    "forward_subagent_text": (2563, "forward_subagent_text:"),
-    "agents": (2647, "agents:"),
-    "setting_sources": (2653, "setting_sources:"),
-    "skills": (2665, "skills:"),
-    "max_thinking_tokens": (2706, "max_thinking_tokens:"),
-    "effort": (2728, "effort:"),
-    "session_store": (2759, "session_store:"),
-    "task_budget": (2786, "task_budget:"),
+    "HookMatcher": (840, "class HookMatcher:"),
+    "on_failure": (864, "on_failure: Literal[\"continue\", \"block\"] | None = None"),
+    "SandboxIgnoreViolations": (1137, "SandboxIgnoreViolations: TypeAlias = dict[str, list[str]]"),
+    "SandboxSettings": (1152, "class SandboxSettings("),
+    "SystemInitData": (1472, "class SystemInitData("),
+    "ModelUsage": (1680, "class ModelUsage("),
+    "ResultMessage": (1706, "class ResultMessage:"),
+    "RateLimitType": (1758, "RateLimitType = Literal["),
+    "RateLimitInfo": (1764, "class RateLimitInfo:"),
+    "ClaudeAgentOptions": (2339, "class ClaudeAgentOptions:"),
+    "permission_mode": (2393, "permission_mode:"),
+    "include_hook_events": (2567, "include_hook_events:"),
+    "forward_subagent_text": (2576, "forward_subagent_text:"),
+    "agents": (2660, "agents:"),
+    "setting_sources": (2666, "setting_sources:"),
+    "skills": (2678, "skills:"),
+    "max_thinking_tokens": (2719, "max_thinking_tokens:"),
+    "effort": (2741, "effort:"),
+    "session_store": (2772, "session_store:"),
+    "task_budget": (2799, "task_budget:"),
 }
 
-#: The 19 `ResultMessage` fields, in declaration order (`types.py:1695` of 0.2.174).
+#: The 19 `ResultMessage` fields, in declaration order (`types.py:1706` of 0.2.178).
 RESULT_MESSAGE_FIELDS = (
     "subtype", "duration_ms", "duration_api_ms", "is_error", "num_turns", "session_id",
     "stop_reason", "total_cost_usd", "usage", "result", "structured_output", "model_usage",
@@ -196,7 +206,7 @@ def test_the_result_message_fields_are_the_nineteen_the_graders_read(surface):
 
 
 def test_the_export_list_is_the_one_the_stub_mirrors(surface):
-    """159 names on 0.2.176 (as on 0.2.168 and 0.2.174); `HookEvent` is not among them (import it
+    """159 names on 0.2.178 (as on 0.2.168, 0.2.174 and 0.2.176; `on_failure` is a field, not an export); `HookEvent` is not among them (import it
     from `.types`)."""
     live = surface["all"]
     assert len(live) == 159
@@ -218,26 +228,26 @@ def test_ignore_violations_maps_a_command_pattern_to_violation_substrings(surfac
 
 
 def test_system_init_data_declares_capabilities_and_fast_mode(surface):
-    """Declared, not counted: 14 capability strings on CLI 2.1.316 (13 on 2.1.310, 11 on
-    2.1.301) is a CLI fact measured live, not something the wheel says. Neither is the
-    `ultrathink_available` key 2.1.316 sends: it is not a `SystemInitData` field."""
+    """Declared, not counted: 14 capability strings on CLI 2.1.316 and 2.1.318 (13 on
+    2.1.310, 11 on 2.1.301) is a CLI fact measured live, not something the wheel says.
+    Neither are the `ultrathink_available` (2.1.316) and `ultrathink_typed_raises`
+    (2.1.318) keys: they are not `SystemInitData` fields."""
     keys = surface["system_init_data"]
     assert {"capabilities", "fast_mode_state", "fast_mode_disabled_reason"} <= set(keys)
-    assert "ultrathink_available" not in keys
+    assert "ultrathink_available" not in keys and "ultrathink_typed_raises" not in keys
 
 
-#: `HookMatcher` fields on the pinned release. `main` adds `on_failure`
-#: (`d38e51e`, 2026-11-02; `Literal["continue", "block"] | None`), which the
-#: 2.1.316 CLI refuses at connect (`CLIConnectionError`, measured 2026-11-02).
-#: Flip this when the pin moves past that commit: add the field, then let the
-#: references say what it does.
-HOOK_MATCHER_FIELDS = ("matcher", "hooks", "timeout")
+#: `HookMatcher` fields on the pinned release. `on_failure` was on `main` only
+#: on 2026-11-02 (`d38e51e`; the 2.1.316 CLI refused it at connect) and shipped in
+#: 0.2.177 (`Literal["continue", "block"] | None = None`, `types.py:864`); the
+#: bundled 2.1.318 honours it (measured 2026-11-04). The test was flipped then.
+HOOK_MATCHER_FIELDS = ("matcher", "hooks", "timeout", "on_failure")
 
 
-def test_hook_matcher_on_the_pin_has_no_on_failure(surface):
+def test_hook_matcher_on_the_pin_has_on_failure(surface):
     assert tuple(surface["hook_matcher"]) == HOOK_MATCHER_FIELDS, (
-        "HookMatcher changed on the pinned SDK: if `on_failure` shipped, re-measure "
-        "whether the bundled CLI answers `hook_on_failure_supported` before citing it"
+        "HookMatcher changed on the pinned SDK: re-measure what the bundled CLI does "
+        "with the new field before citing it"
     )
 
 
@@ -253,11 +263,12 @@ def test_every_cited_types_py_line_is_where_the_plugin_says(surface, symbol):
 
 
 def test_claude_agent_options_ends_at_task_budget(surface):
-    """The references cite the dataclass as `types.py:2326-2786`: no field follows."""
+    """The references cite the dataclass as `types.py:2339-2799` (`:2326-2786` before
+    0.2.177): no field follows."""
     lines = Path(surface["types_path"]).read_text(encoding="utf-8").splitlines()
-    assert lines[2785].strip().startswith("task_budget:")
+    assert lines[2798].strip().startswith("task_budget:")
     after = []
-    for line in lines[2786:]:
+    for line in lines[2799:]:
         if line and not line[0].isspace():
             break                          # the next top-level statement ends the class
         if re.match(r"^    [a-z_]+: ", line):

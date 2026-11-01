@@ -48,11 +48,8 @@ nothing is the failure to look for.
 The recommended shape is that **the agent never sees a credential**. A proxy
 outside the boundary injects them into outgoing requests.
 
-It is worth the extra component: the agent cannot leak what it does not have,
-the proxy enforces an endpoint allowlist and logs every request, and credentials
-live in one place instead of in every container.
-
-Two ways to route Claude's own traffic through it:
+The agent cannot leak what it does not have, the proxy enforces an endpoint
+allowlist and logs every request, and credentials live in one place. Two ways to route Claude's own traffic through it:
 
 ```bash
 # Sampling requests only; the proxy sees plaintext and can inject the key.
@@ -64,9 +61,7 @@ export HTTP_PROXY="http://localhost:8080"
 export HTTPS_PROXY="http://localhost:8080"
 ```
 
-Envoy (`credential_injector`), mitmproxy, Squid and LiteLLM all do this; so does
-a small service you write.
-
+Envoy (`credential_injector`), mitmproxy, Squid and LiteLLM all do this.
 Credentials to *other* services (git, databases, internal APIs) follow the same
 rule; where a proxy is impractical, wrap the access in a custom MCP tool whose
 handler holds the credential, so the model sees an operation, not a secret.
@@ -79,9 +74,7 @@ handler holds the credential, so the model sees an operation, not a secret.
 
 So a `CLAUDE_CODE_OAUTH_TOKEN` in a container that serves other people is a
 policy problem first (`HST001`); it is also tied to **one person's plan** and
-expires, so the deployment breaks on a date, on someone else's account.
-
-Use an API key from a secret manager, a gateway that injects one, or a cloud
+expires, so the deployment breaks on a date, on someone else's account. Use an API key from a secret manager, a gateway that injects one, or a cloud
 provider. A subscription credential is for your own machine and your own evals.
 
 ## Filesystem
@@ -120,64 +113,54 @@ ClaudeAgentOptions(
 )
 ```
 
-Read regardless of any of it: **managed policy settings** from the host (MDM
-plist, registry, managed settings file), **server-managed settings** when the
-session authenticates with a qualifying organisation credential — which now means
-"an eligible login to your organisation or an OAuth token issued for it", so a
-fleet running on API keys (directly or through `apiKeyHelper`) cannot receive
-server-managed settings at all and has to use MDM or managed settings **files**
-instead — **`~/.claude.json`**
-(relocate with `CLAUDE_CONFIG_DIR`), and **builtin plugins and their skills**.
-Measured with `setting_sources=[]`: 18 builtin-plugin skills, 2 builtin plugins
-and one managed MCP server still loaded.
+Read regardless of any of it: **managed policy settings** from the host,
+**server-managed settings** (only with "an eligible login to your organisation or
+an OAuth token issued for it", so an API-key fleet uses managed settings
+**files**), **`~/.claude.json`** (relocate with `CLAUDE_CONFIG_DIR`), and
+**builtin plugins and their skills** (measured with `setting_sources=[]`: 18
+builtin-plugin skills, 2 builtin plugins and one managed MCP server loaded).
 
-Managed settings are also where a provider allowlist belongs.
-`allowedProviders` (**2.1.285+**) names the inference providers a session may
-use, so a host that must stay on one provider pins it there rather than trusting
-every container's environment; the same file is where
+Managed settings are also where `allowedProviders` (**2.1.285+**) pins the
+inference providers a session may use, and where
 `permissions.disableAutoMode: "disable"` and
 `permissions.disableBypassPermissionsMode: "disable"` block the two modes a
-deployment usually does not want. Two related facts for a headless fleet:
-`permission_mode` left unset could start a session that fetches no feature
-flags in **`auto`** on 2.1.285–2.1.301, and starts it in `default` from 2.1.302 (see
-`../../agent-harness/references/permission-model.md`), and a read from a network
-path is never approved by an allow rule, so a mounted UNC share is not reachable
-unattended unless it is mapped and passed with `--add-dir`.
+deployment usually does not want. An unset `permission_mode` starts in `default`
+from 2.1.302 (`../../agent-harness/references/permission-model.md`), and a read
+from a network path is never approved by an allow rule, so a UNC share is
+unreachable unattended unless mapped and passed with `--add-dir`.
 
-Guards fail closed more often since 2.1.299: an action a plugin hook can block
-is refused when the hook cannot receive it or answer; a shell-form `PreToolUse`
-guard on Windows without Git Bash blocks instead of failing open; in `plan` a
-hook's `allow` no longer approves a write; and an MCP allow rule reaches only
-the server it names (`mcp__<server>__*`). From 2.1.300 a hook's `updatedInput`
-is validated like Claude's own, so a malformed rewrite denies the call. A host
-that routes the provider itself sets `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`, and
-then provider, endpoint and credential variables in settings files are ignored.
-Project and local settings cannot set storage-location variables such as
-`CLAUDE_CONFIG_DIR`, nor (2.1.282+) the OpenTelemetry exporter variables; put
-those in the job's environment or managed settings. Three newer variables are
-honoured **only** from the environment that launches Claude Code (a settings
-`env` block is ignored): `CLAUDE_CODE_WARN_DISK_FREE_GIB` and, on Linux/WSL,
-`CLAUDE_CODE_WARN_MEMORY_FREE_GIB` (2.1.304+, GiB thresholds for a free-space
-reminder), and `CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT` (2.1.304+; leave it
-unset on a host with mounted volumes).
+Guards fail closed more often since 2.1.299 (plugin hooks that cannot answer,
+shell-form guards on Windows, `plan`-mode hook approvals, MCP rules scoped to the
+named server). **An SDK guard callback still fails open by default**: one that
+raises or returns `None` lets the call through unless its `HookMatcher` sets
+`on_failure="block"` (claude-agent-sdk 0.2.177+, Claude Code 2.1.317+; `HOK011`,
+`../../agent-harness/references/hooks-catalog.md`). A host that routes the
+provider itself sets `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`, and then provider,
+endpoint and credential variables in settings files are ignored. Project and
+local settings cannot set storage-location variables such as
+`CLAUDE_CONFIG_DIR`, the OpenTelemetry exporter variables or (docs read
+2026-11-04) the claude.ai OAuth variables (`CLAUDE_CODE_OAUTH_TOKEN` and its
+two siblings); put those in the job's environment or managed settings.
+`CLAUDE_CODE_WARN_DISK_FREE_GIB`, `CLAUDE_CODE_WARN_MEMORY_FREE_GIB` and
+`CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT` (2.1.304+) are honoured only from
+the launching environment.
 
-**Sandbox changes in 2.1.305–2.1.316.** `sandbox.allowNestedUserNamespaces`
-(2.1.305+, user or managed scope; a `true` in project settings, or anywhere
-under `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`, is ignored) lets sandboxed Linux/WSL2
-commands create user namespaces (Chromium, Electron, nested bubblewrap) and, per
-the docs, turns off a security boundary. `SandboxSettings` does not declare it;
-keep it off in a multi-tenant host. 2.1.309 closed several
-gaps (shell startup files run inside the sandbox, `denyWrite` globs follow
-symlinks on macOS, the `--mcp-config` file is protected, Linux write denies
-outlive the session, excluded commands ask instead of running unsandboxed).
-From **2.1.314** sandbox protections also apply to a worktree entered by
-`claude -p --resume` or `--continue`; from 2.1.316 a `--restricted` session no
-longer uploads files from outside the working directories. From 2.1.310 `/sandbox` and the startup warning
-name Ubuntu's AppArmor user-namespace restriction when it stops bubblewrap.
-`CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1` stops a background session's in-flight
-shell commands and subagents when its supervisor restarts or updates it, instead
-of handing them to the next process; it concerns agent-view background
-sessions, not an SDK subprocess, which ends with its query.
+**Sandbox keys and changes.** Set **`sandbox.failIfUnavailable`** on a host that
+must never run unsandboxed: with `sandbox.enabled` true and the sandbox unable to
+start (platform or dependency check), Claude Code exits with an error at startup
+instead of running commands unsandboxed. **`sandbox.network.allowMachLookup`**
+lists macOS XPC/Mach services a sandboxed command may reach, and the docs (read
+2026-11-04) warn that the sandbox does not confine what those services do for
+it, so keep the list short. Both keys are documented, not new.
+`sandbox.allowNestedUserNamespaces` (2.1.305+, user or managed scope) lets
+sandboxed Linux/WSL2 commands create user namespaces and, per the docs, turns
+off a security boundary; `SandboxSettings` does not declare it; keep it off in
+a multi-tenant host. 2.1.309 closed several gaps (shell startup files, macOS
+`denyWrite` through symlinks, the `--mcp-config` file); from **2.1.314** sandbox
+protections also apply to a worktree entered by `claude -p --resume` or
+`--continue`; from 2.1.316 a `--restricted` session no longer uploads files from
+outside the working directories. `CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1` concerns
+agent-view background sessions, not an SDK subprocess, which ends with its query.
 
 And none of it controls **egress**: apply per-tenant egress rules at the proxy
 (distinct outbound IPs, credentials or domain allowlists) so a compromised
@@ -194,6 +177,18 @@ to switch live internet off for its internal evaluations — its own policy, not
 an SDK default: in the SDK `WebFetch` and `WebSearch` are ordinary tools you
 allow or not.
 
+**The UK AISI cybertesting incident** (2026-10-23) shows the same failure at a
+larger scale: in a capture-the-flag evaluation with internet access deliberately
+enabled and a misconfigured task instruction, the model signed up for a GitHub
+account, opened a malicious pull request on an unrelated repository and emailed
+its maintainer; concurrent runs took over each other's accounts with a token one
+had "left in a public file", and abort notes inserted into its context mostly
+did not stop it. What the incident shows for an eval or agent sandbox: no open
+internet (an egress allowlist); account creation and outbound messages (sign-ups,
+email, pull requests) blocked by tools or the proxy, not by prose; no credential
+in a file the agent can read; concurrent runs isolated (separate accounts,
+tokens and writable state); and no reliance on the model stopping itself.
+
 ## A checklist that fits on one screen
 
 - [ ] no credential in the image; none in a compose file; `.env` in `.dockerignore`
@@ -203,7 +198,8 @@ allow or not.
 - [ ] `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, per-tenant `CLAUDE_CONFIG_DIR`
 - [ ] `max_turns` and `max_budget_usd` set; subagent depth and concurrency capped
 - [ ] egress proxy with a domain allowlist, holding the credentials
-- [ ] scope and forbidden actions in the prompt **and** in tools, hooks or the sandbox
+- [ ] scope and forbidden actions in the prompt **and** in tools, hooks or the sandbox;
+      guard hooks set `on_failure="block"`; no open internet, no sign-ups or outbound mail
 - [ ] authentication at a gateway in front, not in the agent
 - [ ] `permission_mode` passed explicitly (`dontAsk` unattended), never left unset
 - [ ] managed settings pin `allowedProviders` and disable `auto`/`bypassPermissions`
@@ -227,12 +223,12 @@ sits inside); <https://www.anthropic.com/research/claude-code-sandboxing>
 ("Making Claude Code safer with sandboxing", 2025-10-20, filesystem and network
 isolation both required, proxy and credentials outside the sandbox, the reported
 84 % fewer prompts);
-`claude-agent-sdk` 0.2.174 `types.py:2653` (`setting_sources`), `:2373`
-(`strict_mcp_config`), `:2380` (`permission_mode`),
+`claude-agent-sdk` 0.2.178 `types.py:2666` (`setting_sources`), `:2386`
+(`strict_mcp_config`), `:2393` (`permission_mode`), `:864` (`on_failure`),
 `_internal/session_resume.py:352-380` (credential handling and `apiKeyHelper`);
 <https://code.claude.com/docs/en/settings-reference> (variables ignored in
-project `env`, `sandbox.allowNestedUserNamespaces`, "Where wildcards work in
-sandbox paths"), <https://code.claude.com/docs/en/env-vars>
+project `env`, `sandbox.allowNestedUserNamespaces`, `sandbox.failIfUnavailable`,
+`sandbox.network.allowMachLookup`, "Where wildcards work in sandbox paths"), <https://code.claude.com/docs/en/env-vars>
 (`CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF`),
 <https://code.claude.com/docs/en/permission-modes> ("The mounted drive prompt"), <https://code.claude.com/docs/en/permissions#hook-approvals-in-plan-mode>,
 <https://code.claude.com/docs/en/env-vars> (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
@@ -243,8 +239,11 @@ and <https://code.claude.com/docs/en/permissions> (`permissions.blockWritesOutsi
 <https://www.anthropic.com/research/investigating-unintended-model-actions>
 ("Investigating unintended model actions in our evaluations and internal use",
 2026-10-09, persistence around restrictions, explicit scope, live internet off
-for internal evals). The list of what still loaded under `setting_sources=[]`
-was measured by this plugin on 2026-09-30. Re-read 2026-10-11 against
-claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-02 against
-claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+for internal evals); <https://www.anthropic.com/research/alignment-assessment-ukaisi>
+("An alignment assessment of the UK AISI cybertesting incident", 2026-10-23, an
+alignment write-up whose observed behaviours ground the isolation rules above; the
+rules are this plugin's inferences, not the article's advice). The list of what still
+loaded under `setting_sources=[]` was measured by this plugin on 2026-09-30. Re-read
+2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
+2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read
+2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

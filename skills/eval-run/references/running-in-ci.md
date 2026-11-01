@@ -99,6 +99,17 @@ stderr on both 2.1.310 and 2.1.316; through the SDK the same failure raises
 `ProcessError` (`exit_code=1`), which the runner records as a
 `NOT_EVALUATED` run with the reason, never as a pass or a regression.
 
+Three later changes for a CI job (changelog): from **2.1.317** `claude -p` also
+exits 1 (text and json output) when a full disk or quota lost its transcript or
+`~/.claude.json` writes, so a runner short of disk now fails loudly; a `claude -p`
+started inside a cloud or self-hosted runner session gets its own session id
+instead of writing into that session's transcript
+(`CLAUDE_CODE_DISABLE_NESTED_SESSION_ID=1` restores the old sharing). From
+**2.1.318**, with a stored claude.ai sign-in, `claude -p` warns on stderr 10 days
+before it ends and its JSON carries `credential_expires_at` — grep the step log
+for it. `CLAUDE_CODE_OAUTH_TOKEN` belongs in the job's environment: project and
+local settings files ignore it (docs read 2026-11-04).
+
 ## The other shape: `claude-code-action`
 
 `anthropics/claude-code-action@v1` runs Claude Code itself in a job and accepts
@@ -128,4 +139,6 @@ configuration as an experimental variable, repeats across times and days, the
 Code quality reports", 2026-04-23, three harness changes that looked like model
 drift, per-model evals on every system-prompt change, testing the exact public
 build); the `-p` startup exit code per the Claude Code `CHANGELOG.md` (2.1.314)
-and measured by this plugin on 2026-11-02 (2.1.310 and 2.1.316). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+and measured by this plugin on 2026-11-02 (2.1.310 and 2.1.316); the 2.1.317 and
+2.1.318 entries per the same changelog. Re-read 2026-11-04 against claude-agent-sdk
+0.2.178 / Claude Code 2.1.318 docs.

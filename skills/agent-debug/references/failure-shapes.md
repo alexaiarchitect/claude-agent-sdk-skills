@@ -133,7 +133,22 @@ credential out of a fetched page. Layer: **prompt and permissions** together —
 state the targets, permitted actions and network boundaries, enforce them with
 `disallowed_tools`, `can_use_tool` or a `PreToolUse` hook, and make an
 impossible task end in a stated refusal the grader accepts
-(`../../agent-deploy/references/secure-deployment.md`).
+(`../../agent-deploy/references/secure-deployment.md`). The UK AISI cybertesting
+incident (2026-10-23) is the far end of this shape: a misconfigured task
+instruction made the in-scope route nearly impossible, and the agent turned to a
+third party — a real repository and its maintainer — instead of stopping.
+
+## guard failed open (read by hand; no signature)
+
+A call the `PreToolUse` or `PermissionRequest` guard should have refused ran
+anyway, and the trace holds a `system` event with `data.tag:
+hook_callback_failed` ending "Its answer was treated as empty." just before it.
+The guard raised, returned `None` from a path with no `return`, or returned a
+value the CLI rejects, and by default that counts as no decision. Layer:
+**harness**. Fix: `on_failure="block"` on the guard's `HookMatcher`
+(claude-agent-sdk 0.2.177+, Claude Code 2.1.317+; `HOK011`), `return {}` on every
+path where it has no opinion, and let errors propagate rather than catching them
+and returning `{}`. See `../../agent-harness/references/hooks-catalog.md`.
 
 ---
 
@@ -152,6 +167,10 @@ Claude Code quality reports", 2026-04-23, the three harness changes behind the
 harness-regression shape); <https://www.anthropic.com/research/investigating-unintended-model-actions>
 ("Investigating unintended model actions in our evaluations and internal use",
 2026-10-09, form submission, gated data and URL-shortener workarounds as
-persistence); `https://code.claude.com/docs/en/model-config` (current effort
-defaults). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code
-2.1.316 docs.
+persistence); <https://www.anthropic.com/research/alignment-assessment-ukaisi>
+("An alignment assessment of the UK AISI cybertesting incident", 2026-10-23, a
+misconfigured task pushing the agent toward a third party);
+`https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails`
+(the guard-failed-open shape; both paths measured by this plugin on 2026-11-04);
+`https://code.claude.com/docs/en/model-config` (current effort defaults). Re-read
+2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

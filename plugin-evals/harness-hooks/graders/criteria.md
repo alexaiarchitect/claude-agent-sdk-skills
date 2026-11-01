@@ -41,8 +41,8 @@ the paragraph above defines.
 - each hook defect named by the id the script printed (`HOK001` for the
   synchronous callback, `HOK002` for the unreadable return, `HOK020` for the
   unsupported event), with the script's locator — the linter prints these as
-  `agent.py line 41`, `agent.py line 47` and `agent.py hooks[SessionStart] line
-  106`, so a bare line number is the locator and satisfies this; a defect
+  `agent.py line 44`, `agent.py line 50` and `agent.py hooks[SessionStart] line
+  109`, so a bare line number is the locator and satisfies this; a defect
   described in prose with no id at all does not;
 - the script's own `Source:` line for the callback contract, which the linter
   prints on `HOK002` (the hooks `#outputs` documentation URL, and the SDK's

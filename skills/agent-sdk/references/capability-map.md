@@ -106,5 +106,5 @@ default and the 2.1.289/2.1.293 fixes),
 precedence), <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>
 (2.1.299: API-error scoring, `--disallow-tools`). Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs; the fourteenth skill,
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs; the fourteenth skill,
 `agent-design`, added in plugin 0.2.0.

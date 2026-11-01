@@ -135,4 +135,4 @@ $0.20/Mtok cache read of the bundled CLI 2.1.294 were measured by this plugin on
 2026-10-11, the $0.10/Mtok of 2.1.301 on 2026-10-17 and of 2.1.310 on
 2026-10-24. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

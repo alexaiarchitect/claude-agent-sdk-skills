@@ -81,7 +81,7 @@ what a slow backend does to a conversation.
 
 ## Probability lives inside the callback
 
-`HookMatcher` has exactly three fields — `matcher`, `hooks`, `timeout`. There is
+`HookMatcher` has `matcher`, `hooks`, `timeout` and, from 0.2.177, `on_failure` —
 **no** `probability`. So per-tool probability is implemented inside the callback,
 drawn from one `random.Random(seed + run)` created per run:
 
@@ -93,6 +93,16 @@ if fault.probability < 1.0 and rng.random() >= fault.probability:
 That is the whole reason `seed` is a top-level key. A flakiness test whose draws
 cannot be replayed produces a bug report nobody can reproduce; with the seed and
 the run index, the exact sequence of hits comes back.
+
+**The runner's own matchers leave `on_failure` unset**, on purpose. A crash in
+the capture or fault callback is the harness's bug; with `"block"` it would
+refuse the agent's tool call and turn a runner defect into an agent failure the
+case never asked for (and an SDK before 0.2.177 would reject the matcher). A
+crash still shows up: the CLI sends an informational system message with
+`data.tag: hook_callback_failed`, which the trace records as a `system` event
+(measured on 2.1.318). The `deny` fault is a returned decision, not a failure,
+so it blocks either way. Your agent's own guard hooks are the opposite case:
+give them `on_failure="block"` (`HOK011`).
 
 Two more consequences of the hook mechanism:
 
@@ -162,6 +172,8 @@ MCP-only and **not** deprecated; `defer` and `stop_reason: "tool_deferred"`);
 `https://code.claude.com/docs/en/agent-sdk/python`
 (`ClaudeAgentOptions.hooks`, `include_hook_events`, `ResultMessage.is_error`),
 `https://code.claude.com/docs/en/hooks` (`tool_deferred_unavailable` on
-resume). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
+resume), `https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails`
+(`on_failure`). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs.
+2.1.310 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code
+2.1.318 docs.

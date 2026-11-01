@@ -1,7 +1,7 @@
 # `ClaudeAgentOptions`: all 49 fields
 
-Read from the installed dataclass, `claude-agent-sdk` 0.2.174
-(`types.py:2326-2786`; byte-identical in the pinned 0.2.176). It is a plain `@dataclass`, so an unknown or misspelled
+Read from the installed dataclass, `claude-agent-sdk` 0.2.178
+(`types.py:2339-2799`; the same 49 fields since 0.2.174). It is a plain `@dataclass`, so an unknown or misspelled
 keyword raises `TypeError` at construction, and `dataclasses.replace()` works
 for per-case overrides.
 
@@ -39,7 +39,7 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `system_prompt` | `str \| preset \| custom \| file \| None` | `None` | O | unset = the SDK's minimal prompt, not the `claude_code` preset |
 | `permission_mode` | `PermissionMode \| None` | `None` | O | `default` `acceptEdits` `plan` `bypassPermissions` `dontAsk` `auto`. `None` is **not** the same as `"default"` — see below |
 | `agents` | `dict[str, AgentDefinition] \| None` | `None` | O | programmatic subagents; take precedence over `.claude/agents/*.md` of the same name |
-| `hooks` | `dict[HookEvent, list[HookMatcher]] \| None` | `None` | R | callables; the runner adds its capture and fault hooks here |
+| `hooks` | `dict[HookEvent, list[HookMatcher]] \| None` | `None` | R | callables; the runner adds its capture and fault hooks here. `HookMatcher` fields: `matcher`, `hooks`, `timeout`, and from 0.2.177 `on_failure` (`"continue"`/`"block"`/`None`; `HOK011`, `hooks-catalog.md`) |
 | `output_format` | `dict \| None` | `None` | O | only `{"type":"json_schema","schema":{...}}` is acted on |
 | `verbatim_prompts` | `bool` | `False` | O | needs CLI 2.1.248+ |
 | `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166; `allowAllUnixSockets` also covers Linux VM sockets (`AF_VSOCK`); `failIfUnavailable`, `filesystem` (`denyWrite`) and `allowNestedUserNamespaces` (2.1.305) are forwarded though undeclared |
@@ -129,7 +129,7 @@ the raw result); the docs branch `if e.data.get("stop_reason") == "refusal":`
 before `elif e.terminal_reason == "api_error":`. A declined run has no
 `structured_output`. No lint rule checks this; review it by hand.
 
-## Not fields: two functions and one result key
+## Not fields: two functions and two result keys
 
 - `fork_session(session_id, directory=None, up_to_message_id=None, title=None)
   -> ForkSessionResult` copies a transcript into a new session; `ValueError` for
@@ -145,23 +145,24 @@ before `elif e.terminal_reason == "api_error":`. A declined run has no
   `skills`, `messageBreakdown`, `apiUsage` — an **unbilled** off-stream request.
 - `ModelUsage` rows in `ResultMessage.model_usage` carry `costBasis`
   (`list` | `managed` | `unknown`, Claude Code 2.1.246+) and `thinkingTokens`
-  on the wire, and **neither is on the 0.2.174 TypedDict** — read both with
+  on the wire, and **neither is on the 0.2.178 TypedDict** — read both with
   `.get()`. Measured 2026-10-11: `costBasis == "list"` on an API key, and the
   dict held two models (the agent's and the CLI's background Haiku 5.5).
+- `credential_expires_at` (Claude Code 2.1.318 changelog; not in the docs) is in
+  `claude -p --output-format json` results only when a stored claude.ai sign-in
+  is in use (absent with an API key, measured 2026-11-04). It is **not** a
+  `ResultMessage` field: the SDK's parser drops unknown result keys. That JSON
+  has no `permission_mode` key either; the mode is in the stream `init`.
 
 ## Built-in tool output: the shapes moved
 
 A `PostToolUse` `updatedToolOutput` must match the tool's own shape or it is
 rejected and the original kept. **Edit** returns `filePath`, `oldString`,
 `newString`, `originalFile`, `structuredPatch`, `userModified`, `replaceAll`,
-`gitDiff` (no `message`, `replacements`, `file_path`). **Write**: `type:
-"create"|"update"` plus `structuredPatch`/`gitDiff`; **Read** branches on `type`
-(`text`/`image`/`notebook`/`pdf`/`parts`/`file_unchanged`) under `file`;
-**Glob** adds `durationMs`, `numFiles`, `filenames`, `truncated`, `totalMatches`,
-`countIsComplete` (2.1.191+); **Grep**: `mode`, `numFiles`, `filenames`,
-`content`, `numLines`, `numMatches`, `totalFiles` (2.1.208+), `totalLines`
-(2.1.210+), `appliedLimit`, `appliedOffset`; **TodoWrite**: `oldTodos`/`newTodos`;
-**ExitPlanMode** adds `isAgent`, `planWasEdited`, `awaitingLeaderApproval`, `requestId`.
+`gitDiff` (no `message`, `replacements`, `file_path`); **Write** `type:
+"create"|"update"`; **Read** branches on `type` under `file` (from 2.1.317 an
+unchanged file is read again, not stubbed); **Glob** and **Grep** carry counts
+and `filenames`; the Python docs page lists every shape.
 
 ## Literals worth memorising
 
@@ -191,40 +192,36 @@ assert state through files, `structured_output` or mock call records.
 
 ## Released in 0.2.166 (gate as "0.2.166+")
 
-0.2.166 added richer hook inputs (`prompt_id`, `effort`, `duration_ms`,
-`last_assistant_message`, `background_tasks`, `session_crons`), 13 more
-`*HookSpecificOutput` types (21 in all) and a documented init shape;
-`ClaudeAgentOptions` is still exactly these 49 fields. Guard those names on
-0.2.140–0.2.165. **`SystemInitData`** types `SystemMessage.data` for
-`system`/`init`: `type`, `subtype`, `uuid`, `session_id`, `agents?`,
-`apiKeySource`, `betas?`, `claude_code_version`, `cwd`, `tools`, `mcp_servers`
-(`name`, `status`, `source?`), `model`, `permissionMode`, `slash_commands`,
-`terminal_slash_commands?`, `output_style`, `skills`, `plugins` (`name`, `path`,
-`version?`), `plugin_errors?`, `fast_mode_state?` (`off`/`cooldown`/`on`),
-`fast_mode_disabled_reason?` (`sdk_opt_in_required` measured; newer CLIs may send
-others) and `capabilities?`. Use `capabilities` to **feature-detect instead of
-comparing versions**, ignoring unknown strings: CLI 2.1.316 sent 14 (the
-`interrupt_*_v1` four, `msg_lifecycle_v1`, `request_marker_lists_v1`,
-`ask_user_question_unanswered_v1` (new), `lifecycle_wakeup_source_v1`,
-`sdk_mcp_tools_list_changed`, `sdk_mcp_manifests`, `mcp_read_resource_v1`,
-`mcp_tool_ui_meta_v1`, `ui_surface_v1`, `mcp_call_result_not_for_model_v1`);
-2.1.310 sent the other 13, 2.1.301 11, 2.1.292 9. Read every key with `.get()`:
-CLIs also send undeclared keys (`original_cwd`, `memory_paths`, `view_mode`, and
-from 2.1.316 `ultrathink_available`).
+0.2.166 added richer hook inputs, 13 more `*HookSpecificOutput` types (21 in
+all) and a documented init shape; `ClaudeAgentOptions` is still exactly these 49
+fields. Guard those names on 0.2.140–0.2.165. **`SystemInitData`** types
+`SystemMessage.data` for `system`/`init`: `claude_code_version`, `cwd`, `tools`,
+`mcp_servers`, `model`, `permissionMode`, `apiKeySource`, `skills`, `plugins`,
+`fast_mode_state?` (`off`/`cooldown`/`on`), `fast_mode_disabled_reason?`
+(`sdk_opt_in_required` measured) and `capabilities?`, among others. Use `capabilities` to **feature-detect instead of
+comparing versions**, ignoring unknown strings: CLI 2.1.316 sent 14 and 2.1.318
+the same 14 (the `interrupt_*_v1` four, `msg_lifecycle_v1`,
+`request_marker_lists_v1`, `ask_user_question_unanswered_v1`,
+`lifecycle_wakeup_source_v1`, `sdk_mcp_tools_list_changed`, `sdk_mcp_manifests`,
+`mcp_read_resource_v1`, `mcp_tool_ui_meta_v1`, `ui_surface_v1`,
+`mcp_call_result_not_for_model_v1`); 2.1.310 sent 13. Read every key with
+`.get()`: CLIs also send undeclared keys (`original_cwd`, `memory_paths`,
+`view_mode`, `ultrathink_available` from 2.1.316, `ultrathink_typed_raises` from
+2.1.318).
 `SandboxSettings.ignoreViolations` is now `dict[str, list[str]]` — a command
 pattern (`"*"` for all) to violation-text substrings, affecting reporting only;
 the Python docs page still shows the old `{file, network}` shape.
 
 ---
 
-Sources: `claude-agent-sdk` 0.2.174, installed at
-`site-packages/claude_agent_sdk/types.py:2326-2786` (the 49 fields in
+Sources: `claude-agent-sdk` 0.2.178, installed at
+`site-packages/claude_agent_sdk/types.py:2339-2799` (the 49 fields in
 declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
-`SettingSource`, `:37` `EffortLevel`, `:284` `HookEvent`, `:1695`
-`ResultMessage`, `:2172` `ThinkingConfig`;
+`SettingSource`, `:37` `EffortLevel`, `:284` `HookEvent`, `:864` `on_failure`, `:1706`
+`ResultMessage`, `:2183` `ThinkingConfig`;
 <https://code.claude.com/docs/en/agent-sdk/python#claudeagentoptions> (also
 `ResultMessage.is_error`, `ResultError`, `API_TIMEOUT_MS`), `_errors.py:56`
-(`ResultError`), the Claude Code `CHANGELOG.md` (2.1.305, 2.1.307),
+(`ResultError`), the Claude Code `CHANGELOG.md` (2.1.305, 2.1.307, 2.1.317 Read stub),
 <https://code.claude.com/docs/en/agent-sdk/custom-tools#control-tool-access>,
 <https://code.claude.com/docs/en/agent-sdk/permissions#allow-and-deny-rules>,
 <https://code.claude.com/docs/en/agent-sdk/configuration#load-settings-files>,
@@ -237,14 +234,16 @@ declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 <https://code.claude.com/docs/en/agent-sdk/permissions> (auto mode and
 `set_model()`), <https://code.claude.com/docs/en/headless> (`init.capabilities`),
 <https://code.claude.com/docs/en/settings-reference> (`sandbox.filesystem.denyWrite`,
-`sandbox.failIfUnavailable`, `sandbox.ignoreViolations`); `types.py:1461`
-`SystemInitData`, `:1443` `FastModeState`, `:1447` `FastModeDisabledReason`,
-`:1126` `SandboxIgnoreViolations`, `:1141` `SandboxSettings`. The
+`sandbox.failIfUnavailable`, `sandbox.ignoreViolations`); `types.py:1472`
+`SystemInitData`, `:1454` `FastModeState`, `:1458` `FastModeDisabledReason`,
+`:1137` `SandboxIgnoreViolations`, `:1152` `SandboxSettings`. The
 `max_turns=1 -> num_turns=2` result was measured by this plugin on 2026-09-30;
 `costBasis`, `thinkingTokens` and the two-model `model_usage` 2026-10-11 (SDK
 0.2.165, CLI 2.1.294); the init keys, capabilities and fast-mode values
-2026-10-17 (CLI 2.1.301, 2.1.292), 2026-10-24 (CLI 2.1.310) and 2026-11-02 (CLI
-2.1.316). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
-2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs (line numbers re-pinned); `max_turns=1` re-measured 2026-10-29;
-`[1m]` from the 2.1.311 changelog. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+2026-10-17 to 2026-11-02 (CLI 2.1.292–2.1.316) and 2026-11-04 (CLI 2.1.318, with
+the `-p` JSON keys); the CHANGELOG 2.1.318 (`credential_expires_at`). Re-read
+2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
+2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (line numbers
+re-pinned); `max_turns=1` re-measured 2026-10-29; `[1m]` from the 2.1.311 changelog.
+Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs (line
+numbers re-pinned).

@@ -41,6 +41,7 @@ LATER_REREAD_NOTES = (
     "re-read 2026-10-24 against claude-agent-sdk 0.2.174 / claude code 2.1.310 docs",
     "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.1.312 docs",
     "re-read 2026-11-02 against claude-agent-sdk 0.2.176 / claude code 2.1.316 docs",
+    "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
 )
 
 
@@ -170,7 +171,7 @@ def test_opt013_is_version_ranged_and_conditional():
     assert "2.1.285–2.1.301" in message and "2.1.302" in message
     assert "feature flags" in message, "the auto default needs its condition"
     assert "`default`" in message and "`auto`" in message
-    assert "types.py:2380" in finding["source"]
+    assert "types.py:2393" in finding["source"]  # 2380 up to 0.2.176, renumbered 2026-11-04
     assert "permission-modes" in finding["source"] and "CHANGELOG" in finding["source"]
 
 

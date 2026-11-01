@@ -83,8 +83,8 @@ HOOK_COMMON_KEYS = (
     "hookSpecificOutput",
 )
 
-#: `SandboxSettings` keys the SDK declares (`types.py:1141` of claude-agent-sdk
-#: 0.2.174), and the keys it forwards to the CLI without declaring them
+#: `SandboxSettings` keys the SDK declares (`types.py:1152` of claude-agent-sdk
+#: 0.2.178), and the keys it forwards to the CLI without declaring them
 #: (`failIfUnavailable`, `filesystem` with `denyWrite` and friends; Python SDK
 #: docs and `settings-reference`, read 2026-10-17). Both sets are accepted.
 SANDBOX_DECLARED_KEYS = (
@@ -98,7 +98,7 @@ def sandbox_problems(sandbox: Any) -> list[str]:
     """What is wrong with a literal `sandbox` dict, as plain sentences.
 
     `ignoreViolations` is `dict[str, list[str]]` from SDK 0.2.166
-    (`SandboxIgnoreViolations`, `types.py:1126` of 0.2.174): a command-pattern
+    (`SandboxIgnoreViolations`, `types.py:1137` of 0.2.178): a command-pattern
     substring (`"*"` for every command) mapped to substrings of the violation
     text. It changes which violations are *reported*, not what the sandbox
     blocks. The earlier `{file, network}` TypedDict shape is gone. Keys the SDK
@@ -389,7 +389,17 @@ class McpServerRef:
 
 @dataclass
 class HookRegistration:
-    """One matcher under one hook event."""
+    """One matcher under one hook event.
+
+    `on_failure` is the `HookMatcher.on_failure` literal as written (`"block"`,
+    `"continue"`, any other string the SDK would pass through unvalidated), or
+    `None` when the call leaves it unset or passes `None`; `on_failure_dynamic`
+    is true when the value is not a literal (a name, a call, a `**kwargs` splat),
+    so a check cannot tell. The field arrived in claude-agent-sdk 0.2.177
+    (`types.py:864` of 0.2.178; Claude Code 2.1.317+ honours it): with `"block"`
+    a callback that raises, returns `None` or returns a value the CLI rejects
+    blocks the action; unset or `"continue"`, the failure counts as no decision.
+    """
 
     event: str
     lineno: int
@@ -399,6 +409,8 @@ class HookRegistration:
     callbacks: list[str] = field(default_factory=list)
     uses_hook_matcher: bool = True
     timeout: float | None = None
+    on_failure: str | None = None
+    on_failure_dynamic: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -856,8 +868,20 @@ def _hook_registrations(node: ast.AST) -> tuple[list[HookRegistration], bool]:
                 by_name = {k.arg: k.value for k in matcher_node.keywords if k.arg}
                 matcher_value = positional[0] if positional else by_name.get("matcher")
                 hooks_value = positional[1] if len(positional) > 1 else by_name.get("hooks")
-                timeout = _literal_or_none(by_name.get("timeout"))
+                timeout = _literal_or_none(
+                    positional[2] if len(positional) > 2 else by_name.get("timeout"))
                 registration.timeout = timeout if isinstance(timeout, (int, float)) else None
+                # `HookMatcher(matcher, hooks, timeout, on_failure)` field order (0.2.177+).
+                on_failure_node = positional[3] if len(positional) > 3 else by_name.get("on_failure")
+                if on_failure_node is not None:
+                    on_failure = _literal_or_none(on_failure_node)
+                    if isinstance(on_failure, str):
+                        registration.on_failure = on_failure
+                    elif not (isinstance(on_failure_node, ast.Constant) and on_failure_node.value is None):
+                        registration.on_failure_dynamic = True
+                elif any(k.arg is None for k in matcher_node.keywords) \
+                        or any(isinstance(a, ast.Starred) for a in positional):
+                    registration.on_failure_dynamic = True
             elif isinstance(matcher_node, ast.Dict):
                 registration.uses_hook_matcher = False
                 matcher_value = _dict_get(matcher_node, "matcher")

@@ -59,7 +59,15 @@ meaning is given first.
   call with a per-tool probability.
 - **Hook** — an async callback the SDK runs at a lifecycle point
   (`PreToolUse`, `PostToolUse`, `Stop`, ...), returning a dict whose
-  `hookSpecificOutput` names the event.
+  `hookSpecificOutput` names the event. A **guard** is a hook that denies, asks
+  or blocks; an **observer** only logs or adds context.
+- **Fail open / fail closed (hooks)** — what happens when a hook callback
+  raises, returns `None` or returns a value the CLI rejects. By default it
+  **fails open**: the failure counts as no decision and the call goes ahead,
+  with an informational `hook_callback_failed` system message. `on_failure="block"`
+  on the `HookMatcher` (claude-agent-sdk 0.2.177+, Claude Code 2.1.317+) makes
+  it **fail closed**: the action is refused (`HOK011`). Settings-file hooks have
+  the same switch as `"onFailure": "block"`.
 - **`setting_sources`** — which of Claude Code's settings tiers the SDK loads
   (`user`, `project`, `local`). Omitted, all three load, like the CLI; `[]`
   runs isolated, which is what evals and CI want.
@@ -162,4 +170,7 @@ the mirrored pair is this plugin's adaptation);
 <https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation>
 ("Donating Agent Skills to the Agentic AI Foundation", 2026-10-22, the AAIF)
 and `https://code.claude.com/docs/en/skills` (Claude Code's extensions).
-Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+Fail open / fail closed per
+`https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails`
+and `https://code.claude.com/docs/en/hooks` (`onFailure`).
+Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

@@ -43,11 +43,11 @@ class ScriptRun:
 #: Where the target venv lives: next to the plugin repo, outside it, in
 #: `../tmp/venvs/` (macOS cleared `/tmp` on 2026-10-22 and the surface tests
 #: skipped silently until the 0.2.174 sync noticed).
-SDK_VENV_NAME = "casdk-venv-0.2.176"
+SDK_VENV_NAME = "casdk-venv-0.2.178"
 
 #: Interpreters that may have the real `claude_agent_sdk` installed, most
 #: specific first. `AGENT_SDK_TEST_PYTHON` overrides everything; then the venv
-#: named for the release the plugin was checked against (`SDK_TARGET`, 0.2.176),
+#: named for the release the plugin was checked against (`SDK_TARGET`, 0.2.178),
 #: found relative to the repo (`parents[2]` of this file is the directory that
 #: holds the repo) so it survives a move, then at its absolute path; the old
 #: `/tmp` venvs are the earlier convention, kept as fallbacks.
@@ -98,7 +98,7 @@ def sdk_python() -> str:
             + ", ".join(c for c in SDK_VENV_CANDIDATES if c)
             + ". Build one next to the repo with: python3.12 -m venv ../tmp/venvs/"
             + SDK_VENV_NAME + " && ../tmp/venvs/" + SDK_VENV_NAME
-            + "/bin/pip install 'claude-agent-sdk==0.2.176' pytest"
+            + "/bin/pip install 'claude-agent-sdk==0.2.178' pytest"
         )
     return found
 

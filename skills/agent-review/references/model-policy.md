@@ -17,7 +17,7 @@ of eight grades. The grade decides the finding, not the string.
 | `unknown` | anything else: a string that is not a Claude id at all — a typo, or another provider's name | none, but the review says it could not grade it |
 
 The lists live in `lib/agent_sdk_skills/__init__.py` and are re-pinned at each
-upstream sync from the deprecations page. **As of 2026-11-02** (no id, price or
+upstream sync from the deprecations page. **As of 2026-11-04** (no id, price or
 date changed since 2026-10-11). "Default effort" below is the Claude API's
 default from the models overview; Claude Code's own default differs for the 5.5
 family (next section):
@@ -29,7 +29,7 @@ family (next section):
 | `claude-fable-5-1` | current. $10 / $50, 1M, `high` |
 | `claude-haiku-5-5` | current, and the **cheap judge option**. From $0.10 / from $0.50, 1M by default on every plan (no `[1m]` suffix), default effort `medium`, adaptive reasoning that cannot be turned off. The `haiku` alias resolves to it on the Anthropic API from Claude Code **2.1.293** (Bedrock, Vertex, Foundry and Claude Platform on AWS still get Haiku 4.5). "From" is literal: **it costs more per token once a prompt passes 100K tokens** |
 | `claude-sonnet-4-5-20250929` | **deprecated 2026-09-30, retires 2026-11-30**, replacement `claude-sonnet-5-5` → `deprecated` |
-| `claude-haiku-4-5-20251001` | retirement "not sooner than" 2026-10-15 → `retiring`. The date passed 18 days ago with no announcement: the deprecations page still lists it **Active** with that date, so it stays `retiring` rather than `retired` until the page says otherwise |
+| `claude-haiku-4-5-20251001` | retirement "not sooner than" 2026-10-15 → `retiring`. The date passed 20 days ago with no announcement: the deprecations page still lists it **Active** with that date, so it stays `retiring` rather than `retired` until the page says otherwise |
 | `claude-opus-4-5-20251101` | retirement not sooner than 2026-11-24 → `retiring` |
 | every `claude-3-*`, `claude-opus-4-*` (4.0/4.1), `claude-sonnet-4-20250514` | `retired` |
 
@@ -47,7 +47,11 @@ names Claude Code does not recognise (custom deployment names);
 eval on the model it configured. From **2.1.314** a session whose organisation's
 admin caps a model's effort no longer fails turn after turn with "Invalid effort
 level": Claude Code lowers the effort, retries and says which level it uses — so
-an eval's recorded `effort` can be lower than the one it asked for.
+an eval's recorded `effort` can be lower than the one it asked for. **Subagents
+and teammates** with no `effort` of their own run at the session's level only on
+the session's model; on another model that level does not apply (docs
+`model-config`, read 2026-11-04) and they use that model's saved level or its
+default (2.1.317). Set `effort` on an `AgentDefinition` whose `model` differs.
 
 **Fast mode on Opus 4.8 is deprecated** (Claude Code `CHANGELOG.md` 2.1.316, not
 yet on the models pages): deprecated as of 2026-10-30 and removed on
@@ -125,7 +129,7 @@ graders:
   never `next(iter(...))`, and a per-model budget assertion has to allow the
   background model;
 - each row also carries `costBasis` (`list` | `managed` | `unknown`, Claude Code
-  2.1.246+) and `thinkingTokens`, neither of which is on the 0.2.174
+  2.1.246+) and `thinkingTokens`, neither of which is on the 0.2.178
   `ModelUsage` TypedDict — read both with `.get()`.
 
 ## Subagent models
@@ -158,7 +162,7 @@ The models overview adds a capability to read before turning thinking off:
 each model's `capabilities` includes `thinking.types.between_tools` (whether it
 accepts `thinking: {type: "between_tools"}`); for Sonnet 5.5 the Models API
 reports it `true` and `thinking.types.disabled.supported` `false`. The SDK's
-`ThinkingConfig` has no `between_tools` variant at 0.2.174.
+`ThinkingConfig` has no `between_tools` variant at 0.2.178.
 
 ---
 
@@ -177,9 +181,9 @@ Code's per-model defaults, `[1m]` variants), <https://code.claude.com/docs/en/en
 (`CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.311 `[1m]`
 suffix, 2.1.312 refusal fallback, 2.1.314 "Invalid effort level" retry, 2.1.316
-Opus 4.8 fast-mode deprecation);
-`claude-agent-sdk` 0.2.174 `types.py:2425` (`model`), `:2431`
-(`fallback_model`), `:2728` (`effort`), `:1669` (`ModelUsage`), `:2172-2185`
+Opus 4.8 fast-mode deprecation, 2.1.317 subagent effort on another model);
+`claude-agent-sdk` 0.2.178 `types.py:2438` (`model`), `:2444`
+(`fallback_model`), `:2741` (`effort`), `:1680` (`ModelUsage`), `:2183-2196`
 (`ThinkingConfig`). The cost table
 was measured by this plugin on 2026-09-30 against SDK 0.2.162 (bundled CLI
 2.1.285) and system CLI 2.1.274, on a Claude Max subscription with no API key
@@ -188,6 +192,6 @@ set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165
 0.2.168 (bundled CLI 2.1.301) and on 2026-10-24 on SDK 0.2.174 (bundled CLI
 2.1.310). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code
-2.1.316 docs (model ids, prices and dates unchanged; `types.py` byte-identical in
-0.2.176).
+2.1.310 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code
+2.1.318 docs (model ids, prices and dates unchanged; line numbers re-pinned to
+0.2.178).

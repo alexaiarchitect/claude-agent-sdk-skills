@@ -119,15 +119,15 @@ standard-context session whose request passes 200K tokens compacts and
 continues instead of stopping with "Usage credits required for 1M context".
 
 **Bedrock, Vertex, Foundry (from the changelog; `CLAUDE_CODE_MODEL_CATALOG` is
-not on the env-vars page read 2026-11-02).**
+not on the env-vars page read 2026-11-04).**
 From 2.1.311 Claude Code on those providers (and Mantle) loads model settings
 from a signed file on downloads.claude.ai; `CLAUDE_CODE_MODEL_CATALOG=off`
 turns that off, which an image without that egress needs. From 2.1.312 a model
 name Claude Code does not recognise there (a custom deployment name, an
 inference-profile ARN) gets the shorter system prompt even when it fronts
 Sonnet or Haiku; `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0` keeps the full prompt.
-They were newer than the 2.1.310 bundled with 0.2.174; the 2.1.316 bundled with
-the pinned 0.2.176 carries them.
+They were newer than the 2.1.310 bundled with 0.2.174; the 2.1.318 bundled with
+the pinned 0.2.178 carries them.
 
 **When agents are the main clients of your repository.** Anthropic's
 source-control team reports that agents and jobs became nearly all of its
@@ -155,6 +155,20 @@ Its system is internal; the lessons are what to borrow.
   configured. From **2.1.316** shell commands are no longer left running on
   macOS and Linux when Claude Code exits by itself (refused credentials, an
   archived cloud session); on an older CLI, reap them with the container.
+- **A full disk is now a failed run.** From **2.1.317** `claude -p` prints an
+  error and exits 1 (text and json output) when a full disk or quota loses its
+  transcript or `~/.claude.json` writes; before, it exited 0 (full NFS exports
+  may still be missed). Treat exit 1 as a failure and size the state volume.
+- **`~/.claude.json` on a shared or read-only volume.** From **2.1.318**
+  unattended runs (`claude -p`, SDK apps) stop rewriting it when nothing in it
+  changed, and a non-interactive launch no longer replaces one that is not valid
+  JSON with defaults: the start fails, says how to restore the file and leaves it
+  as is — a corrupted file now stops the job instead of being silently reset.
+- **A stored claude.ai sign-in ends on a date.** From 2.1.318 `claude -p` text
+  output warns on stderr 10 days before it, `claude -p` JSON carries
+  `credential_expires_at` and `claude auth status` `loginExpiresAt` (changelog;
+  absent with an API key, measured 2026-11-04). Another reason a hosted agent
+  runs on an API key.
 - `SessionStore` mirror writes are best-effort: when a batch cannot be
   delivered the SDK drops it, emits a `{"type": "system", "subtype":
   "mirror_error"}` message and continues. Alert on those if durability matters.
@@ -177,9 +191,9 @@ the bundled binary),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
 limit), <https://code.claude.com/docs/en/permission-modes>,
 <https://platform.claude.com/docs/en/about-claude/models/overview> (cache-read
-percentages); `claude-agent-sdk` 0.2.174
-`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2451`
-(`cwd`), `:2759` (`session_store`), `:2411` (`max_budget_usd`), `:2380`
+percentages); `claude-agent-sdk` 0.2.178
+`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2464`
+(`cwd`), `:2772` (`session_store`), `:2424` (`max_budget_usd`), `:2393`
 (`permission_mode`); <https://code.claude.com/docs/en/env-vars>
 (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300 gzip
@@ -195,9 +209,10 @@ checkpoints, rainbow deployments, tracing without contents);
 <https://www.anthropic.com/research/redesigning-source-control> ("Redesigning
 source control at Anthropic", 2026-10-13, agents as the main repository clients,
 post-merge testing over global locks, source-control queries as APIs); Claude
-Code `CHANGELOG.md` 2.1.316 (shell commands on self-exit). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
+Code `CHANGELOG.md` 2.1.316 (shell commands on self-exit), 2.1.317 (`-p` exit 1 on lost
+writes) and 2.1.318 (`~/.claude.json` handling, sign-in expiry). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
 was measured by this plugin on 2026-10-11, the $0.10/Mtok of 2.1.301 on
 2026-10-17 and of 2.1.310 on 2026-10-24. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-02 against
-claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-04 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

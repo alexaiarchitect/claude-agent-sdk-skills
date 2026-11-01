@@ -22,9 +22,11 @@ a run was graded on whatever it had produced), and `--disallow-tools <tools...>`
 keeps built-in tools such as `Agent` out of every case (listed in the 2.1.301
 help, still in the 2.1.310 help on 2026-10-24, and in the 2.1.312 help on
 2026-10-29, whose example now reads `Agent TaskStop`; nothing about `plugin
-eval` changed in 2.1.311 or 2.1.312). The local `claude` is **2.1.316**
-(Homebrew cask, upgraded 2026-11-02); the 2.1.314 and 2.1.316 changelog entries
-say nothing about `plugin eval`, so these notes stand. The changelog also names a `disallowed_tools` case field; it is not in
+eval` changed in 2.1.311 or 2.1.312). The local `claude` is **2.1.318**
+(Homebrew cask, upgraded 2026-11-04; byte-identical to the CLI bundled with
+claude-agent-sdk 0.2.178); the 2.1.314, 2.1.316, 2.1.317 and 2.1.318 changelog
+entries say nothing about `plugin eval` (2.1.318 changes only `claude plugin
+validate`, which now rejects a custom-named marketplace file), so these notes stand. The changelog also names a `disallowed_tools` case field; it is not in
 the plugin-evals docs yet and no case here uses it until a local run has
 accepted it.
 
@@ -85,7 +87,7 @@ the other twelve are unchanged.
 | `agent-review-drift` | a review reports the drift and edits nothing, with `Write`/`Edit` available |
 | `ci-setup` | CI gates on the runner's exit code with the OAuth secret; a workflow file actually lands |
 | `runner-stale` | a stale runner copy is reported by id (`DEP001` from the runner check, or `CFG050` from the validator) and the upgrade is offered, not applied |
-| `harness-hooks` | hook defects are reported by id from the linter, the correct shape is explained, nothing is written |
+| `harness-hooks` | hook defects are reported by id from the linter, the correct shape is explained, nothing is written; re-measured 2026-11-04 on 2.1.318 after the `HOK011`/`on_failure` change, two single runs: first with 0.667 (`criteria` FAIL FAIL FAIL, the three other graders passed) / without 0.333, $0.72; second with 1.0 / without 0.333, Δ +0.667, $0.88 — one run is not a verdict for this case |
 | `simulation` | simulated users bring their cost and the trajectory-grader constraint with them; the persona and mocks are validated; re-measured 2026-11-02 on 2.1.316 after the `--lean` change: with 0.667, without 0.333, Δ +0.333, still red on `criteria` (FAIL FAIL FAIL in both arms, same as 2026-10-17 and 2026-10-24), $1.57 |
 | `case-validate` | a validation request reaches `eval-review`, runs the validator before pronouncing, and finds the planted `EVC003` |
 | `criteria-choice` | grader advice comes with cost on a subscription, and nothing is written unasked |

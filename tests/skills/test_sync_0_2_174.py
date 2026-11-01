@@ -28,6 +28,7 @@ NEW_NOTE = "re-read 2026-10-24 against claude-agent-sdk 0.2.174 / claude code 2.
 LATER_REREAD_NOTES = (
     "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.1.312 docs",
     "re-read 2026-11-02 against claude-agent-sdk 0.2.176 / claude code 2.1.316 docs",
+    "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
 )
 
 
@@ -45,7 +46,29 @@ def skill_files():
 
 # -- 1. the twelve renumbered citations --------------------------------------
 
-#: (file, the 0.2.174 citation it must carry, how many times at least).
+def shift_0_2_177(line: int) -> int:
+    """0.2.177 added `HookMatcher.on_failure` (13 lines): lines up to 854 stay,
+    855-2320 move by 11, 2321 on by 13 (measured 2026-11-04 against 0.2.178)."""
+    return line if line <= 854 else line + 11 if line <= 2320 else line + 13
+
+
+#: Every renumbering since this sync, applied in order to a 0.2.174 citation to
+#: get the one the file must carry now. A later sync that moves lines appends here.
+LATER_SHIFTS = (shift_0_2_177,)
+
+
+def current(citation: str) -> str:
+    def _shift(match: re.Match) -> str:
+        line = int(match.group(0))
+        for shift in LATER_SHIFTS:
+            line = shift(line)
+        return str(line)
+    return re.sub(r"\d+", _shift, citation)
+
+
+#: (file, the 0.2.174 citation it carried, how many times at least). History:
+#: the file must now carry `current(citation)`, i.e. the same symbol's line in
+#: the pinned wheel.
 RENUMBERED = (
     ("skills/agent-deploy/references/hosting-options.md", ":2759", 1),
     ("skills/agent-deploy/references/secure-deployment.md", "types.py:2653", 1),
@@ -64,7 +87,14 @@ RENUMBERED = (
 @pytest.mark.parametrize("relative, citation, times", RENUMBERED,
                          ids=[f"{Path(r).name}{c}" for r, c, _ in RENUMBERED])
 def test_each_moved_citation_carries_its_0_2_174_line(relative, citation, times):
-    assert read(relative).count(citation) >= times, f"{relative}: expected {citation}"
+    expected = current(citation)
+    assert read(relative).count(expected) >= times, f"{relative}: expected {expected} (was {citation})"
+
+
+def test_the_later_shift_moves_what_the_measurement_says():
+    assert current("types.py:2326-2786") == "types.py:2339-2799"
+    assert current(":2563-2573") == ":2576-2586"
+    assert current(":840") == ":840" and current(":1126") == ":1137"
 
 
 #: The 0.2.168 numbers that moved; written so they cannot match the new ones
@@ -93,7 +123,9 @@ def test_the_scripts_cite_the_0_2_174_wheel():
                      "skills/agent-harness/scripts/lint_harness.py"):
         text = read(relative)
         assert "claude-agent-sdk 0.2.168" not in text, relative
-        assert "claude-agent-sdk 0.2.174" in text, relative
+        # 0.2.174 at this sync; the label follows the pin from 0.2.178 (2026-11-04).
+        from agent_sdk_skills import SDK_TARGET
+        assert f"claude-agent-sdk {SDK_TARGET}" in text, relative
 
 
 # -- 2. the current pin ------------------------------------------------------
@@ -128,7 +160,7 @@ def test_no_reference_names_2_1_302_docs_without_the_2_1_310_re_read():
     for path in SKILLS.rglob("*.md"):
         text = flat(path.read_text(encoding="utf-8"))
         if ("2.1.302 docs" in text or "read at 2.1.302" in text) \
-                and "2.1.310" not in text and "2.1.312" not in text and "2.1.316" not in text:
+                and not any(v in text for v in ("2.1.310", "2.1.312", "2.1.316", "2.1.318")):
             offenders.append(str(path.relative_to(PLUGIN_ROOT)))
     assert offenders == []
 

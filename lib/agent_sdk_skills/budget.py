@@ -55,7 +55,7 @@ from .graders import BUDGET_CEILINGS, BUDGET_USAGE_KEYS
 from .report import Finding
 from .trace import TraceEvent, result_outcome
 
-_SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.174) + measured VERIFIED-FACTS §2.2"
+_SRC_RESULT = "claude_agent_sdk types.py:1706 ResultMessage (0.2.178) + measured VERIFIED-FACTS §2.2"
 _SRC_TURNS = ("measured: VERIFIED-FACTS §8.1 — max_turns=1 produced num_turns=2; "
               "code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, Claude Code 2.1.312)")
 #: The documented "+1" rule for sizing `max_turns` (agent-loop page, read

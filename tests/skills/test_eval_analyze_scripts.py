@@ -26,7 +26,7 @@ def write_run_dir(root: Path, name: str, cases: dict, *, cost=0.01, tier="nightl
             "summary": {"passed": 0, "failed": 0, "not_evaluated": 0, "pass_rate": 0, "cost_usd": 0}}))
     (directory / "aggregate.json").write_text(json.dumps({
         "schema": "agent-sdk-skills.aggregate/1", "tier": tier, "cases": [], "totals": totals,
-        "exit_code": 0, "runner_version": "0.2.1", "sdk_version": "0.2.176", "cli_version": "2.1.316",
+        "exit_code": 0, "runner_version": "0.2.2", "sdk_version": "0.2.178", "cli_version": "2.1.318",
         "credential": {"kind": "subscription"}}))
     return directory
 

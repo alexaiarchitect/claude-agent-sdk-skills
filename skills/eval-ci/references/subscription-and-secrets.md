@@ -33,7 +33,16 @@ The token is long-lived, not permanent (the documented lifetime is a year), and
 it can be revoked. When the gate starts failing at the credential — every case
 `NOT_EVALUATED`, exit 2, or an auth error in the step log — the first thing to
 check is whether the token expired. Re-run `claude setup-token` and replace the
-secret; nothing else in the workflow changes.
+secret; nothing else in the workflow changes. From Claude Code 2.1.318 a **stored**
+claude.ai sign-in announces its end: `claude -p` text output prints a one-line
+stderr warning starting 10 days before it, `claude -p` JSON carries
+`credential_expires_at`, `claude auth status` shows `loginExpiresAt`, and the
+failure at the limit says so and names `claude auth login` and `claude
+setup-token` (changelog; not in the docs). Whether a token passed as
+`CLAUDE_CODE_OAUTH_TOKEN` counts as stored the changelog does not say, so grep
+the step log for the warning but keep your own renewal date. Pass the token in
+the job's environment: from the docs read 2026-11-04 the OAuth variables are
+ignored in a project or local settings file's `env`.
 
 ## The one-person caveat
 
@@ -126,4 +135,7 @@ variables in CI). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
 Code 2.1.296 docs. The 2.1.302 unset-mode rule is stated at
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
-Claude Code 2.1.310 docs.
+Claude Code 2.1.310 docs. The sign-in expiry signals per the Claude Code
+`CHANGELOG.md` 2.1.318; `https://code.claude.com/docs/en/settings-reference`
+(variables Claude Code ignores in `env`). Re-read 2026-11-04 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

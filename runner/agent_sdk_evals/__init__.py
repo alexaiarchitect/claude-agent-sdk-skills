@@ -45,8 +45,8 @@ DEFAULT_JUDGE_MODEL = "claude-sonnet-5-5"
 MODEL_ENV_VAR = "CLAUDE_MODEL"
 
 #: The Claude Code version whose documentation the references were read against
-#: (a test keeps it equal to the plugin library's copy; re-read 2026-11-02).
-DOCS_READ_AT_CLI = "2.1.316"
+#: (a test keeps it equal to the plugin library's copy; re-read 2026-11-04).
+DOCS_READ_AT_CLI = "2.1.318"
 
 #: The plugin's model policy, copied here so a run can grade a model id without
 #: the plugin's library (a test asserts the four copies are equal). `CURRENT` are
@@ -105,7 +105,7 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). With the mode
 #: unset the CLI picks it, and which one depends on its version and environment.
 #: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
-#: read at 2.1.316): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: read at 2.1.318): "In Claude Code v2.1.302 or later, `claude -p` and Agent
 #: SDK runs with no permission mode set start in Manual mode" (`default`;
 #: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
 #: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
@@ -147,13 +147,13 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.316): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.318): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
 #: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
 #: and any other value, which is an error reported in place of a model response.
 #: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
 #: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
-#: through from the CLI unchanged (0.2.176 `_internal/message_parser.py`).
+#: through from the CLI unchanged (0.2.178 `_internal/message_parser.py`).
 RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")
 

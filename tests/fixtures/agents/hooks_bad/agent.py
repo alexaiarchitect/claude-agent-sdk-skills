@@ -12,6 +12,9 @@ What this demonstrates, one defect per hook:
 * HOK010 — `refuse_second_copy` denies with the right shape but no
   `permissionDecisionReason`, so the model is told "no" with nothing to
   correct from.
+* HOK011 — `refuse_second_copy` is a guard registered without
+  `on_failure="block"`, so if it raises or returns `None` the CLI counts that
+  as no decision and the second copy is reserved anyway.
 * HOK020 — `SessionStart` is registered. The Python SDK's `HookEvent` literal
   has ten values and `SessionStart` is not one of them, so the key is ignored.
 * HOK003 — the `PostToolUse` matcher `mcp__loans__(reserve` is not a valid

@@ -93,7 +93,10 @@ first:
 The article calls the judge "generally not a very robust method" with a latency
 cost, so reach for it last and only where a rule cannot express the check. The
 same order serves the agent itself: an agent that can run the linter or the
-schema check on its own output catches mistakes before they compound.
+schema check on its own output catches mistakes before they compound. A rule
+enforced by a `PreToolUse` guard hook is the top rung only if a crash cannot
+skip it: register the guard with `HookMatcher(..., on_failure="block")`
+(claude-agent-sdk 0.2.177+), or a callback that raises lets the call through.
 
 Judgment calls have no rule to check against. Where the agent recommends one of
 several reasonable options, have it give the best case for each and ask the
@@ -132,5 +135,7 @@ rules → visual feedback → LLM-as-judge verification ladder); the runner's gr
 types in `.dev/CONTRACTS.md` and `eval-criteria/references/grader-catalog.md`;
 <https://www.anthropic.com/research/agents-judgment-calls> ("How AI agents shape
 experts' judgment calls", 2026-10-27, best case for each option and asking the
-user's view before recommending). Re-read 2026-11-02 against claude-agent-sdk
-0.2.176 / Claude Code 2.1.316 docs.
+user's view before recommending);
+<https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails>
+(`on_failure`). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code
+2.1.318 docs.

@@ -89,11 +89,9 @@ linters report the omission as **`OPT013`** (a warn: the outcome depends on CLI 
 environment), and this plugin's runner forces `"dontAsk"` when it is unset. Managed settings
 can block auto mode with `permissions.disableAutoMode: "disable"`.
 
-**Leaving `auto` without asking (2.1.299+).** A session in `auto` that switches, through
-`set_model()`, to a model without auto-mode support changes to `default` and emits a
-`system`/`status` message carrying `permissionMode: "default"`; `set_permission_mode("auto")`
-returns to it once the model supports it. Before 2.1.299 such a session stayed in `auto`.
-From 2.1.314 a settings file excluded with `--setting-sources` (the SDK's `setting_sources`)
+**Leaving `auto` without asking (2.1.299+).** An `auto` session that `set_model()`s to a model
+without auto-mode support drops to `default` (a `system`/`status` message carries
+`permissionMode: "default"`). From 2.1.314 a settings file excluded with `--setting-sources` (the SDK's `setting_sources`)
 no longer supplies auto-mode rules or saved permission consents.
 
 **Subagent inheritance:** "The subagent inherits `plan`, `acceptEdits`, `auto`, or
@@ -171,7 +169,10 @@ skips the action, "Claude keeps working. Claude Code doesn't stop the run." Inte
 blocked action is listed in `/permissions` under the **Recently blocked** tab (docs read
 2026-11-02; the tab and the wording say "blocked" now), where approving it lets Claude
 retry; when the safety check gives no verdict, Claude Code blocks the action without that
-entry (2.1.314).
+entry (2.1.314) and "can stop the turn after ten responses in a row with no verdict" (docs
+read 2026-11-04 say "can"; they used to say it stops). A hook or mod that changes an
+action's input after the server's review can also draw a no-verdict denial, and such
+denials do not count toward the ten (see `hooks-catalog.md`, `updatedInput` in auto mode).
 
 ## `can_use_tool` versus a hook
 
@@ -189,15 +190,17 @@ is TypeScript-only (Agent SDK v0.3.301+); in Python gate such a tool with a scop
 `allowed_tools` plus `can_use_tool`, or a `PreToolUse` hook.
 
 To see or gate **every** call, use a `PreToolUse` hook. (A hook that returns `allow` skips
-`can_use_tool` for that call, so the two are alternatives, not layers.) The docs'
+`can_use_tool` for that call, so the two are alternatives, not layers.) A guard hook fails
+open when it crashes unless its matcher sets `on_failure="block"` (0.2.177+, CLI 2.1.317+;
+`HOK011`); on `PermissionRequest` that block counts only if the failure lands before
+`can_use_tool` answers, so a crashing `PermissionRequest` guard is no substitute for a
+`can_use_tool` that denies. The docs'
 "Precedence among rules, hooks, and mods" section is the table above in prose: hooks answer
 first, deny and ask rules still apply after a hook's `allow`, and a mod's `tool.check`
 answers last.
 
-**Hook approvals in plan mode (2.1.299+).** In `plan`, apart from `ExitPlanMode`, a
-`PreToolUse` hook's `"allow"` (or a mod's `tool.check`) has **no effect** on a call that is
-not read-only; its `updatedInput` still applies. Approving the plan or switching mode lifts
-the limit.
+**Hook approvals in plan mode (2.1.299+).** In `plan`, apart from `ExitPlanMode`, a hook's
+`"allow"` has **no effect** on a call that is not read-only; its `updatedInput` still applies.
 
 ## Choosing, in one paragraph
 
@@ -235,12 +238,12 @@ changes; 2.1.311 `CLAUDE_CODE_EVEN_MORE_DANGEROUSLY_SKIP_PERMISSIONS`; 2.1.314 w
 <https://www.anthropic.com/research/claude-code-auto-mode> ("How we built Claude
 Code auto mode", 2026-03-25, permission tiers, reasoning-blind classifier,
 deny-and-continue thresholds, reported error rates);
-`claude-agent-sdk` 0.2.174 `types.py:25` (`PermissionMode`), `:259`
+`claude-agent-sdk` 0.2.178 `types.py:25` (`PermissionMode`), `:259`
 (`PermissionResultAllow`), `:268` (`PermissionResultDeny`), `:278`
-(`CanUseTool`), `:2190-2279` (`CanUseToolShadowedWarning`), `:2329-2348`
-(`tools` and `allowed_tools` docstrings), `:2380` (`permission_mode`); `types.py`
-byte-identical in 0.2.176. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
+(`CanUseTool`), `:2201-2290` (`CanUseToolShadowedWarning`), `:2342-2361`
+(`tools` and `allowed_tools` docstrings), `:2393` (`permission_mode`), `:864` (`on_failure`);
+<https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails>. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
 2.1.296 docs. The unset-mode `default` on CLI 2.1.292 and 2.1.301 was measured by this plugin on
 2026-10-17, on 2.1.310 on 2026-10-24 and on 2.1.316 on 2026-11-02; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-02 against
-claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-04 against
+claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.

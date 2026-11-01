@@ -44,7 +44,7 @@ from .report import Finding
 _SRC_CATALOG = "this plugin's grader catalog (CONTRACTS §2)"
 _SRC_SEMANTICS = "measured: .dev/VERIFIED-FACTS.md §5, §8 (CONTRACTS §2.1)"
 _SRC_HOOKS = "claude_agent_sdk types.py HookEvent literal (10 values)"
-_SRC_RESULT = "claude_agent_sdk types.py:1695 ResultMessage (0.2.174)"
+_SRC_RESULT = "claude_agent_sdk types.py:1706 ResultMessage (0.2.178)"
 
 TIER_FREE = "free"
 TIER_JUDGE = "judge"
