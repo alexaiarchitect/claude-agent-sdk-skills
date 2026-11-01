@@ -29,6 +29,28 @@ Thirty is the low end of #7's range on purpose: it is a warning, not a limit.
 Tool search defers MCP schemas by default, which removes their token cost; it
 does not make overlapping tools distinct once loaded.
 
+**Where search pays off, and what it does not fix.** *Introducing advanced tool
+use for Claude* (2025-11-24, article #20) puts the break-even for on-demand tool
+loading lower than DSG006: about **10 tools or 10K tokens of definitions**, or
+several MCP servers; below that, or for tools used every session, keep them
+loaded — its advice is to keep the three to five most-used tools always loaded
+and defer the rest. That is a different claim from #7's 30–50 (the point where
+choice degrades), so DSG006 stays at 30. The article predates the SDK's
+default: in the Agent SDK tool search is **on by default** and defers MCP and
+in-process SDK MCP schemas itself, loading up to five matches per search;
+`ENABLE_TOOL_SEARCH` tunes it (`auto` waits until deferrable definitions reach
+10 % of the context window). You do not set `defer_loading`. Search matches
+names and descriptions, so DSG001 and DSG004 matter more with it on, not less.
+
+Two more features from the same article are **Messages API betas with no
+`ClaudeAgentOptions` field** in 0.2.176: *Tool Use Examples* (`input_examples`,
+one to five realistic calls per tool, for formats and parameter correlations a
+schema cannot express) and *Programmatic Tool Calling* (Claude writes code that
+calls tools, and only the final output enters context). In the SDK, put one or
+two example calls in the tool description instead, and get the PTC effect from
+a consolidated tool that aggregates server-side or the code-execution pattern
+of article #6.
+
 ## Choosing tools
 
 - **Fewer, higher-impact tools.** Do not wrap every endpoint. Build a few tools
@@ -115,4 +137,4 @@ Article #4's loop: **prototype, evaluate, improve, repeat.**
   for tasks that exercise each tool; `/agent-sdk:eval-analyze` for tool-call
   counts and cost per task.
 
-Sources: https://www.anthropic.com/research/writing-tools-for-agents ("Writing effective tools for AI agents", 2025-09-11, choosing and consolidating tools, namespacing, response_format, pagination and truncation, actionable errors, parameter names, evaluation-driven iteration with held-out tasks); https://www.anthropic.com/research/building-effective-agents ("Building effective AI agents", 2024-12-19, Appendix 2: tool definitions as prompts, formats, poka-yoke); https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, the 30–50 tool-definition range, grouping by intent); https://www.anthropic.com/research/code-execution-with-mcp ("Code execution with MCP for efficient agents", 2025-11-04, filtering large results in code); https://code.claude.com/docs/en/agent-sdk/custom-tools (read 2026-10-29, `@tool`, optional parameters, annotations, `is_error`, `structuredContent`, TypeScript-only `permission_policy`); https://code.claude.com/docs/en/agent-sdk/mcp (read 2026-10-29, tool naming and the 25,000-token / 50,000-character output limits); https://code.claude.com/docs/en/agent-sdk/tool-search (read 2026-10-29, deferred schemas). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Sources: https://www.anthropic.com/research/writing-tools-for-agents ("Writing effective tools for AI agents", 2025-09-11, choosing and consolidating tools, namespacing, response_format, pagination and truncation, actionable errors, parameter names, evaluation-driven iteration with held-out tasks); https://www.anthropic.com/research/building-effective-agents ("Building effective AI agents", 2024-12-19, Appendix 2: tool definitions as prompts, formats, poka-yoke); https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, the 30–50 tool-definition range, grouping by intent); https://www.anthropic.com/research/code-execution-with-mcp ("Code execution with MCP for efficient agents", 2025-11-04, filtering large results in code); https://code.claude.com/docs/en/agent-sdk/custom-tools (read 2026-10-29, `@tool`, optional parameters, annotations, `is_error`, `structuredContent`, TypeScript-only `permission_policy`); https://code.claude.com/docs/en/agent-sdk/mcp (read 2026-10-29, tool naming and the 25,000-token / 50,000-character output limits); https://code.claude.com/docs/en/agent-sdk/tool-search (read 2026-10-29 and 2026-11-02, on by default, `ENABLE_TOOL_SEARCH`, `auto` at 10 %, up to five tools per search); https://www.anthropic.com/research/advanced-tool-use ("Introducing advanced tool use for Claude", 2025-11-24, the ~10-tool / ~10K-token threshold for tool search, three to five tools kept loaded, Tool Use Examples, Programmatic Tool Calling). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

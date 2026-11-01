@@ -17,7 +17,13 @@ pins, and every `types.py:<line>` the plugin cites is checked by
 :data:`TYPES_PY_LINES`. Re-run 2026-10-29 (docs read at Claude Code 2.1.312): no
 new release, `types.py` byte-identical, every answer unchanged; the `main`
 checkout in `../tmp/venvs/casdk-venv-main` (27858cb) reports CLI 2.1.312 and is
-read only, never asserted on. (History: the 2026-10-17 run against 0.2.168 / CLI
+read only, never asserted on. Re-run 2026-11-02 against 0.2.176 (bundled CLI
+2.1.316) in `../tmp/venvs/casdk-venv-0.2.176`: 0.2.175 and 0.2.176 changed only
+`_cli_version.py`, `_version.py` and the bundled binary, `types.py` is
+byte-identical to 0.2.174's, every answer unchanged. `main` (`e0da9b9`) adds
+`HookMatcher.on_failure` (`d38e51e`, unreleased); the 2.1.316 CLI does not answer
+`hook_on_failure_supported`, so it is asserted absent on the pin below and
+flips when the pin passes that commit. (History: the 2026-10-17 run against 0.2.168 / CLI
 2.1.301 and the 2026-10-11 run against 0.2.165 / CLI 2.1.294 matched the checks
 that existed then.)
 """
@@ -43,11 +49,11 @@ from agent_sdk_skills import (
 
 #: The release and bundled CLI this sync measured. Literal on purpose: a pin
 #: moved without re-reading the wheel fails here, not just in the equality below.
-MEASURED_SDK = "0.2.174"
-MEASURED_CLI = "2.1.310"
+MEASURED_SDK = "0.2.176"
+MEASURED_CLI = "2.1.316"
 
 #: Where each symbol the plugin cites by line number sits in the 0.2.174
-#: `types.py` (2901 lines; lines 1-2557 as in 0.2.168, 2558+ moved by one when
+#: `types.py`, byte-identical in 0.2.176 (2901 lines; lines 1-2557 as in 0.2.168, 2558+ moved by one when
 #: the `include_hook_events` docstring grew in 0.2.169). symbol -> (line, the
 #: text that line starts with, stripped). A future shift fails loudly here
 #: before a reference cites a wrong line.
@@ -138,6 +144,7 @@ print(json.dumps({
     ],
     "ignore_violations": str(typing.get_type_hints(types.SandboxSettings)["ignoreViolations"]),
     "system_init_data": list(typing.get_type_hints(types.SystemInitData)),
+    "hook_matcher": fields(sdk.HookMatcher),
     "types_path": types.__file__,
 }))
 """
@@ -189,7 +196,7 @@ def test_the_result_message_fields_are_the_nineteen_the_graders_read(surface):
 
 
 def test_the_export_list_is_the_one_the_stub_mirrors(surface):
-    """159 names on 0.2.174 (as on 0.2.168); `HookEvent` is not among them (import it
+    """159 names on 0.2.176 (as on 0.2.168 and 0.2.174); `HookEvent` is not among them (import it
     from `.types`)."""
     live = surface["all"]
     assert len(live) == 159
@@ -211,10 +218,27 @@ def test_ignore_violations_maps_a_command_pattern_to_violation_substrings(surfac
 
 
 def test_system_init_data_declares_capabilities_and_fast_mode(surface):
-    """Declared, not counted: 13 capability strings on CLI 2.1.310 (11 on 2.1.301) is a
-    CLI fact measured live, not something the wheel says."""
+    """Declared, not counted: 14 capability strings on CLI 2.1.316 (13 on 2.1.310, 11 on
+    2.1.301) is a CLI fact measured live, not something the wheel says. Neither is the
+    `ultrathink_available` key 2.1.316 sends: it is not a `SystemInitData` field."""
     keys = surface["system_init_data"]
     assert {"capabilities", "fast_mode_state", "fast_mode_disabled_reason"} <= set(keys)
+    assert "ultrathink_available" not in keys
+
+
+#: `HookMatcher` fields on the pinned release. `main` adds `on_failure`
+#: (`d38e51e`, 2026-11-02; `Literal["continue", "block"] | None`), which the
+#: 2.1.316 CLI refuses at connect (`CLIConnectionError`, measured 2026-11-02).
+#: Flip this when the pin moves past that commit: add the field, then let the
+#: references say what it does.
+HOOK_MATCHER_FIELDS = ("matcher", "hooks", "timeout")
+
+
+def test_hook_matcher_on_the_pin_has_no_on_failure(surface):
+    assert tuple(surface["hook_matcher"]) == HOOK_MATCHER_FIELDS, (
+        "HookMatcher changed on the pinned SDK: if `on_failure` shipped, re-measure "
+        "whether the bundled CLI answers `hook_on_failure_supported` before citing it"
+    )
 
 
 @pytest.mark.parametrize("symbol", sorted(TYPES_PY_LINES))

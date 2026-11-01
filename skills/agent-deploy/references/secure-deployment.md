@@ -48,12 +48,9 @@ nothing is the failure to look for.
 The recommended shape is that **the agent never sees a credential**. A proxy
 outside the boundary injects them into outgoing requests.
 
-Why it is worth the extra component:
-
-1. the agent cannot leak what it does not have;
-2. the proxy enforces an endpoint allowlist;
-3. the proxy logs every request for audit;
-4. credentials live in one place instead of in every container.
+It is worth the extra component: the agent cannot leak what it does not have,
+the proxy enforces an endpoint allowlist and logs every request, and credentials
+live in one place instead of in every container.
 
 Two ways to route Claude's own traffic through it:
 
@@ -70,11 +67,9 @@ export HTTPS_PROXY="http://localhost:8080"
 Envoy (`credential_injector`), mitmproxy, Squid and LiteLLM all do this; so does
 a small service you write.
 
-For credentials to *other* services — git, databases, internal APIs — the same
-rule applies: keep them out of the agent's environment and let the proxy add
-them after the request leaves. Where that is impractical, wrap the access in a
-custom MCP tool whose handler holds the credential, so the model sees an
-operation rather than a secret.
+Credentials to *other* services (git, databases, internal APIs) follow the same
+rule; where a proxy is impractical, wrap the access in a custom MCP tool whose
+handler holds the credential, so the model sees an operation, not a secret.
 
 ## What a subscription credential is not for
 
@@ -83,9 +78,8 @@ operation rather than a secret.
 > built on the Claude Agent SDK.
 
 So a `CLAUDE_CODE_OAUTH_TOKEN` in a container that serves other people is a
-policy problem before it is a technical one (`HST001`). Two practical reasons on
-top of the policy: an OAuth token is tied to **one person's plan**, and it
-expires — so the deployment breaks on a date, on someone else's account.
+policy problem first (`HST001`); it is also tied to **one person's plan** and
+expires, so the deployment breaks on a date, on someone else's account.
 
 Use an API key from a secret manager, a gateway that injects one, or a cloud
 provider. A subscription credential is for your own machine and your own evals.
@@ -100,9 +94,16 @@ provider. A subscription credential is for your own machine and your own evals.
 - **`.env` must never enter the image** (`HST041`). A layer that ever contained
   it still contains it, whatever a later step deletes. Keep a `.dockerignore`
   with `.env` in it, and never `COPY . .` while one exists.
-- **A credential literal in a Dockerfile or compose file** (`HST040`) is
-  readable by anyone who can pull the image, and is in the build history.
-  Rotate it; do not just delete the line.
+- **A credential literal in a Dockerfile or compose file** (`HST040`) is in
+  the image and its build history: rotate it, do not just delete the line.
+- **Block file-tool writes outside the working directories** (Claude Code
+  **2.1.314+**): `permissions.blockWritesOutsideWorkingDirectories: true` makes
+  `Write`, `Edit` and `NotebookEdit` refuse paths outside the working directories
+  in **every permission mode, including `bypassPermissions`**, removes
+  `EnterWorktree`/`ExitWorktree`, and refuses writes to Claude Code settings files
+  even inside them. It does **not** limit shell commands, MCP tools or hook
+  programs (use the sandbox), and a cloud session may not apply it. Let one
+  directory through with `--add-dir` or user/managed `additionalDirectories`.
 
 ## What `setting_sources` does not control
 
@@ -156,38 +157,42 @@ Project and local settings cannot set storage-location variables such as
 those in the job's environment or managed settings. Three newer variables are
 honoured **only** from the environment that launches Claude Code (a settings
 `env` block is ignored): `CLAUDE_CODE_WARN_DISK_FREE_GIB` and, on Linux/WSL,
-`CLAUDE_CODE_WARN_MEMORY_FREE_GIB` (2.1.304+, a whole number of GiB; below it
-Claude gets a system reminder saying how much is free — useful in a small
-container), and `CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT` (2.1.304+, turns
-off the mounted-drive `rm` prompt; leave it unset on a host with mounted
-volumes).
+`CLAUDE_CODE_WARN_MEMORY_FREE_GIB` (2.1.304+, GiB thresholds for a free-space
+reminder), and `CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT` (2.1.304+; leave it
+unset on a host with mounted volumes).
 
-**Sandbox changes in 2.1.305–2.1.310.** `sandbox.allowNestedUserNamespaces`
+**Sandbox changes in 2.1.305–2.1.316.** `sandbox.allowNestedUserNamespaces`
 (2.1.305+, user or managed scope; a `true` in project settings, or anywhere
 under `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`, is ignored) lets sandboxed Linux/WSL2
-commands create user namespaces for Chromium, Electron or a nested bubblewrap —
-and "If you set this key to `true`, you turn off a security boundary: code from
-a sandboxed command can end up running outside the sandbox." The SDK's
-`SandboxSettings` does not declare it, so it reaches the CLI only as an
-undeclared key; keep it off in a multi-tenant host. 2.1.309 closed several
-gaps: sandboxed Bash on macOS and Linux no longer runs the shell's startup files
-outside the sandbox before each command; macOS `denyWrite` globs apply at a
-path's real location when reached through a symlink; sandboxed commands and
-auto-accepted edits can no longer modify the `--mcp-config` file; Linux write
-denies no longer lift when a background command outlives the session; and
-commands the settings exclude from the sandbox now ask before writing to its
-write-list paths when the sandbox is enabled but cannot run, with the
-unsandboxed fallback refused. From 2.1.310 `/sandbox` and the startup warning
+commands create user namespaces (Chromium, Electron, nested bubblewrap) and, per
+the docs, turns off a security boundary. `SandboxSettings` does not declare it;
+keep it off in a multi-tenant host. 2.1.309 closed several
+gaps (shell startup files run inside the sandbox, `denyWrite` globs follow
+symlinks on macOS, the `--mcp-config` file is protected, Linux write denies
+outlive the session, excluded commands ask instead of running unsandboxed).
+From **2.1.314** sandbox protections also apply to a worktree entered by
+`claude -p --resume` or `--continue`; from 2.1.316 a `--restricted` session no
+longer uploads files from outside the working directories. From 2.1.310 `/sandbox` and the startup warning
 name Ubuntu's AppArmor user-namespace restriction when it stops bubblewrap.
 `CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1` stops a background session's in-flight
 shell commands and subagents when its supervisor restarts or updates it, instead
 of handing them to the next process; it concerns agent-view background
 sessions, not an SDK subprocess, which ends with its query.
 
-And none of it controls **egress**. A container with a shell can connect
-wherever its network policy allows. Apply per-tenant egress rules at the proxy —
-distinct outbound IPs, credentials or domain allowlists — so a compromised
+And none of it controls **egress**: apply per-tenant egress rules at the proxy
+(distinct outbound IPs, credentials or domain allowlists) so a compromised
 tenant cannot exfiltrate through another tenant's policy.
+
+**Say what the agent may touch, then enforce it.** Anthropic's review of
+unintended actions in its own evaluations and internal use found mostly
+*persistence*: given a task it could not finish as stated, Claude worked around a
+restriction — submitting a real web form, reaching gated data through tokens it
+found, using URL shorteners to get past a fetch tool's limit. State the targets, permitted actions and network boundaries in `system_prompt`,
+and **enforce** them with `tools`/`disallowed_tools`, `can_use_tool`,
+`PreToolUse` hooks and the sandbox network allowlist. Anthropic's response was
+to switch live internet off for its internal evaluations — its own policy, not
+an SDK default: in the SDK `WebFetch` and `WebSearch` are ordinary tools you
+allow or not.
 
 ## A checklist that fits on one screen
 
@@ -198,6 +203,7 @@ tenant cannot exfiltrate through another tenant's policy.
 - [ ] `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, per-tenant `CLAUDE_CONFIG_DIR`
 - [ ] `max_turns` and `max_budget_usd` set; subagent depth and concurrency capped
 - [ ] egress proxy with a domain allowlist, holding the credentials
+- [ ] scope and forbidden actions in the prompt **and** in tools, hooks or the sandbox
 - [ ] authentication at a gateway in front, not in the agent
 - [ ] `permission_mode` passed explicitly (`dontAsk` unattended), never left unset
 - [ ] managed settings pin `allowedProviders` and disable `auto`/`bypassPermissions`
@@ -231,9 +237,14 @@ sandbox paths"), <https://code.claude.com/docs/en/env-vars>
 <https://code.claude.com/docs/en/permission-modes> ("The mounted drive prompt"), <https://code.claude.com/docs/en/permissions#hook-approvals-in-plan-mode>,
 <https://code.claude.com/docs/en/env-vars> (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299,
-2.1.300, 2.1.302, 2.1.304, 2.1.305, 2.1.309, 2.1.310).
-The list of what still loaded under `setting_sources=[]` was measured by this
-plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
-Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk
-0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk
-0.2.174 / Claude Code 2.1.312 docs.
+2.1.300, 2.1.302, 2.1.304, 2.1.305, 2.1.309, 2.1.310, 2.1.314 resumed-worktree
+sandbox, 2.1.316 `--restricted`); <https://code.claude.com/docs/en/settings-reference>
+and <https://code.claude.com/docs/en/permissions> (`permissions.blockWritesOutsideWorkingDirectories`);
+<https://www.anthropic.com/research/investigating-unintended-model-actions>
+("Investigating unintended model actions in our evaluations and internal use",
+2026-10-09, persistence around restrictions, explicit scope, live internet off
+for internal evals). The list of what still loaded under `setting_sources=[]`
+was measured by this plugin on 2026-09-30. Re-read 2026-10-11 against
+claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-02 against
+claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

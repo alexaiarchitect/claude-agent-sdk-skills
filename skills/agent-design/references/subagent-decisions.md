@@ -17,6 +17,21 @@ their own case.
 
 So the default is one loop. A subagent has to earn its place.
 
+A third shape sits outside both: **parallel workers with no orchestrator.** In
+*Building a C compiler with parallel Claudes* (2026-02-05, article #18), 16
+agents each looped `claude -p` in its own container against one shared git
+repo; an agent claimed a task by writing a lock file into `current_tasks/`, and
+a git push conflict sent a second claimant to another task. The author is plain
+about it: "I don't use an orchestration agent." This is a harness convention,
+not an SDK feature (the SDK's own subagents are orchestrated by the main
+agent), and it ran with permissions bypassed **only because each agent was in a
+disposable container** — on a real machine use `permission_mode`, `max_turns`
+and `max_budget_usd` in a supervisor loop instead. Its precondition is a test
+suite good enough to be an oracle: with a weak verifier, parallel agents solve
+the wrong problem faster. When one giant task made every agent collide on the
+same bug, a known-good reference (another compiler building a random subset)
+split it into independent failures.
+
 ## When to keep a subagent
 
 Keep one when any of these holds (article #7):
@@ -124,4 +139,4 @@ team" is not.
 - `/agent-sdk:eval-create` writes the task-completion cases the fold needs;
   `/agent-sdk:eval-analyze` compares the two arms.
 
-Sources: https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, single loop with skills, keep conditions, split by context, the staged fold procedure, ten golden examples, running tasks more than once); https://www.anthropic.com/research/multi-agent-research-system ("How we built our multi-agent research system", 2025-06-13, the 90.2 % result, about 15× tokens, 80 % of variance from token usage, delegation rules, effort scaling, 3–5 parallel subagents); https://www.anthropic.com/research/effective-context-engineering-for-ai-agents ("Effective context engineering for AI agents", 2025-09-29, 1,000–2,000-token subagent summaries); https://code.claude.com/docs/en/agent-sdk/subagents (read 2026-10-29, `AgentDefinition` fields, inheritance, background default, forks, depth, concurrency and spend caps); https://code.claude.com/docs/en/agent-sdk/python (read 2026-10-29, `run_in_background`, `async_launched`, the `Agent`/`Task` naming); https://code.claude.com/docs/en/sub-agents (read 2026-10-29, Agent-call `model` aliases). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Sources: https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, single loop with skills, keep conditions, split by context, the staged fold procedure, ten golden examples, running tasks more than once); https://www.anthropic.com/research/multi-agent-research-system ("How we built our multi-agent research system", 2025-06-13, the 90.2 % result, about 15× tokens, 80 % of variance from token usage, delegation rules, effort scaling, 3–5 parallel subagents); https://www.anthropic.com/research/effective-context-engineering-for-ai-agents ("Effective context engineering for AI agents", 2025-09-29, 1,000–2,000-token subagent summaries); https://code.claude.com/docs/en/agent-sdk/subagents (read 2026-10-29, `AgentDefinition` fields, inheritance, background default, forks, depth, concurrency and spend caps); https://code.claude.com/docs/en/agent-sdk/python (read 2026-10-29, `run_in_background`, `async_launched`, the `Agent`/`Task` naming); https://code.claude.com/docs/en/sub-agents (read 2026-10-29, Agent-call `model` aliases); https://www.anthropic.com/research/building-c-compiler ("Building a C compiler with parallel Claudes", 2026-02-05, lock-file task claiming without an orchestrator, one container per agent, tests as a near-perfect verifier, a known-good oracle to split one large task). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

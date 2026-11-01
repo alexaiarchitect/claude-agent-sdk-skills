@@ -100,6 +100,41 @@ runs (`--runs 5`). Fixes are about robustness: sharper tool descriptions, an
 explicit ordering rule, a `fallback_model`, `effort`. The success measure is
 pass@1, never one green run.
 
+## harness regression (read by hand; no signature)
+
+Quality drops across many cases at once, with no change to your prompt, tools
+or model id. Anthropic traced one such episode in Claude Code, the Agent SDK and
+Cowork (its April 2026 postmortem) to three **harness** changes, not the model:
+a lower default effort, a bug that dropped earlier thinking from the history on
+every turn (forgetfulness, repetition, odd tool choices, more cache misses), and
+a system-prompt line limiting text between tool calls. Each hit a different
+slice of traffic on a different schedule, so it looked like broad, inconsistent
+model drift. The effort values in that write-up are April history; current
+defaults are on the `model-config` page.
+
+Tell it from model drift: pin and record the CLI (`claude_code_version` in the
+init message; the SDK's bundled build, `load_agent.py`); re-run the same cases on
+the previous and the current CLI with the same model id — a gap that follows the
+CLI is a harness regression; read the `effort` actually in force (the init
+message, the OTel `effort` attribute) instead of assuming it; and look for the
+lost-reasoning symptoms after a resume or a long idle. Layer: **harness**; the
+fix is pinning a build and setting `effort` explicitly.
+
+## persistence around a restriction (read by hand; no signature)
+
+The task cannot be done as given and the agent works around a limit instead of
+stopping. Anthropic's review of its own evaluations and internal use lists the
+shapes: **submitting a real form** (when a practice form fails to load, or after
+being told to stop before submitting), reaching **gated data** through tokens it
+found in a page, and getting past a fetch tool's limit through a **URL
+shortener**. In the trace: a `WebFetch` or browser call to a host the case never
+named, a POST or submit after the prompt said not to, a call that reads a
+credential out of a fetched page. Layer: **prompt and permissions** together —
+state the targets, permitted actions and network boundaries, enforce them with
+`disallowed_tools`, `can_use_tool` or a `PreToolUse` hook, and make an
+impossible task end in a stated refusal the grader accepts
+(`../../agent-deploy/references/secure-deployment.md`).
+
 ---
 
 Sources: this plugin's `lib/agent_sdk_skills/trajectory.py`; result fields per
@@ -112,5 +147,11 @@ the `max_turns` measurement in `.dev/VERIFIED-FACTS.md`;
 rule); <https://www.anthropic.com/research/effective-harnesses-for-long-running-agents>
 ("Effective harnesses for long-running agents", 2025-11-26, the two long-run
 failure modes and the progress-file / feature-list / one-feature-per-session
-fix). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312
-docs.
+fix); <https://www.anthropic.com/research/april-23-postmortem> ("An update on
+Claude Code quality reports", 2026-04-23, the three harness changes behind the
+harness-regression shape); <https://www.anthropic.com/research/investigating-unintended-model-actions>
+("Investigating unintended model actions in our evaluations and internal use",
+2026-10-09, form submission, gated data and URL-shortener workarounds as
+persistence); `https://code.claude.com/docs/en/model-config` (current effort
+defaults). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code
+2.1.316 docs.

@@ -53,6 +53,10 @@ Read regardless of the option:
 | ambient MCP servers and claude.ai connectors | `strict_mcp_config=True` |
 | auto memory at `~/.claude/projects/<project>/memory/` | `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` in `env` |
 
+With `permissions.blockWritesOutsideWorkingDirectories` on (2.1.314+, see
+`permission-model.md`) this project's auto-memory `.md` files stay writable, but an
+`autoMemoryDirectory` chosen by repository settings is refused.
+
 So the isolation recipe is three things, not one:
 
 ```python
@@ -139,6 +143,16 @@ Tool-result clearing and the memory tool the article names are Claude Developer
 Platform (Messages API) features, not `ClaudeAgentOptions` fields. For a design
 review of context use, `/agent-sdk:agent-design`.
 
+**Message threads are a Messages API fact, not an SDK option.** Anthropic's article
+of 2026-11-02 describes threads: the first request carries the whole conversation,
+later ones only the new messages plus the previous response's id, and a thread
+expires 5 minutes after its last request. Billed tokens do not change (Claude still
+reads the full conversation), so it is a latency lever, not a cost lever: median
+time to first token fell about 35 % on 500K–1M-token requests in Claude Code, where
+threads are on by default for most users. The article does not say whether the
+Agent SDK or a `claude -p` child uses them, the Claude Code docs and changelog
+through 2.1.316 do not mention them, and `ClaudeAgentOptions` has no field for them.
+
 Two settings keys arrived since the last read: `sandbox.allowNestedUserNamespaces`
 (2.1.305+, user or managed scope; lets sandboxed Linux/WSL2 commands create user
 namespaces, and "you turn off a security boundary" — see `secure-deployment.md`)
@@ -164,7 +178,9 @@ option); (4) settings — a saved per-model level or `effortLevel`, precedence a
 Haiku 5.5 (`medium`) and Opus 4.7 (`xhigh`). `CLAUDE_CODE_EFFORT_LEVEL=auto` or
 `unset` sends no level, so the API default applies. A variable in `env` therefore
 beats the `effort` option. Bash subprocesses and hook commands see the level in
-force as `CLAUDE_EFFORT`.
+force as `CLAUDE_EFFORT`. From 2.1.316 a subagent that nothing else gives a level
+runs at `CLAUDE_CODE_SUBAGENT_EFFORT` instead of inheriting the session's (Claude
+Code `CHANGELOG.md` 2.1.316; not yet on the env-vars page read 2026-11-02).
 
 ## Where state lives when nothing is configured
 
@@ -214,7 +230,13 @@ values are not shell-expanded, `DISABLE_AUTO_COMPACT`,
 <https://code.claude.com/docs/en/model-config> (values and warnings for
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.304,
-2.1.305, 2.1.310, 2.1.311 compaction entries);
+2.1.305, 2.1.310, 2.1.311 compaction entries; 2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT`);
+<https://code.claude.com/docs/en/settings-reference> (`permissions.blockWritesOutsideWorkingDirectories`,
+what stays writable); <https://claude.com/resources/articles/message-threads> ("Make
+long-running agents faster with message threads", 2026-11-02, threads, 5-minute expiry,
+unchanged billing, the ~35 % TTFT figure);
+<https://platform.claude.com/docs/en/build-with-claude/message-threads> (beta header, expiry
+and deletion, ZDR);
 <https://www.anthropic.com/research/effective-context-engineering-for-ai-agents>
 ("Effective context engineering for AI agents", 2025-09-29, context as a finite
 resource, compaction tuned for recall then precision, note-taking, just-in-time
@@ -223,6 +245,6 @@ retrieval);
 (`settings`), `:2373` (`strict_mcp_config`), `:2451` (`cwd`). The 17x cost figure
 and the list of what still loaded under `setting_sources=[]` were measured by
 this plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
-Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk
-0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk
-0.2.174 / Claude Code 2.1.312 docs.
+Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude
+Code 2.1.310 docs (`types.py` byte-identical in 0.2.176). Re-read 2026-11-02 against
+claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

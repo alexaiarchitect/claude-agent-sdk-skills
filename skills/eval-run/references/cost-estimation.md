@@ -88,6 +88,18 @@ configuration is documented and matched. Repeats multiply cost linearly: a
 Spend that on the cases whose verdict decides something, and keep the cheap
 `pr` tier at one run. The estimate this skill prints is still an estimate.
 
+**Long tasks: budget attempts × tokens.** For a task that runs for millions of
+tokens, frame the budget as a number of independent attempts times a ceiling per
+attempt, and score a task solved if any attempt solves it (pass@k over the
+attempts). *LLMs are making formal software verification feasible at a much
+larger scale* (2026-10-22) gave each benchmark task three independent
+single-agent attempts at a 5M-token budget; that is a research budget, quoted
+here as a worked example of the framing, not advice. In the SDK the
+per-attempt ceiling is `max_budget_usd` (dollars, soft) or `task_budget` (a
+token budget the model is told about so it can pace itself; a beta, not a cap); the attempts are `runs:`. Three
+attempts at a ceiling cost up to three ceilings: quote that upper bound, not
+the expected value.
+
 ---
 
 Sources: `https://code.claude.com/docs/en/agent-sdk/cost-tracking` (estimates,
@@ -101,5 +113,8 @@ arithmetic and the `runs` precedence re-checked 2026-10-13 against `cli.py`;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
 <https://www.anthropic.com/research/infrastructure-noise> ("Infrastructure noise
 in agentic coding evals", 2026-02-05, repeats across times and days, the 3-point
-threshold). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.312 docs.
+threshold). <https://www.anthropic.com/research/formal-verification> ("LLMs are
+making formal software verification feasible at a much larger scale",
+2026-10-22, three independent attempts at a 5M-token budget per task as the
+worked example); `task_budget` per the claude-agent-sdk 0.2.176 `types.py`
+docstring. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

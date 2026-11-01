@@ -75,6 +75,16 @@ Sub-agent summaries in the article are often 1,000–2,000 tokens for tens of
 thousands explored. If the parent needs more than that from a subagent, the
 split is probably wrong ([subagent-decisions.md](subagent-decisions.md)).
 
+**Resending the history costs time, not only tokens.** *Make long-running agents
+faster with message threads* (2026-11-02, article #15) describes a Messages API
+beta in which the client sends the full conversation once and afterwards only
+the new messages plus the previous response's id; a thread expires 5 minutes
+after its last request. Billed tokens do not change — the model still reads the
+whole context — but the article reports about 35 % lower median time to first
+token for 500K–1M-token requests in Claude Code. It is a Claude Platform fact:
+nothing in the Agent SDK or Claude Code docs says the SDK uses or exposes
+threads, so treat it as a latency note, not a context or cost lever.
+
 ## Progressive disclosure: skills
 
 *Equipping agents with Agent Skills* (2025-10-16) calls progressive disclosure
@@ -94,6 +104,12 @@ In the SDK, skills are files under `.claude/skills/<name>/SKILL.md`, discovered
 through `setting_sources` and scoped with the `skills` option; there is no
 programmatic registration. A skill is also how a subagent's instructions fold
 into the main loop.
+
+The format is an open standard: since *Donating Agent Skills to the Agentic AI
+Foundation* (2026-10-22, article #22) the base spec is governed by the Agentic
+AI Foundation under the Linux Foundation. A skill is still a folder with a
+`SKILL.md`; Claude Code's own extensions (invocation control, running in a
+subagent, injected context) are not part of the donated spec.
 
 **Trust**: a skill can carry instructions and code. Install skills only from
 sources you trust, and audit a less-trusted one in full — bundled files,
@@ -120,4 +136,4 @@ in a sandbox — `/agent-sdk:agent-deploy` covers that.
   `CLAUDE.md` and what the host machine leaks into a run.
 - `/agent-sdk:eval-create` for a case that runs past compaction.
 
-Sources: https://www.anthropic.com/research/effective-context-engineering-for-ai-agents ("Effective context engineering for AI agents", 2025-09-29, context as a finite budget, right-altitude prompts, minimal tool sets, just-in-time retrieval, compaction, note-taking, sub-agent summaries); https://www.anthropic.com/research/equipping-agents-for-the-real-world-with-agent-skills ("Equipping agents with Agent Skills", 2025-10-16, progressive disclosure and skill trust); https://www.anthropic.com/research/code-execution-with-mcp ("Code execution with MCP for efficient agents", 2025-11-04, the token trade-off and the sandbox requirement); https://code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, what consumes context, automatic compaction, `PreCompact`, CLAUDE.md summary instructions); https://code.claude.com/docs/en/env-vars (read 2026-10-29, `CLAUDE_CODE_AUTO_COMPACT_WINDOW` range); https://code.claude.com/docs/en/agent-sdk/tool-search (read 2026-10-29, deferred tool loading, five tools per search); https://code.claude.com/docs/en/agent-sdk/skills (read 2026-10-29, filesystem skills, `setting_sources`, the `skills` option); https://code.claude.com/docs/en/agent-sdk/claude-code-features (read 2026-10-29, CLAUDE.md loading). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Sources: https://www.anthropic.com/research/effective-context-engineering-for-ai-agents ("Effective context engineering for AI agents", 2025-09-29, context as a finite budget, right-altitude prompts, minimal tool sets, just-in-time retrieval, compaction, note-taking, sub-agent summaries); https://www.anthropic.com/research/equipping-agents-for-the-real-world-with-agent-skills ("Equipping agents with Agent Skills", 2025-10-16, progressive disclosure and skill trust); https://www.anthropic.com/research/code-execution-with-mcp ("Code execution with MCP for efficient agents", 2025-11-04, the token trade-off and the sandbox requirement); https://code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, what consumes context, automatic compaction, `PreCompact`, CLAUDE.md summary instructions); https://code.claude.com/docs/en/env-vars (read 2026-10-29, `CLAUDE_CODE_AUTO_COMPACT_WINDOW` range); https://code.claude.com/docs/en/agent-sdk/tool-search (read 2026-10-29, deferred tool loading, five tools per search); https://code.claude.com/docs/en/agent-sdk/skills (read 2026-10-29, filesystem skills, `setting_sources`, the `skills` option); https://code.claude.com/docs/en/agent-sdk/claude-code-features (read 2026-10-29, CLAUDE.md loading); https://claude.com/resources/articles/message-threads ("Make long-running agents faster with message threads", 2026-11-02, threads as a time-to-first-token lever with unchanged billing) and https://platform.claude.com/docs/en/build-with-claude/message-threads (read 2026-11-02, beta status, 5-minute expiry); https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation ("Donating Agent Skills to the Agentic AI Foundation", 2026-10-22, the AAIF governs the base spec, format unchanged); https://code.claude.com/docs/en/skills (read 2026-11-02, Claude Code's extensions to the standard). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

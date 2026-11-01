@@ -134,4 +134,4 @@ price). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
 SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
 Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

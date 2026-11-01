@@ -71,7 +71,8 @@ machine's PATH `claude` (now the `claude-code@latest` cask) is 2.1.310 too — b
 that is a coincidence of timing, not a guarantee: on 2026-10-29 they differ
 again, the same **0.2.174** wheel still bundling **2.1.310** while PATH `claude`
 is **2.1.312** (and `claude-agent-sdk` `main` already pins 2.1.312, with no
-release yet). `cli_path` is the only way to
+release yet). On 2026-11-02 they agree once more: the **0.2.176** wheel bundles
+**2.1.316** and PATH `claude` (Homebrew) is 2.1.316 too. `cli_path` is the only way to
 force the PATH binary, and the report prints the bundled version so a
 difference is visible. The gap is not cosmetic: on 2026-10-17 a doc fact gated on
 2.1.299 — `claude plugin eval --disallow-tools`, API-error runs scored 0, the MCP
@@ -113,7 +114,7 @@ The two-CLI-versions-on-one-host observation was measured by this plugin on
 2026-09-30, on 2026-10-11 (0.2.165 bundles 2.1.294; PATH `claude` 2.1.285) and
 on 2026-10-17 (0.2.168 bundles 2.1.301; PATH `claude` 2.1.292); on 2026-10-24
 both were 2.1.310; on 2026-10-29 0.2.174 bundles 2.1.310 and PATH `claude` is
-2.1.312. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
+2.1.312; on 2026-11-02 both were 2.1.316 (0.2.176). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
 Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude
-Code 2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude
-Code 2.1.312 docs.
+Code 2.1.310 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude
+Code 2.1.316 docs.

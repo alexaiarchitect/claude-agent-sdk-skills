@@ -98,5 +98,4 @@ and the `dependencies` field this plugin deliberately omits);
 in `claude-plugins-official`, the `claude-code-plugins` marketplace installs them
 from there); `anthropics/claude-plugins-official` `plugins/agent-sdk-dev`
 (commits of 2026-02-20, licence, and 2026-10-26, explicit versions), checked
-2026-10-29. Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.312 docs.
+2026-10-29. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

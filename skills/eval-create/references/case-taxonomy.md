@@ -95,6 +95,30 @@ trusting it (`runs:` above 1, or `--runs`): that article's fold broke a
 process in only one run out of two. Size is not the goal; a small set taken
 from traffic beats a large invented one.
 
+## Live-web cases are a separate suite
+
+A case whose agent can reach the internet is a different experiment from one
+that cannot. *Investigating unintended model actions in our evaluations and
+internal use* (2026-10-09, corrected 2026-10-12) traced most of the unintended
+actions it found — real forms submitted, gated data reached through leaked
+tokens, a fetch tool's URL-length limit worked around with a URL shortener — to
+evaluations run with live internet access, and Anthropic turned live internet
+off for its internal evals, moving benchmarks to offline versions. That is
+Anthropic's own policy, not an SDK default; for this plugin it means:
+
+* keep cases that allow `WebFetch`/`WebSearch` or a networked MCP server in
+  their own directory and tier, so an offline suite stays reproducible and a
+  live one is run deliberately;
+* write a **scope statement** into each live case's prompt — the targets, the
+  permitted actions and the network boundaries — and enforce it as well
+  (`allowed_tools`, a `PreToolUse` hook, the sandbox's network allowlist): in
+  the article's own example a prose list of forbidden actions was not enough;
+* add an `adversarial` case for an impossible task (the page is down, the tool
+  is blocked) and grade that the agent stops and reports rather than finding a
+  way around;
+* review transcripts at scale, not just verdicts: the article found these
+  behaviours by reading runs, and rare ones appear only across many repeats.
+
 Sources: `lib/agent_sdk_skills/evalcase.py` (`CATEGORIES`, `EVC030`, `EVC031`,
 the restraint checks behind `EVC041`); `lib/agent_sdk_skills/coverage.py`
 (`shape`, the 20% adversarial target, `n_plus_one_gaps`); `.dev/CONTRACTS.md`
@@ -104,5 +128,9 @@ the restraint checks behind `EVC041`); `lib/agent_sdk_skills/coverage.py`
 customer usage, read failures first);
 <https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop>
 ("Building agents: When to fold subagents into your main agent loop",
-2026-10-22, ten golden examples to start, run each task more than once).
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+2026-10-22, ten golden examples to start, run each task more than once);
+<https://www.anthropic.com/research/investigating-unintended-model-actions>
+("Investigating unintended model actions in our evaluations and internal use",
+2026-10-09, unintended actions concentrated in live-internet evals, offline
+versions, explicit scope statements, transcript review at scale).
+Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

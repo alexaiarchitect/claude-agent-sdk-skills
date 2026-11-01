@@ -40,6 +40,7 @@ REREAD_NOTE = (
 LATER_REREAD_NOTES = (
     "re-read 2026-10-24 against claude-agent-sdk 0.2.174 / claude code 2.1.310 docs",
     "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.1.312 docs",
+    "re-read 2026-11-02 against claude-agent-sdk 0.2.176 / claude code 2.1.316 docs",
 )
 
 

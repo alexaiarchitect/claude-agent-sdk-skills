@@ -100,8 +100,10 @@ with attributes `category` (`permission_rule`, `managed_policy`, `permission_mod
 `tool_use_id`, `sandbox_violation_count`, `sandbox_enabled`, and no command
 text. The `claude -p --output-format json` result's `safety_stops` count is a
 separate field and still present (measured `0` on 2.1.310 on 2026-10-24 and on
-2.1.312 on 2026-10-29). Telemetry from Claude Desktop sessions behind a Claude
-apps gateway is no longer rejected when `OTEL_EXPORTER_OTLP_HEADERS` is set (2.1.307).
+2.1.312 on 2026-10-29). From **2.1.316** the `claude -p` text output says why
+auto mode stopped a turn even when a background agent was still running.
+Telemetry from Claude Desktop sessions behind a Claude apps gateway is no longer
+rejected when `OTEL_EXPORTER_OTLP_HEADERS` is set (2.1.307).
 
 Three 2.1.312 details for dashboards: the `effort` attribute (on `api_request`
 and the cost counter) now names **the level in force**, not a newly picked level
@@ -222,7 +224,7 @@ reference, traces beta, `claude_code.safety_event` attributes and categories,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300–2.1.302
 event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default,
 2.1.307 `safety_event` and gateway headers fix; 2.1.312 `safety_event` withdrawn,
-OTel `effort` value, `mcp_server.name`);
+OTel `effort` value, `mcp_server.name`; 2.1.316 `-p` auto-mode stop reason);
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (why telemetry-off sessions could start in `auto` before v2.1.302; "Default
 classifier model"), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
@@ -233,4 +235,4 @@ injection), `types.py:1669` (`ModelUsage`). The two-model `model_usage` and
 0.2.165 with bundled CLI 2.1.294; `safety_stops` on 2026-10-24 on CLI 2.1.310.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

@@ -116,5 +116,4 @@ carries); https://code.claude.com/docs/en/agent-sdk/python (`ToolUseBlock`,
 targeted evals);
 <https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk>
 ("Building agents with the Claude Agent SDK", 2025-09-29, evals from customer
-usage). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312
-docs.
+usage). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

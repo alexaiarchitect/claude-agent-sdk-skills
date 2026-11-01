@@ -16,15 +16,19 @@ exact tree it came from.
     Licensed under the MIT License
     https://github.com/anthropics/claude-agent-sdk-python
 
-Snapshot: `27858cbba9ecee26a06a90b8d39d3b5596121d11` (2026-10-29, `main`, whose
-`src/` differs from `v0.2.174` only in `_cli_version.py`, which bundles CLI
-2.1.312; no release newer than 0.2.174; previously
+Snapshot: `e0da9b95223d3d112bfbccad41d2a32bad923bb5` (2026-11-02, `main`, two
+commits past `v0.2.176`, which bundles CLI 2.1.316; `v0.2.174` → `v0.2.176`
+changed only the two version files under `src/`, so `types.py` is byte-identical
+and every `types.py:N` citation labelled 0.2.174 holds for 0.2.176; previously
+`27858cbba9ecee26a06a90b8d39d3b5596121d11` on 2026-10-29,
 `0e89b298e771259378a6cd3734e00d323dff5703` on 2026-10-24, `f93e29cc` after
 `v0.2.168`, `b6e9d12f` and `bbf09e3c`, which was `v0.2.162`). Behaviour was
-measured against the installed `claude-agent-sdk` **0.2.174 wheel (bundled CLI
-2.1.310)**, last on 2026-10-29; earlier
-figures in this plugin's references name the wheel they came from (0.2.168 with
-CLI 2.1.301, 0.2.165 with CLI 2.1.294, or 0.2.162 with CLI 2.1.285). Names first released in 0.2.166 are
+measured against the installed `claude-agent-sdk` **0.2.176 wheel (bundled CLI
+2.1.316)** on 2026-11-02, and against the 0.2.174 wheel (bundled CLI 2.1.310)
+up to 2026-10-29; earlier
+figures in this plugin's references name the wheel they came from (0.2.174 with
+CLI 2.1.310, 0.2.168 with CLI 2.1.301, 0.2.165 with CLI 2.1.294, or 0.2.162 with
+CLI 2.1.285). Names first released in 0.2.166 are
 marked "0.2.166+" as a version gate, because the plugin still supports 0.2.140.
 
 Used as the authoritative source for the options, message types, hooks and
@@ -40,8 +44,9 @@ transcript shape of the SDK's `tests/test_sessions.py::_parallel_tool_turn`
     Proprietary license; see LICENSE.md in that repository
     https://github.com/anthropics/claude-code
 
-Snapshot: `58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102` (2026-10-29, Claude Code
-2.1.312; previously `318b7e6ac4e726e88a4ad326214866a93c373b1b` at 2.1.310 on
+Snapshot: `1a0f9a9d18e1272d3fbaa817d192b6b057bba623` (2026-11-02, Claude Code
+2.1.316; previously `58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102` at 2.1.312 on
+2026-10-29, `318b7e6ac4e726e88a4ad326214866a93c373b1b` at 2.1.310 on
 2026-10-24, `c017428c` at 2.1.302, `3deb8736` at 2.1.296 and `732e167e` at
 2.1.285). Consulted for the changelog and the hooks examples. At this snapshot
 `plugins/` holds only a README: Anthropic's plugins, including the
@@ -58,7 +63,7 @@ are redistributed; the repository's own license terms apply to its contents.
     https://github.com/anthropics/claude-cookbooks
 
 Snapshot: `c43f56d0360b9b1f631bd090fd199231d4c880cc` (2026-10-29: model-default
-bumps only; previously `a162e0184e71` from 2026-10-17, `9c1e493d` and `d7265d6a`).
+bumps only; unmoved on 2026-11-02; previously `a162e0184e71` from 2026-10-17, `9c1e493d` and `d7265d6a`).
 The `claude_agent_sdk/` notebooks informed the hooks, MCP, session and hosting
 guidance; the `tool_evaluation/` notebook informed the tool-description advice;
 the OpenTelemetry tracing cookbook (`observability/opentelemetry_tracing.ipynb`)
@@ -70,8 +75,8 @@ No notebook content is redistributed.
     Copyright (c) Anthropic, PBC
     https://github.com/anthropics/skills
 
-Snapshot: `ca45fc496a3436251f191354091d557da31c15b5` (2026-10-29; the one new
-commit touches `mcp-builder` only; previously `dbd4588f`, unmoved from
+Snapshot: `ca45fc496a3436251f191354091d557da31c15b5` (2026-10-29, unmoved on
+2026-11-02; the one new commit touches `mcp-builder` only; previously `dbd4588f`, unmoved from
 2026-10-09 to 2026-10-24, and `8a1541c4`. The `skill-creator` content is
 byte-identical across all three). The grader design (burden of
 proof on the expectation, no partial credit, critique of weak assertions)
@@ -84,7 +89,7 @@ files apply to that repository's contents; nothing from it is redistributed.
     Licensed under the Apache License, Version 2.0
     https://github.com/anthropics/cwc-workshops
 
-Snapshot: `4c34ec4863df` (2026-10-17, unmoved on 2026-10-24 and 2026-10-29; previously `068b84bb`. The new commit adds
+Snapshot: `4c34ec4863df` (2026-10-17, unmoved on 2026-10-24, 2026-10-29 and 2026-11-02; previously `068b84bb`. The new commit adds
 a managed-agents workshop outside the part this plugin reads). The
 `eval-driven-agent-development` workshop's code-versus-judge grader split and
 baseline comparison informed the grader catalog. No files are redistributed.
@@ -95,7 +100,7 @@ baseline comparison informed the grader catalog. No files are redistributed.
     No repository-level license file at the snapshot
     https://github.com/anthropics/claude-agent-sdk-demos
 
-Snapshot: `826b2685` (unmoved since 2026-03-13; re-checked 2026-10-29). Used as
+Snapshot: `826b2685` (unmoved since 2026-03-13; re-checked 2026-11-02). Used as
 example projects for the read-only sweep that checks this plugin's static
 readers on real code. Nothing is redistributed.
 
@@ -106,7 +111,11 @@ Claude Code and Agent SDK documentation at `https://code.claude.com/docs/` and
 2026-10-11 at Claude Code 2.1.296 (85 pages), on 2026-10-17 at Claude Code
 2.1.302 (86 pages, adding `settings-reference`) and on **2026-10-24** at Claude
 Code **2.1.310** (the same 86 pages, none added or removed), and on
-**2026-10-29** at Claude Code **2.1.312** (the same 86 files, 58 pages changed);
+**2026-10-29** at Claude Code **2.1.312** (the same 86 files, 58 pages changed),
+and on **2026-11-02** at Claude Code **2.1.316** (the same 86 files, 31 pages
+byte-changed, nine with text changes), with the Messages API page on message
+threads (`https://platform.claude.com/docs/en/build-with-claude/message-threads`)
+added on 2026-11-02;
 every reference names the pages it distills and carries the re-read date in its
 `Sources:` footer. The TypeScript SDK repository, whose contents are under
 Anthropic's commercial terms, was consulted for its documentation only and
@@ -116,7 +125,8 @@ nothing from it is included.
 
 Anthropic's published engineering and product articles supply the design
 rationale in this plugin's references; current mechanics are always cited from
-the documentation above. Each was read on 2026-10-29 at the canonical URL below
+the documentation above. Articles 1–14 were read on 2026-10-29 and articles
+15–23 on 2026-11-02, each at the canonical URL below
 (the older engineering-blog paths under `anthropic.com` now redirect to
 `anthropic.com/research/<slug>`). The references **paraphrase** them, with at
 most a short attributed quote; no article text is reproduced at length, and the
@@ -138,6 +148,15 @@ articles remain Anthropic's.
 | 12 | "How we built Claude Code auto mode" | https://www.anthropic.com/research/claude-code-auto-mode | 2026-03-25 | `agent-harness/references/permission-model.md` |
 | 13 | "Making Claude Code safer with sandboxing" | https://www.anthropic.com/research/claude-code-sandboxing | 2025-10-20 | `agent-deploy/references/secure-deployment.md` |
 | 14 | "Infrastructure noise in agentic coding evals" | https://www.anthropic.com/research/infrastructure-noise | 2026-02-05 | `eval-run/references/running-in-ci.md`, `eval-run/references/cost-estimation.md`, `eval-analyze/references/reliability.md` |
+| 15 | "Make long-running agents faster with message threads" (a Messages API feature; the article does not mention the Agent SDK) | https://claude.com/resources/articles/message-threads | 2026-11-02 | `agent-harness/references/context-and-settings.md`, `agent-deploy/references/cost-controls.md`, `agent-sdk/references/glossary.md`, `agent-design` |
+| 16 | "How AI agents shape experts' judgment calls" | https://www.anthropic.com/research/agents-judgment-calls | 2026-10-27 | `eval-simulation/references/personas.md`, `eval-criteria/references/judge-options.md`, `eval-criteria/references/rubric-authoring.md`, `agent-create/references/eval-ready-architecture.md`, `agent-sdk/references/glossary.md`, `agent-design` |
+| 17 | "Investigating unintended model actions in our evaluations and internal use" (corrected 2026-10-12) | https://www.anthropic.com/research/investigating-unintended-model-actions | 2026-10-09 | `agent-deploy/references/secure-deployment.md`, `agent-debug/references/failure-shapes.md`, `eval-create/references/case-taxonomy.md` |
+| 18 | "Building a C compiler with parallel Claudes" | https://www.anthropic.com/research/building-c-compiler | 2026-02-05 | `agent-harness/references/subagent-design.md`, `agent-design` |
+| 19 | "An update on Claude Code quality reports" | https://www.anthropic.com/research/april-23-postmortem | 2026-04-23 | `agent-debug/references/failure-shapes.md`, `eval-run/references/running-in-ci.md` |
+| 20 | "Introducing advanced tool use for Claude" | https://www.anthropic.com/research/advanced-tool-use | 2025-11-24 | `agent-harness/references/mcp-patterns.md`, `agent-sdk/references/glossary.md`, `agent-design` |
+| 21 | "LLMs are making formal software verification feasible at a much larger scale" | https://www.anthropic.com/research/formal-verification | 2026-10-22 | `eval-run/references/cost-estimation.md`, `agent-design` |
+| 22 | "Donating Agent Skills to the Agentic AI Foundation" | https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation | 2026-10-22 | `agent-sdk/references/glossary.md`, `agent-design` |
+| 23 | "Redesigning source control at Anthropic" (updated 2026-10-15) | https://www.anthropic.com/research/redesigning-source-control | 2026-10-13 | `agent-deploy/references/hosting-options.md`, `agent-review/references/review-checklist.md` |
 
 Two articles cited before this set: "How we contain Claude across products"
 (https://www.anthropic.com/research/how-we-contain-claude, 2026-05-25), cited by
@@ -148,8 +167,10 @@ the last column are under `skills/`; `agent-design` means files of
 `skills/agent-design/` (its references and `scripts/_design.py`). Where an
 article and today's documentation disagree (for example the auto-mode article's
 statement that a headless run is terminated after repeated denials, which the
-permission-modes page no longer says), the references follow the documentation
-and say so.
+permission-modes page no longer says, or the advanced-tool-use article, which
+predates the Agent SDK's default-on tool search), the references follow the
+documentation and say so. Article 22 is the first one under
+`anthropic.com/news/`.
 
 ## Not included
 

@@ -29,6 +29,10 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN_ROOT / "skills"
 
 NEW_NOTE = "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.1.312 docs"
+#: A later sync may replace the note above with its own; either shows a re-read.
+LATER_REREAD_NOTES = (
+    "re-read 2026-11-02 against claude-agent-sdk 0.2.176 / claude code 2.1.316 docs",
+)
 
 
 def flat(text: str) -> str:
@@ -86,7 +90,8 @@ REREAD = (
 
 @pytest.mark.parametrize("name", REREAD)
 def test_every_reference_re_read_in_this_sync_carries_the_new_note(name):
-    assert NEW_NOTE in flat((SKILLS / name).read_text(encoding="utf-8"))
+    text = flat((SKILLS / name).read_text(encoding="utf-8"))
+    assert any(note in text for note in (NEW_NOTE, *LATER_REREAD_NOTES))
 
 
 # -- 2. 2.1.311 / 2.1.312 and docs facts ----------------------------------------
@@ -214,7 +219,9 @@ def test_no_skill_file_cites_the_old_engineering_path():
 
 def test_the_readme_states_the_docs_version_and_lists_agent_design():
     text = read("README.md")
-    assert "documentation read at claude code 2.1.312" in flat(text)
+    # 2.1.312 at this sync; the 2026-11-02 sync moved it to 2.1.316.
+    from agent_sdk_skills import DOCS_READ_AT_CLI
+    assert f"documentation read at claude code {DOCS_READ_AT_CLI}" in flat(text)
     rows = [line for line in text.splitlines() if line.lstrip().startswith("|")]
     assert any("/agent-sdk:agent-design" in row for row in rows), "a skill-table row"
 
@@ -229,8 +236,10 @@ def test_the_capability_map_counts_fourteen_skills():
     assert "fourteen skills" in flat(read("skills/agent-sdk/references/capability-map.md"))
 
 
-def test_the_runner_stale_rubric_names_0_2_0():
-    assert "0.2.0" in read("plugin-evals/runner-stale/graders/criteria.md")
+def test_the_runner_stale_rubric_names_the_current_runner_version():
+    # 0.2.0 at this sync; follows the current RUNNER_VERSION from 0.2.1 on.
+    from agent_sdk_skills import RUNNER_VERSION
+    assert RUNNER_VERSION in read("plugin-evals/runner-stale/graders/criteria.md")
 
 
 #: Lines that may keep `0.1.4` because they record history ("from 0.1.4",
@@ -265,9 +274,11 @@ def test_nothing_outside_history_still_calls_0_1_4_current():
 
 def test_the_aggregate_fixtures_still_count_as_results_dirs():
     """`results/` is skipped above only because `plugin-evals/results/` is
-    gitignored output; the fixtures under `tests/fixtures/results/` are checked here."""
+    gitignored output; the fixtures under `tests/fixtures/results/` are checked here.
+    0.2.0 at this sync; follows the current RUNNER_VERSION from 0.2.1 on."""
+    from agent_sdk_skills import RUNNER_VERSION
     for aggregate in (PLUGIN_ROOT / "tests" / "fixtures" / "results").glob("*/aggregate.json"):
-        assert '"runner_version": "0.2.0"' in aggregate.read_text(encoding="utf-8"), aggregate
+        assert f'"runner_version": "{RUNNER_VERSION}"' in aggregate.read_text(encoding="utf-8"), aggregate
 
 
 def test_the_new_skill_and_its_fixture_exist():
@@ -290,7 +301,7 @@ LANE_B_PRESENT = (
  ("skills/agent-harness/references/mcp-patterns.md", ("search over list", "response_format", "25,000 tokens", "max_mcp_output_tokens", "user_id", "150,000", "mcp_server_errors", "system/init", "destructivehint", "/agent-sdk:agent-design")),
  ("skills/agent-review/references/options-reference.md", ("plus one for the final text-only response", "num_turns 2", "stop_reason tool_use", "with no argument switches to claude code's default model", "af_vsock", "[1m]")),
  ("skills/agent-review/references/review-checklist.md", ("/agent-sdk:agent-design", "dsg0xx", "plus one for the final text-only response")),
- ("skills/agent-review/references/model-policy.md", ("as of 2026-10-29", "[1m]", "2.1.311", "claude_code_disable_refusal_fallback", "opus 5.5, sonnet 5.5 and haiku 5.5")),
+ ("skills/agent-review/references/model-policy.md", ("[1m]", "2.1.311", "claude_code_disable_refusal_fallback", "opus 5.5, sonnet 5.5 and haiku 5.5")),
  ("skills/agent-review/references/load-check.md", ("2.1.312",)),
  ("skills/agent-deploy/references/observability-otel.md", ("sent 2.1.307–2.1.311, no longer sent from 2.1.312", "the monitoring page read 2026-10-29 still documents it", '"config"', '"user_abort"', "the level in force", "mcp_server.name", "prometheus")),
  ("skills/agent-deploy/references/hosting-options.md", ("execute(name, input)", "rainbow deployments", "claude_code_model_catalog=off", "claude_code_simple_system_prompt=0", "lazily", "https://www.anthropic.com/research/managed-agents")),
@@ -316,10 +327,11 @@ LANE_B_PRESENT = (
  ("skills/agent-sdk/SKILL.md", ("`/agent-sdk:agent-design` (design review",)),
  ("skills/agent-harness/SKILL.md", ("/agent-sdk:agent-design",)),
  ("skills/agent-review/SKILL.md", ("/agent-sdk:agent-design",)),
- ("README.md", ("fourteen skills", "documentation read at claude code 2.1.312", "cited anthropic articles", "14 published anthropic articles")),
- ("THIRD_PARTY_NOTICES.md", ("27858cbba9ecee26a06a90b8d39d3b5596121d11", "58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102", "c43f56d0360b9b1f631bd090fd199231d4c880cc", "ca45fc496a3436251f191354091d557da31c15b5", "claude-plugins-official", "## cited anthropic articles", "https://www.anthropic.com/research/how-we-contain-claude, 2026-05-25", "https://www.anthropic.com/research/demystifying-evals-for-ai-agents, 2026-01-09")),
+ # The docs version and article count move each sync (2.1.316 and 23 from 2026-11-02).
+ ("README.md", ("fourteen skills", "cited anthropic articles")),
+ # The sdk-python and claude-code heads move each sync (2026-11-02: e0da9b9, 1a0f9a9).
+ ("THIRD_PARTY_NOTICES.md", ("c43f56d0360b9b1f631bd090fd199231d4c880cc", "ca45fc496a3436251f191354091d557da31c15b5", "claude-plugins-official", "## cited anthropic articles", "https://www.anthropic.com/research/how-we-contain-claude, 2026-05-25", "https://www.anthropic.com/research/demystifying-evals-for-ai-agents, 2026-01-09")),
  ("plugin-evals/README.md", ("2.1.312 help", "thirteen cases", "design-review")),
- ("plugin-evals/runner-stale/graders/criteria.md", ("0.2.0",)),
 )
 LANE_B_ABSENT = (
  ("skills/agent-harness/references/permission-model.md", ("shell-write", "touch` and `rm` reach")),

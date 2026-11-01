@@ -48,7 +48,7 @@ def test_the_runner_version_matches_the_library():
 
 
 def test_the_docs_read_at_version_matches_the_library():
-    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.312"
+    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.316"
 
 
 def test_the_option_list_matches_the_stub():
@@ -65,6 +65,34 @@ def test_the_option_list_matches_the_stub():
     live = tuple(sdk.ClaudeAgentOptions.__dataclass_fields__)
     assert len(runner.OPTION_NAMES) == 49
     assert runner.OPTION_NAMES == live
+
+
+#: The tuples above, as one list, for the checks that span all of them.
+_CONTRACT_TUPLES = (
+    "OPTION_NAMES", "OVERRIDABLE_OPTIONS", "RUNNER_OWNED_OPTIONS", "DEPRECATED_OPTIONS",
+    "SYNTHETIC_TOOLS", "SUBAGENT_TOOL_NAMES", "PYTHON_HOOK_EVENTS",
+    "HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT", "RESULT_SUBTYPES", "TERMINAL_REASONS",
+    "RATE_LIMIT_STATUSES", "PERMISSION_MODES", "SETTING_SOURCES", "EFFORT_LEVELS",
+)
+
+
+def test_on_failure_is_in_no_contract_constant():
+    """2026-11-02: `on_failure` is a `HookMatcher` field on upstream `main`
+    (`d38e51e`), not a `ClaudeAgentOptions` option, and not in the pinned 0.2.176.
+    The option list stays 49 names; nothing the runner or a case accepts names it."""
+    assert len(plugin.OPTION_NAMES) == len(runner.OPTION_NAMES) == 49
+    for name in _CONTRACT_TUPLES:
+        values = getattr(runner, name)
+        assert "on_failure" not in values and "onFailure" not in values, name
+
+
+def test_the_stub_hook_matcher_mirrors_the_pin_without_on_failure():
+    """The stub mirrors 0.2.176's `HookMatcher` (matcher, hooks, timeout). The live
+    twin is `test_hook_matcher_on_the_pin_has_no_on_failure` in
+    `tests/lib/test_sdk_surface_live.py`; flip both when the pin passes `d38e51e`."""
+    import claude_agent_sdk as sdk
+
+    assert tuple(sdk.HookMatcher.__dataclass_fields__) == ("matcher", "hooks", "timeout")
 
 
 def test_the_schema_strings_are_the_frozen_ones():
@@ -90,7 +118,7 @@ def test_the_result_file_carries_every_required_key(mini_evals: Path):
         config={"tier": "nightly", "model": "claude-sonnet-5-5",
                 "judge": {"model": "claude-sonnet-5-5", "samples": 3},
                 "isolation": {"setting_sources": [], "strict_mcp_config": True},
-                "cost_basis": "subscription", "sdk_version": "0.2.174", "cli_version": "2.1.310"},
+                "cost_basis": "subscription", "sdk_version": "0.2.176", "cli_version": "2.1.316"},
         runs=[RunRecord(run=1, trace="c.1.trace.jsonl", status="PASSED",
                         graders=[{"name": "g", "type": "regex", "status": "PASSED", "score": 1.0}],
                         result={"subtype": "success", "terminal_reason": "completed",
@@ -120,7 +148,7 @@ def test_the_aggregate_carries_every_required_key():
     from agent_sdk_evals.results import Aggregate, CaseResult, RunRecord
 
     aggregate = Aggregate(
-        tier="nightly", sdk_version="0.2.174", cli_version="2.1.310",
+        tier="nightly", sdk_version="0.2.176", cli_version="2.1.316",
         credential={"kind": "login", "cost_basis": "subscription", "plan": "max",
                     "auth_method": "claude.ai", "api_provider": "firstParty"},
         rate_limit={"status": "allowed_warning", "windows": {"seven_day": {"utilization": 0.83}}},

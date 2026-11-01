@@ -51,9 +51,23 @@ Two differences matter:
 bundled with the SDK the runner used; both are reported. Before **2.1.311**,
 `claude -p` and SDK sessions could save transcript messages **out of order** or
 keep messages that were taken back; a session file written by an older CLI
-(the 0.2.174 wheel bundles 2.1.310) can therefore disagree with the live
+(the 0.2.174 wheel bundled 2.1.310; the pinned 0.2.176 bundles 2.1.316) can therefore disagree with the live
 message stream. Prefer the runner's trace, which records the stream as it came,
 and order a session file by its `parentUuid` graph, never by line position.
+
+## When the CLI never started
+
+A run that fails at startup leaves no trace and no session file; the evidence
+is the exit code and stderr. The Claude Code `CHANGELOG.md` (2.1.314) says
+`claude -p` used to exit 0 with no output when startup failed and now prints the
+error and exits 1. Separately, measured by this plugin on 2026-11-02: six bad
+flags or configurations (a missing `--settings` file, invalid `--mcp-config`
+JSON, an unknown `--resume` id, a bad `--permission-mode`, invalid `--agents`
+JSON, a bad `--setting-sources`) all exited 1 with the error on stderr on both
+2.1.310 and 2.1.316, and through the SDK each raised `ProcessError` with
+`exit_code=1` on 0.2.174 and 0.2.176 (the message itself goes to the parent's
+stderr). The runner reports that as `NOT_EVALUATED` (exit 2), so read stderr
+before reading the agent.
 
 ## Capturing fresh evidence (spends)
 
@@ -72,5 +86,8 @@ session file in `.dev/VERIFIED-FACTS.md`; session storage per
 the parallel-call shape per the claude-agent-sdk-python `CHANGELOG.md` (0.2.170)
 and `_internal/sessions.py`;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs;
-the transcript-order fix per the Claude Code `CHANGELOG.md` (2.1.311). Re-read
-2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+the transcript-order fix per the Claude Code `CHANGELOG.md` (2.1.311) and the
+`-p` startup-failure line per the same changelog (2.1.314); the startup-failure
+exit codes and `ProcessError` measured by this plugin on 2026-11-02
+(`.dev/VERIFIED-FACTS.md`). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 /
+Claude Code 2.1.316 docs.

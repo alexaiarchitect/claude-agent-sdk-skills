@@ -127,6 +127,20 @@ Three published findings, as design guidance for the rubric and the judge set-up
   the author's taste and reduced score drift across iterations. Put two or three
   worked PASS/FAIL examples, with the reason for each, in a rubric that keeps
   flipping.
+- **Some answers cannot be checked against a reference.** For a judgment call
+  between reasonable options there is no right answer to grade, and a judge
+  comparing to one measures agreement with the rubric's author. *How AI agents
+  shape experts' judgment calls* (2026-10-27) could measure how far people
+  deferred to an agent only because it assigned the agent's lean at random
+  (with leans deliberately strengthened). The plugin's adaptation: run a
+  **mirrored pair** of simulated users with opposite stated leans on the same
+  case and the same graders, then compare the two recommendations — the same
+  in both means the agent judged; one that flips with the lean means it
+  deferred. Let the `llm` grader ask whether the agent gave the strongest case
+  for each option and asked for the user's reasons before recommending. Build
+  the pair with `gen_persona.py --lean` (see
+  `skills/eval-simulation/references/personas.md`, "A mirrored pair that
+  measures deferral"); it costs two simulated runs.
 
 ## Where judge graders belong
 
@@ -161,7 +175,11 @@ our multi-agent research system", 2025-06-13, the single 0.0–1.0 rubric call w
 a pass/fail grade, human review still needed);
 <https://www.anthropic.com/research/harness-design-long-running-apps> ("Harness
 design for long-running apps", 2026-03-24, evaluator separate from generator,
-leniency, few-shot score breakdowns against drift).
+leniency, few-shot score breakdowns against drift);
+<https://www.anthropic.com/research/agents-judgment-calls> ("How AI agents shape
+experts' judgment calls", 2026-10-27, deferral measured by randomising the lean
+rather than against a reference answer; the mirrored pair is this plugin's
+adaptation).
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
 Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

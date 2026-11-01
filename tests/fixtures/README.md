@@ -46,7 +46,7 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `sessions/one_turn.jsonl` | A real `claude -p` session file, scrubbed. The shape `load_session` must survive, and it has no cost line. |
 | `traces/max_turns_one.trace.jsonl` | One tool call under `max_turns=1`: `subtype: "error_max_turns"`, `stop_reason: "tool_use"`, `is_error: true`, `num_turns: 2`, no final text. Reports must name the "+1" sizing rule. |
 | `traces/refusal_success.trace.jsonl` | A refusal: `subtype: "success"` with `is_error: true` and `stop_reason: "refusal"`, whose text names a quota. Reports must call it a refusal, never an API error or a usage-limit hit. |
-| `traces/init_2_1_301.*`, `traces/init_2_1_310.*` | A measured `init` per bundled CLI (11 and 13 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). |
+| `traces/init_2_1_301.*`, `traces/init_2_1_310.*`, `traces/init_2_1_316.*` | A measured `init` per bundled CLI (11, 13 and 14 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). |
 | `sessions/escaped_chars.jsonl` | Two hand-written lines whose assistant text holds `\u0007`, `\u200b`, `\u007f` and `\u0085` escapes, the way Claude Code 2.1.311+ writes DEL, C1 and format characters. `load_session` must decode and keep them. |
 | `sessions/sdk_parallel_tools.jsonl` | One response that ran three tools in parallel: the transcript forks, and `load_session` must still emit every call, then every result, then the continuation. |
 | `sessions/sdk_with_tool.jsonl` | A real `entrypoint: "sdk-py"` session with three tool calls, scrubbed. It carries the `cost-state` and `system`/`stop_hook_summary` lines, which is what makes an imported cost testable. |
@@ -56,6 +56,7 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `results/import_failed/` | The runner never reached the agent: exit 2, reported apart from regressions. |
 | `mocks/library/` | The three good mocks. `mocks/broken/` carries one file per SIM id. |
 | `personas/impatient.json`, `faults/slow-lookup.json` | A persona and a hook fault-injection config. |
+| `personas/leaning_refund.json`, `personas/leaning_no_refund.json` | A mirrored pair with the same goal (refund member-42's Dune replacement fee, or keep it) and opposite stated leans, carrying the `gen_persona.py --lean` constraints and rubric; read together they measure deferral (added 2026-11-02). |
 | `frontmatter/` | Three sample headers (case, grader, mock) with their expected parse as JSON, so a second implementation of the frontmatter reader can be tested against the reference rather than against its author's memory. |
 
 `agents/good/evals/runner/` is deliberately absent. The runner copy is installed
@@ -130,6 +131,17 @@ became `/tmp/eval/run-1` and `/home/user/...`, the socket path, session id,
 uuids and message id became placeholders, the trace clock is one tick per
 second. No key material was in the measurement (`sk-ant` absent).
 
+**`traces/init_2_1_316.script.jsonl`** and **`traces/init_2_1_316.trace.jsonl`**
+come from one live `query()` on 2026-11-02 (SDK 0.2.176, bundled CLI 2.1.316,
+`claude-haiku-5-5`, `permission_mode` unset, API key;
+`.dev/measured/2026-11-02/live/a-permission-mode-none.jsonl`, $0.0019). Three
+messages, as on 2.1.310: the `init` (`permissionMode: "default"`, 14
+`capabilities` including the new `ask_user_question_unanswered_v1`, and the new
+undeclared key `ultrathink_available: false`), the reply and the result. The
+trace is what the 0.2.1 `Capture` writes from that script (it drops
+`ultrathink_available` like every other undeclared key), and a test regenerates
+it. Scrubbed as for 2.1.310; the trace clock is one tick per second.
+
 **`traces/refusal_success.trace.jsonl`** is the `happy` trace cut down to
 `init`, the user turn, the reply and the result, with the result rewritten to the
 shape the Python SDK docs (read at Claude Code 2.1.310) give for a refusal:
@@ -162,7 +174,7 @@ test also replays the SDK test's four result orders.
 
 **The SDK venv.** `tests/lib/test_sdk_surface_live.py` and the encoding test in
 `test_trace.py` need the real wheel. `tests/conftest.py` looks for it at
-`$AGENT_SDK_TEST_PYTHON`, then at `../tmp/venvs/casdk-venv-0.2.174/bin/python`
+`$AGENT_SDK_TEST_PYTHON`, then at `../tmp/venvs/casdk-venv-0.2.176/bin/python`
 next to the repo (`/Users/alex/Documents/Business/adk-evanl-skills/tmp/venvs/` on
 the machine that syncs it), then at the old `/tmp/casdk-venv-*` paths, and skips
 without one. It moved out of `/tmp` because macOS cleared it on 2026-10-22.

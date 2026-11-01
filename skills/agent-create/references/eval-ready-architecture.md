@@ -95,6 +95,13 @@ cost, so reach for it last and only where a rule cannot express the check. The
 same order serves the agent itself: an agent that can run the linter or the
 schema check on its own output catches mistakes before they compound.
 
+Judgment calls have no rule to check against. Where the agent recommends one of
+several reasonable options, have it give the best case for each and ask the
+user's own view before offering its pick: Anthropic's study of experts working
+with an agent found they mostly followed whichever option the agent leaned
+toward, without noticing — so design that in now, and test it with the mirrored
+persona pair in `/agent-sdk:eval-simulation`.
+
 ## The readiness checklist, as the script reports it
 
 | Check | Finding when missing | Why it blocks evaluation |
@@ -122,5 +129,8 @@ servers); https://code.claude.com/docs/en/agent-sdk/configuration (choosing a
 model); <https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk>
 ("Building agents with the Claude Agent SDK", 2025-09-29, the agent loop and the
 rules → visual feedback → LLM-as-judge verification ladder); the runner's grader
-types in `.dev/CONTRACTS.md` and `eval-criteria/references/grader-catalog.md`.
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+types in `.dev/CONTRACTS.md` and `eval-criteria/references/grader-catalog.md`;
+<https://www.anthropic.com/research/agents-judgment-calls> ("How AI agents shape
+experts' judgment calls", 2026-10-27, best case for each option and asking the
+user's view before recommending). Re-read 2026-11-02 against claude-agent-sdk
+0.2.176 / Claude Code 2.1.316 docs.

@@ -50,6 +50,25 @@ The article's browser tests had blind spots (native alert dialogs were
 invisible to its automation), and features behind them were buggier. Know what
 your verification cannot see.
 
+## Output the next session can use
+
+*Building a C compiler with parallel Claudes* (2026-02-05, article #18) ran
+agents for two weeks and designed the test harness for a reader with a small
+window and no sense of time:
+
+- **Print little, log the rest.** A few summary lines to the console, details
+  to a file; precomputed totals rather than raw dumps. Every error goes on one
+  line beginning `ERROR` with its reason, so `grep` finds it.
+- **A fast, deterministic sample.** A default fast mode ran a fixed 1 % or 10 %
+  sample of the tests per agent (different across agents), so a session did not
+  spend hours on full runs and regressions still showed up.
+- **Orientation files kept current.** Each fresh container started with no
+  context, so READMEs and progress files were updated often — the same job as
+  article #8's progress file.
+
+The article's caution applies to every long run: it is easy to watch tests
+pass and assume the job is done; the tests are only as good as their coverage.
+
 ## Generator and evaluator
 
 *Harness design for long-running apps* (2026-03-24) adds two findings:
@@ -133,4 +152,4 @@ service; in the Agent SDK, the transferable parts are:
 - `/agent-sdk:eval-criteria` for an `llm` grader as the separate evaluator;
   `/agent-sdk:agent-deploy` for hosting, session storage and sandboxing.
 
-Sources: https://www.anthropic.com/research/effective-harnesses-for-long-running-agents ("Effective harnesses for long-running agents", 2025-11-26, initializer and coding sessions, JSON feature list, progress file, git, one feature per session, session-start routine, end-to-end testing, the failure-mode table); https://www.anthropic.com/research/harness-design-long-running-apps ("Harness design for long-running apps", 2026-03-24, generator/evaluator split, gradable criteria, few-shot calibration, sprint contract, harness components as assumptions, reported costs and times); https://www.anthropic.com/research/managed-agents ("Scaling Managed Agents with stable interfaces", 2026-04-08, the session log outside the context window, a stateless harness); https://code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, turns and budget, automatic compaction, `PreCompact`); https://code.claude.com/docs/en/env-vars (read 2026-10-29, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`); https://code.claude.com/docs/en/agent-sdk/sessions (read 2026-10-29, resume); https://code.claude.com/docs/en/agent-sdk/session-storage (read 2026-10-29, `session_store`). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Sources: https://www.anthropic.com/research/effective-harnesses-for-long-running-agents ("Effective harnesses for long-running agents", 2025-11-26, initializer and coding sessions, JSON feature list, progress file, git, one feature per session, session-start routine, end-to-end testing, the failure-mode table); https://www.anthropic.com/research/harness-design-long-running-apps ("Harness design for long-running apps", 2026-03-24, generator/evaluator split, gradable criteria, few-shot calibration, sprint contract, harness components as assumptions, reported costs and times); https://www.anthropic.com/research/managed-agents ("Scaling Managed Agents with stable interfaces", 2026-04-08, the session log outside the context window, a stateless harness); https://code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, turns and budget, automatic compaction, `PreCompact`); https://code.claude.com/docs/en/env-vars (read 2026-10-29, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`); https://code.claude.com/docs/en/agent-sdk/sessions (read 2026-10-29, resume); https://code.claude.com/docs/en/agent-sdk/session-storage (read 2026-10-29, `session_store`); https://www.anthropic.com/research/building-c-compiler ("Building a C compiler with parallel Claudes", 2026-02-05, small grep-friendly console output, a deterministic fast test sample, READMEs and progress files kept current). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

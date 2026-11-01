@@ -137,21 +137,19 @@ It defaults to `"continue"`, and it has **no effect at all** on `Stop`,
 
 ## Released in 0.2.166 (gate as "0.2.166+")
 
-The pinned 0.2.174 has all of this; code that must run on 0.2.140–0.2.165 reads
+The pinned 0.2.176 (bundled CLI 2.1.316) has all of this; code that must run on 0.2.140–0.2.165 reads
 these fields with `.get()` and imports the new names behind a version check.
 
-- Richer hook inputs: `prompt_id` (the UUID of the prompt being processed,
-  matching the OpenTelemetry `prompt.id` attribute, absent until the first user
-  input) and `effort` (a `HookEffort`, `{level: str}`: the effort setting when
-  the hook runs, a skill's, subagent's or `ultrathink` level included, or the
-  level that ran if the model lacks yours; `$CLAUDE_EFFORT` holds the same in
-  command hooks) on tool-context inputs; `duration_ms` on `PostToolUse`
-  and `PostToolUseFailure` (tool execution time, excluding permission-prompt and
-  hook time); `last_assistant_message`, `background_tasks`
-  (`BackgroundTaskSummary`: shell, subagent, monitor or workflow) and
-  `session_crons` (`SessionCronSummary`: a cron expression and a prompt) on
-  `Stop` and `SubagentStop`. `agent_id`/`agent_type` move onto the four
-  tool-lifecycle inputs.
+- Richer hook inputs: `prompt_id` (the UUID of the prompt being processed, matching the
+  OpenTelemetry `prompt.id` attribute, absent until the first user input) and `effort`
+  (a `HookEffort`, `{level: str}`: the effort setting when the hook runs, a skill's,
+  subagent's or `ultrathink` level included, or the level that ran if the model lacks
+  yours; `$CLAUDE_EFFORT` holds the same in command hooks) on tool-context inputs;
+  `duration_ms` on `PostToolUse` and `PostToolUseFailure` (tool execution time, excluding
+  permission-prompt and hook time); `last_assistant_message`, `background_tasks`
+  (`BackgroundTaskSummary`: shell, subagent, monitor or workflow) and `session_crons`
+  (`SessionCronSummary`) on `Stop` and `SubagentStop`. `agent_id`/`agent_type` move
+  onto the four tool-lifecycle inputs.
 - **21 `*HookSpecificOutput` types, all exported** (8 existed in 0.2.165, only 4
   of them exported; 13 are new). **12 are for events that are still not
   registrable from Python** — `UserPromptExpansion`, `SessionStart`,
@@ -166,7 +164,7 @@ The ten `HookEvent` literals are **unchanged**, so nothing above widens what you
 may register. From 0.2.169 `SessionStart` and `Setup` hook events are emitted
 regardless of `include_hook_events`: `False` does not suppress them.
 
-## Claude Code changes that reach hook authors (2.1.299–2.1.312)
+## Claude Code changes that reach hook authors (2.1.299–2.1.316)
 
 - **`updatedInput` is validated like Claude's own input (2.1.300)** for
   `PreToolUse` and `PermissionRequest`: unknown keys are dropped, and input the
@@ -175,9 +173,8 @@ regardless of `include_hook_events`: `False` does not suppress them.
   it sees the typed `/skill …` line; blocking it also stops the skill's shell.
 - **A hook that cannot answer now refuses (2.1.299)**: an action a plugin hook
   can block is refused when the hook cannot be handed it or cannot answer.
-- **Hooks that start a background process**: print the decision first and
-  redirect the background process's output, or the call is blocked with
-  `refusing to honor the suspect capture`.
+- **Hooks that start a background process** print the decision first and
+  redirect its output, or the call is blocked (`refusing to honor the suspect capture`).
 - **Windows and PowerShell fail closed (2.1.299, 2.1.309, 2.1.310)**: a failing
   shell-form `PreToolUse`/`PermissionRequest` hook blocks the call, also without
   Git for Windows; for a PowerShell guard set `"onFailure": "block"`.
@@ -194,6 +191,12 @@ regardless of `include_hook_events`: `False` does not suppress them.
   (project, personal folder, each plugin) register at most 1,024 hooks and
   16,384 matcher characters per session; past it the debug log says
   `registers none of its hooks`.
+- **A `PreCompact` hook's output is cut at 10,000 characters (2.1.314)**; very
+  large output used to make compaction fail or repeat.
+- **Hooks matching `Bash` also run on the Monitor tool's shell commands
+  (2.1.314)**: they can block or ask, not approve or rewrite them; an `if`
+  condition such as `Monitor(tail *)` matches them as `Bash(tail *)` matches Bash's.
+  Both are changelog facts; the hooks page read 2026-11-02 doesn't carry them yet.
 - **`@` mentions bypass `PreToolUse`** (no tool call); a `Read` deny rule still
   blocks the path, and `CLAUDE_CODE_DISABLE_FILE_MENTIONS=1` (2.1.299+) makes
   Claude read it with its tools so the hooks run.
@@ -232,19 +235,16 @@ JSON output, per-event sections),
 <https://code.claude.com/docs/en/hooks#pretooluse> (`@` mentions, `"defer"`,
 `ask` in auto mode, `SubagentHandback`, `effort`, frontmatter-hook trust),
 <https://code.claude.com/docs/en/env-vars>,
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299,
-2.1.300, 2.1.302, 2.1.304, 2.1.309, 2.1.310, 2.1.311 `SubagentStop`, 2.1.312
-hook cap entries), the SDK `CHANGELOG.md`
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299–2.1.311,
+2.1.312 hook cap, 2.1.314 `PreCompact` cut and Monitor-tool hooks), the SDK `CHANGELOG.md`
 (0.2.169); `claude-agent-sdk` 0.2.174 `types.py:284-297` (`HookEvent`, ten literals),
-`:299-509` (hook input types), `:511-725` (`hookSpecificOutput` per event),
-`:728-815` (`HookJSONOutput`), `:818` (`HookContext`), `:828`
-(`HookCallback`), `:840` (`HookMatcher`), `:2531-2542` (concurrent dispatch),
+`:299-509` (hook input types), `:511-725` (`hookSpecificOutput` per event), `:728-815`
+(`HookJSONOutput`), `:818` (`HookContext`), `:828` (`HookCallback`), `:840` (`HookMatcher`), `:2531-2542` (concurrent dispatch),
 `:2554-2560` (`include_hook_events`), `:2190-2279`
 (`CanUseToolShadowedWarning`), `:614` (`StopHookSpecificOutput`), `:625`
 (`SubagentStopHookSpecificOutput`), `:299` (`HookEffort`). The "emits nothing
 without a registered hook" observation was measured by this plugin on
 2026-09-30. The 0.2.166+ list was first read from the SDK repository at
-`b6e9d12f` on 2026-10-11 and checked against the 0.2.174 wheel on 2026-10-24.
-Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
-docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+`b6e9d12f` on 2026-10-11 and checked against the 0.2.174 wheel on 2026-10-24
+(`types.py` byte-identical in 0.2.176). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
+Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

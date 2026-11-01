@@ -83,5 +83,4 @@ the standard unbiased form; the pass@k versus pass^k distinction follows
 ("Demystifying evals for AI agents", 2026-01-09, pass@k versus pass^k);
 <https://www.anthropic.com/research/infrastructure-noise> ("Infrastructure noise
 in agentic coding evals", 2026-02-05, resource configuration, repeats across
-times and days, the 3-point threshold). Re-read 2026-10-29 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+times and days, the 3-point threshold). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

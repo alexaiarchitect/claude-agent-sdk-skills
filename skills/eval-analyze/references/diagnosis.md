@@ -62,5 +62,4 @@ Sources: this plugin's `lib/agent_sdk_skills/trajectory.py` and
 framing follows Anthropic's engineering post
 <https://www.anthropic.com/research/demystifying-evals-for-ai-agents>
 ("Demystifying evals for AI agents", 2026-01-09, judging outcomes versus
-trajectories). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.312 docs.
+trajectories). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

@@ -27,6 +27,7 @@ NEW_NOTE = "re-read 2026-10-24 against claude-agent-sdk 0.2.174 / claude code 2.
 #: A later sync may replace the note above with its own; either shows a re-read.
 LATER_REREAD_NOTES = (
     "re-read 2026-10-29 against claude-agent-sdk 0.2.174 / claude code 2.1.312 docs",
+    "re-read 2026-11-02 against claude-agent-sdk 0.2.176 / claude code 2.1.316 docs",
 )
 
 
@@ -127,14 +128,16 @@ def test_no_reference_names_2_1_302_docs_without_the_2_1_310_re_read():
     for path in SKILLS.rglob("*.md"):
         text = flat(path.read_text(encoding="utf-8"))
         if ("2.1.302 docs" in text or "read at 2.1.302" in text) \
-                and "2.1.310" not in text and "2.1.312" not in text:
+                and "2.1.310" not in text and "2.1.312" not in text and "2.1.316" not in text:
             offenders.append(str(path.relative_to(PLUGIN_ROOT)))
     assert offenders == []
 
 
 def test_the_readme_states_the_new_pin():
     text = flat(read("README.md"))
-    assert "0.2.174" in text and "2.1.310" in text
+    # 0.2.174 / 2.1.310 at this sync; follows the current pin from 0.2.176 on.
+    from agent_sdk_skills import CLI_BUNDLED_WITH_TARGET, SDK_TARGET
+    assert SDK_TARGET in text and CLI_BUNDLED_WITH_TARGET in text
     assert "checked against `claude-agent-sdk` 0.2.168" not in text
     assert "documentation read at 2.1.302" not in text
 
@@ -254,7 +257,8 @@ LANE_B_PRESENT = (
     ("skills/eval-simulation/references/fault-injection.md", ("tool_deferred_unavailable",)),
     ("skills/agent-sdk/references/glossary.md", ("tool_deferred_unavailable", "agent(fork)")),
     ("skills/agent-debug/references/evidence.md", ("stop_reason", "0.2.170")),
-    ("skills/agent-sdk/SKILL.md", ("0.2.174 with bundled claude code 2.1.310",)),
+    # The router's pin sentence moves each sync (0.2.176 / 2.1.316 from 2026-11-02).
+    ("skills/agent-sdk/SKILL.md", ("with bundled claude code",)),
     ("skills/agent-sdk/references/environment.md", ("0.2.174",)),
     ("skills/agent-review/SKILL.md", ("stop_reason",)),
     ("plugin-evals/README.md", ("2.1.310 help",)),

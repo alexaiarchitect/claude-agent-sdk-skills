@@ -16,7 +16,7 @@ order:
 Two rules from the docs that surprise people:
 
 - **The API key wins.** "When set, this key is used instead of your Claude
-  Pro, Max, Team, or Enterprise subscription even if you are logged in. In
+  Pro, Max, Ultra, Team, or Enterprise subscription even if you are logged in. In
   non-interactive mode the key is always used when present." To run on the
   subscription, `unset ANTHROPIC_API_KEY`.
 - **The SDK does not load `.env` files.** "The SDK reads the key from the
@@ -112,15 +112,27 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/check_env.py <project-dir>
 reports the credential and its source, the cost basis, the interpreter and SDK
 version, and the model with its policy grade, and exits 1 with the blockers
 listed when a run would fail. It also prints which versions the plugin was
-checked against — `claude-agent-sdk` **0.2.174** with its bundled Claude Code
-**2.1.310** — and raises **`ENV003`** at info level when the installed SDK is
+checked against — `claude-agent-sdk` **0.2.176** with its bundled Claude Code
+**2.1.316** — and raises **`ENV003`** at info level when the installed SDK is
 *newer* than that target. `ENV003` is never an error: a newer SDK is expected to
 work, and the note exists so a surprising behaviour can be attributed to the
 version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
 The documentation behind this plugin's references was read at Claude Code
-**2.1.312** (2026-10-29), two releases past the bundled 2.1.310: a behaviour a
-reference dates to 2.1.311 or 2.1.312 reaches an SDK agent only through
-`cli_path` pointing at a newer `claude`, or a later SDK release.
+**2.1.316** (2026-11-02; before that at 2.1.312 on 2026-10-29), the same build
+0.2.176 bundles (and the Homebrew `claude` on the build machine); 0.2.175 and 0.2.176 changed only the bundled CLI,
+and `types.py` is byte-identical to 0.2.174. The **Ultra** plan now appears in
+every docs list of subscription plans (Pro, Max, Ultra, Team, Enterprise).
+
+A `claude -p` (or SDK) child that cannot start fails loudly. The Claude Code
+`CHANGELOG.md` (2.1.314) says `-p` used to exit 0 with no output when startup
+failed and now prints the error and exits 1. Separately, this plugin measured on
+2026-11-02 six bad flags or configs (`--settings` to a missing file, invalid
+`--mcp-config` or `--agents` JSON, an unknown `--resume` id, a bad
+`--permission-mode`, a bad `--setting-sources`): each exited 1 with the error on
+stderr on both 2.1.310 and 2.1.316, and the SDK raised `ProcessError`
+(`exit_code=1`) on 0.2.174 and 0.2.176 alike. On 2.1.316 the init message lists
+14 `capabilities` (new: `ask_user_question_unanswered_v1`) and a new
+`ultrathink_available` key; read both with `.get()`.
 
 ---
 
@@ -138,5 +150,7 @@ this plugin's `lib/agent_sdk_skills/env.py`,
 `https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md` (2.1.302
 unset-mode default). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 /
 Claude Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
-Claude Code 2.1.310 docs. Re-read 2026-10-29 against claude-agent-sdk 0.2.174 /
-Claude Code 2.1.312 docs (pins unchanged: no SDK release since 0.2.174).
+Claude Code 2.1.310 docs. The `-p` startup-failure and Ultra notes per the Claude Code `CHANGELOG.md`
+(2.1.314) and the `authentication` docs; exit codes, init `capabilities` and
+`ultrathink_available` measured by this plugin on 2026-11-02. Re-read 2026-11-02
+against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

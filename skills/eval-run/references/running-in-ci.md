@@ -71,6 +71,34 @@ For a CI gate that means:
   until the eval configuration is documented and matched", and a suite of
   twenty cases moves 5 points when one case flips.
 
+## Test the build you ship, on every prompt change
+
+*An update on Claude Code quality reports* (2026-04-23) traced weeks of reported
+quality loss to three harness changes — a lower default effort, a cache
+optimisation that dropped earlier reasoning every turn, and one verbosity line
+in the system prompt — not to the model or the API. Each hit a different slice
+of traffic on a different schedule, so together they looked like vague,
+inconsistent degradation. Anthropic's fixes translate directly to a CI gate:
+
+- run the suite on **every system-prompt change**, per model if the agent can
+  run on more than one (a matrix over `CLAUDE_MODEL`), not only on code
+  changes;
+- run it on the **exact build that ships**: the SDK version from the lockfile
+  and the CLI it bundles, which the run's `init` event records as
+  `claude_code_version`; a gate that runs a newer or older `claude` (through
+  `cli_path` or `PATH`) tests something else;
+- keep `effort` explicit in the options, since a changed default moves scores
+  without a line of your code changing. The article's effort figures are April
+  2026 history; current defaults are in the `model-config` docs.
+
+A run whose CLI cannot start is not a failed case. The Claude Code
+`CHANGELOG.md` (2.1.314) says `claude -p` used to exit 0 with no output when
+startup failed and now prints the error and exits 1. Separately, this plugin
+measured on 2026-11-02 six bad flags or configs that exited 1 with the error on
+stderr on both 2.1.310 and 2.1.316; through the SDK the same failure raises
+`ProcessError` (`exit_code=1`), which the runner records as a
+`NOT_EVALUATED` run with the reason, never as a pass or a regression.
+
 ## The other shape: `claude-code-action`
 
 `anthropics/claude-code-action@v1` runs Claude Code itself in a job and accepts
@@ -95,5 +123,9 @@ Claude Code 2.1.296 docs. The 2.1.302 unset-mode rule is stated at
 Claude Code 2.1.310 docs. <https://www.anthropic.com/research/infrastructure-noise>
 ("Infrastructure noise in agentic coding evals", 2026-02-05, resource
 configuration as an experimental variable, repeats across times and days, the
-3-point threshold). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude
-Code 2.1.312 docs.
+3-point threshold).
+<https://www.anthropic.com/research/april-23-postmortem> ("An update on Claude
+Code quality reports", 2026-04-23, three harness changes that looked like model
+drift, per-model evals on every system-prompt change, testing the exact public
+build); the `-p` startup exit code per the Claude Code `CHANGELOG.md` (2.1.314)
+and measured by this plugin on 2026-11-02 (2.1.310 and 2.1.316). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

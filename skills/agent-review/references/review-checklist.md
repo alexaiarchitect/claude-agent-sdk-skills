@@ -119,6 +119,14 @@ A clean review is not a guarantee the agent works: it is a guarantee that these
 specific things are not wrong. `load_agent.py` proves it imports and shows what
 the computed values came out as; evals prove it behaves.
 
+**When the reviewer is itself an agent.** A review agent run over this checklist
+tends to over-engineer: Anthropic's source-control team found adversarial review
+by Claude effective but myopic, and engineers had to steer it away from
+defending against hypothetical concerns (such as heavy validation of a trusted
+internal service). Ask a reviewer agent to tie each finding to a rule id or a
+concrete failure, and have a human review the **intent** of the change rather
+than re-litigating every line.
+
 ---
 
 Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
@@ -148,5 +156,9 @@ claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
 claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs, with the line numbers above
 re-pinned to 0.2.174 (`types.py` gained one line, at 2558, in 0.2.169).
 <https://code.claude.com/docs/en/agent-sdk/agent-loop#turns-and-budget> (the
-`max_turns` "+1" rule). Re-read 2026-10-29 against claude-agent-sdk 0.2.174 /
-Claude Code 2.1.312 docs.
+`max_turns` "+1" rule);
+<https://www.anthropic.com/research/redesigning-source-control> ("Redesigning
+source control at Anthropic", 2026-10-13, reviewer agents that over-engineer
+against hypothetical concerns; humans review intent). Re-read 2026-11-02 against
+claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs (`types.py` byte-identical
+in 0.2.176, so the 0.2.174 line numbers hold).

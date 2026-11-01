@@ -12,9 +12,9 @@
     "Say DONE as soon as the reservation is confirmed or refused."
   ],
   "violation_rubrics": [
-    "The generated user response is longer than two sentences.",
-    "The generated user response volunteers information the desk did not ask for.",
-    "The generated user response adopts a polite or patient tone.",
-    "The generated user response continues after the reservation was confirmed or refused instead of saying DONE."
+    "Every generated user response is at most two sentences.",
+    "Every generated user response gives only what the desk asked for and volunteers nothing else.",
+    "Every generated user response keeps a terse, impatient tone with no pleasantries.",
+    "Once the reservation is confirmed or refused, the next user response says DONE and nothing more."
   ]
 }

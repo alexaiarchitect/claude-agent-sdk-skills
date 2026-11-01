@@ -82,6 +82,36 @@ The Agent SDK article orders verification methods from most to least robust:
 Climb only as far as you must. A rule that can decide should never be replaced
 by a judge.
 
+**Rules can be very strong.** *LLMs are making formal software verification
+feasible at a much larger scale* (2026-10-22, article #21) is the extreme case of
+the first rung: Claude wrote the proofs and an outside proof checker accepted
+or rejected them, so only the checker and the statements needed human review.
+The same article shows the rung's weak point: an agent allowed to change what
+it is checked against can trivialise the task (rewrite the program so the claim
+holds vacuously). It penalised every patch and logged each one for audit. In an
+SDK agent, keep the checker and its inputs outside what the agent may edit — a
+`PreToolUse` hook or `disallowed_tools` on the test files — and grade any
+change to them separately.
+
+## When the user has to decide
+
+Some tasks have no right answer to verify: a judgment call between reasonable
+options. *How AI agents shape experts' judgment calls* (2026-10-27, article #16)
+gave analysts a Claude Code agent whose lean on each choice was assigned at
+random and deliberately strengthened; they went with the agent's lean 86 % of
+the time and rarely noticed. That figure comes from strengthened, assigned
+leans, not a base rate, but the direction is the design point. Its suggestions,
+which the authors offer as ideas to test rather than proven fixes:
+
+- **Make the strongest case for each option**, not only the preferred one.
+- **Ask for the user's own view before recommending** one.
+- **Watch the tone**: a model that sounds very sure tilts people more than its
+  evidence warrants (a hedging one irritates instead).
+
+Put these in the system prompt of an agent that advises on decisions, and
+measure them: `/agent-sdk:eval-simulation` builds a mirrored pair of simulated
+users with opposite leans to test whether the agent defers.
+
 ## Testing and improving the agent
 
 The Agent SDK article's questions, applied to a failing transcript:
@@ -118,4 +148,4 @@ article spent more time on its tools than on the prompt. See
 - Writing the agent itself: `/agent-sdk-dev:new-sdk-app`, then
   `/agent-sdk:agent-create` for the eval-ready layout.
 
-Sources: https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk ("Building agents with the Claude Agent SDK", 2025-09-29, the gather/act/verify loop, agentic search, the verification ladder and the testing questions); https://www.anthropic.com/research/building-effective-agents ("Building effective AI agents", 2024-12-19, workflows against agents, the five patterns, stopping conditions, the three principles; the page's own banner says its tooling has changed); https://code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, turns and budget incl. the plus-one rule for `max_turns`, parallel tool execution, compaction); https://code.claude.com/docs/en/agent-sdk/subagents (read 2026-10-29, background launch and `model` per `AgentDefinition`); https://code.claude.com/docs/en/agent-sdk/custom-tools (read 2026-10-29, `readOnlyHint` and `is_error`); https://code.claude.com/docs/en/agent-sdk/structured-outputs (read 2026-10-29, `output_format`). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Sources: https://claude.com/resources/articles/building-agents-with-the-claude-agent-sdk ("Building agents with the Claude Agent SDK", 2025-09-29, the gather/act/verify loop, agentic search, the verification ladder and the testing questions); https://www.anthropic.com/research/building-effective-agents ("Building effective AI agents", 2024-12-19, workflows against agents, the five patterns, stopping conditions, the three principles; the page's own banner says its tooling has changed); https://code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, turns and budget incl. the plus-one rule for `max_turns`, parallel tool execution, compaction); https://code.claude.com/docs/en/agent-sdk/subagents (read 2026-10-29, background launch and `model` per `AgentDefinition`); https://code.claude.com/docs/en/agent-sdk/custom-tools (read 2026-10-29, `readOnlyHint` and `is_error`); https://code.claude.com/docs/en/agent-sdk/structured-outputs (read 2026-10-29, `output_format`); https://www.anthropic.com/research/formal-verification ("LLMs are making formal software verification feasible at a much larger scale", 2026-10-22, the agent writes and an outside checker validates, guarding against patches that trivialise the claim); https://www.anthropic.com/research/agents-judgment-calls ("How AI agents shape experts' judgment calls", 2026-10-27, deferral to an assigned lean, the strongest case for each option, asking the user's view first, overconfident tone). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

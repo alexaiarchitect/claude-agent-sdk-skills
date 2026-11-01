@@ -185,10 +185,12 @@ def test_references_cite_the_current_docs_host(reference):
     assert "docs.anthropic.com" not in text
 
 
-#: An Anthropic article citation: `anthropic.com/research|engineering/<slug>` or
-#: `claude.com/...` (never `code.claude.com`, which the scheme anchor excludes).
+#: An Anthropic article citation: `anthropic.com/research|engineering|news/<slug>`
+#: or `claude.com/...` (never `code.claude.com`, which the scheme anchor excludes).
+#: `news/` joined on 2026-11-02 for "Donating Agent Skills to the Agentic AI
+#: Foundation" (2026-10-22), the first cited article published there.
 ARTICLE_URL = re.compile(
-    r"https?://(?:www\.)?(?:anthropic\.com/(?:research|engineering)/|claude\.com/)[^\s`>)\"']+")
+    r"https?://(?:www\.)?(?:anthropic\.com/(?:research|engineering|news)/|claude\.com/)[^\s`>)\"']+")
 ANY_URL = re.compile(r"https?://")
 DATED_PARENTHETICAL = re.compile(r"\(.*?20\d\d-\d\d-\d\d", re.DOTALL)
 

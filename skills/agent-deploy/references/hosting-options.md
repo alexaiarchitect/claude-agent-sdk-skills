@@ -96,7 +96,7 @@ running estimate can pass the value before the query stops, so the instance
 budget needs headroom above it. And the cache-read price depends on which CLI
 the image carries — the platform list price for a Sonnet 5.5 cache read is
 **$0.10/Mtok**, which the CLI 2.1.310 bundled with `claude-agent-sdk` 0.2.174
-charges (measured 2026-10-24, as 2.1.301 did on 2026-10-17), while the 2.1.294 bundled with 0.2.165 charged
+(the pin before 0.2.176) charges (measured 2026-10-24, as 2.1.301 did on 2026-10-17), while the 2.1.294 bundled with 0.2.165 charged
 **$0.20/Mtok** (measured 2026-10-11). Pin the SDK version in the image and
 record it beside any cost figure.
 
@@ -119,15 +119,25 @@ standard-context session whose request passes 200K tokens compacts and
 continues instead of stopping with "Usage credits required for 1M context".
 
 **Bedrock, Vertex, Foundry (from the changelog; `CLAUDE_CODE_MODEL_CATALOG` is
-not on the env-vars page read 2026-10-29).**
+not on the env-vars page read 2026-11-02).**
 From 2.1.311 Claude Code on those providers (and Mantle) loads model settings
 from a signed file on downloads.claude.ai; `CLAUDE_CODE_MODEL_CATALOG=off`
 turns that off, which an image without that egress needs. From 2.1.312 a model
 name Claude Code does not recognise there (a custom deployment name, an
 inference-profile ARN) gets the shorter system prompt even when it fronts
 Sonnet or Haiku; `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0` keeps the full prompt.
-These ship in CLIs newer than the 2.1.310 bundled with 0.2.174, so they apply
-only with `cli_path` pointing at a newer `claude`.
+They were newer than the 2.1.310 bundled with 0.2.174; the 2.1.316 bundled with
+the pinned 0.2.176 carries them.
+
+**When agents are the main clients of your repository.** Anthropic's
+source-control team reports that agents and jobs became nearly all of its
+monorepo's clients (merges grew more than tenfold in four months) and drew three
+lessons that carry over to any fleet of coding agents: a merge queue behind a
+**global lock** does not scale, so invest in post-merge and pre-deploy automated
+testing instead; expose every source-control query an agent needs (history,
+blame, file at a revision) as an **API**, so a job often needs no checkout at all;
+and expect many short, always-online clients rather than a few long-lived ones.
+Its system is internal; the lessons are what to borrow.
 
 ## Known limitations worth planning around
 
@@ -142,7 +152,9 @@ only with `cli_path` pointing at a newer `claude`.
   dropped; from 2.1.302 such runs "start in Manual mode" (`default`), where an
   unapproved call is denied. Pass it explicitly.
 - A session pinned to a container dies with it unless a `SessionStore` is
-  configured.
+  configured. From **2.1.316** shell commands are no longer left running on
+  macOS and Linux when Claude Code exits by itself (refused credentials, an
+  archived cloud session); on an older CLI, reap them with the container.
 - `SessionStore` mirror writes are best-effort: when a batch cannot be
   delivered the SDK drops it, emits a `{"type": "system", "subtype":
   "mirror_error"}` message and continues. Alert on those if durability matters.
@@ -179,9 +191,13 @@ stable interfaces", 2026-04-08, session log outside the context window,
 stateless harness, sandbox as a tool, credentials outside the sandbox, lazy
 provisioning); <https://www.anthropic.com/research/multi-agent-research-system>
 ("How we built our multi-agent research system", 2025-06-13, resume from
-checkpoints, rainbow deployments, tracing without contents). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
+checkpoints, rainbow deployments, tracing without contents);
+<https://www.anthropic.com/research/redesigning-source-control> ("Redesigning
+source control at Anthropic", 2026-10-13, agents as the main repository clients,
+post-merge testing over global locks, source-control queries as APIs); Claude
+Code `CHANGELOG.md` 2.1.316 (shell commands on self-exit). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
 was measured by this plugin on 2026-10-11, the $0.10/Mtok of 2.1.301 on
 2026-10-17 and of 2.1.310 on 2026-10-24. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-02 against
+claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

@@ -10,11 +10,11 @@ description: >-
   file against the loaders the runner actually uses, and says what each lever
   costs before anything runs. Use when asked to "mock the MCP server", "test a
   multi-turn conversation", "simulate an impatient user", "test what happens
-  when the tool fails", "add latency", "inject a fault", or "why did my persona
-  case pass". Don't use to write ordinary cases (use `/agent-sdk:eval-create`),
-  to choose graders or rubrics (use `/agent-sdk:eval-criteria`), to validate a
-  whole suite (use `/agent-sdk:eval-review`), or to run anything (use
-  `/agent-sdk:eval-run`).
+  when the tool fails", "add latency", "inject a fault", "does my agent just
+  agree with the user", or "why did my persona case pass". Don't use to write
+  ordinary cases (use `/agent-sdk:eval-create`), to choose graders or rubrics
+  (use `/agent-sdk:eval-criteria`), to validate a whole suite (use
+  `/agent-sdk:eval-review`), or to run anything (use `/agent-sdk:eval-run`).
 argument-hint: "[project-dir] [--mocks | --persona NAME | --faults TOOL]"
 allowed-tools: Read, Grep, Glob, Write, AskUserQuestion, Skill, Bash(python3 *)
 ---
@@ -66,11 +66,20 @@ Use it verbatim; a sibling skill's scripts are at
    python3 ${CLAUDE_SKILL_DIR}/scripts/gen_persona.py <project> --name impatient \
      --behaviour "Never volunteer your member id." \
      --violation "the user never states a member id unless asked twice" --dry-run
+   python3 ${CLAUDE_SKILL_DIR}/scripts/gen_persona.py <project> --name leaning-refund \
+     --goal "decide whether to refund member-42's replacement fee" \
+     --lean "refunding the replacement fee" --defaults --dry-run
    python3 ${CLAUDE_SKILL_DIR}/scripts/gen_faults.py <project> \
      --tool mcp__library__lookup_book --error "catalog service timed out" --dry-run
    ```
 
-   Nothing is overwritten without `--force`.
+   Nothing is overwritten without `--force`. `--lean "<stance>"` is for a
+   judgement call with no right answer: it makes a user who states a lean, and
+   its plan names the **mirror** (same `--goal`, opposite `--lean`). Generate
+   both, run both with the same graders, and read them as a pair: a
+   recommendation that flips with the lean is deferral. See
+   "A mirrored pair that measures deferral" in
+   [personas.md](references/personas.md).
 
 5. **Wire and validate.** Add `mocks:`, `simulated_user:` or `faults:` to the
    case that uses it, then re-run `validate_sim.py <project> --strict`. Hand
@@ -138,7 +147,7 @@ Use it verbatim; a sibling skill's scripts are at
 | Command | Does | Exit codes |
 |---|---|---|
 | `scripts/gen_mocks.py <project> [--server N] [--tool N] [--from-agent] [--out D] [--force] [--dry-run] [--json]` | one mock per in-process `@tool` from its declared schema; a TODO stub per external server | 0 written or planned, 1 nothing to generate, 2 usage |
-| `scripts/gen_persona.py <project> --name N [--goal T] [--style T] [--opening T] [--behaviour T]... [--violation T]... [--max-turns N] [--stop-marker M] [--model M] [--out P] [--force] [--dry-run] [--json]` | a persona in the exact shape `simulate.Persona` loads | 0 written or planned, 1 nothing written, 2 usage incl. no `--violation` (`SIM001`) |
+| `scripts/gen_persona.py <project> --name N [--goal T] [--style T] [--opening T] [--behaviour T]... [--violation T]... [--lean STANCE] [--max-turns N] [--stop-marker M] [--model M] [--out P] [--force] [--dry-run] [--json]` | a persona in the exact shape `simulate.Persona` loads | 0 written or planned, 1 nothing written, 2 usage incl. no `--violation` (`SIM001`) |
 | `scripts/gen_faults.py <project> --tool N [--error T] [--latency-ms N] [--probability P] [--seed N] [--id I] [--out P] [--force] [--dry-run] [--json]` | a faults file in the exact shape `faults.load_plan` reads | 0 written or planned, 1 nothing written, 2 usage incl. `SIM002`, `SIM021` |
 | `scripts/validate_sim.py <project> [--strict] [--json]` | every mock, persona, faults file and the cases that reference them | 0 clean, 1 findings, 2 no project or no `evals/` |
 

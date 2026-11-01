@@ -1,7 +1,7 @@
 # `ClaudeAgentOptions`: all 49 fields
 
 Read from the installed dataclass, `claude-agent-sdk` 0.2.174
-(`types.py:2326-2786`). It is a plain `@dataclass`, so an unknown or misspelled
+(`types.py:2326-2786`; byte-identical in the pinned 0.2.176). It is a plain `@dataclass`, so an unknown or misspelled
 keyword raises `TypeError` at construction, and `dataclasses.replace()` works
 for per-case overrides.
 
@@ -203,13 +203,14 @@ assert state through files, `structured_output` or mock call records.
 `version?`), `plugin_errors?`, `fast_mode_state?` (`off`/`cooldown`/`on`),
 `fast_mode_disabled_reason?` (`sdk_opt_in_required` measured; newer CLIs may send
 others) and `capabilities?`. Use `capabilities` to **feature-detect instead of
-comparing versions**, ignoring unknown strings: CLI 2.1.310 sent 13 (the
+comparing versions**, ignoring unknown strings: CLI 2.1.316 sent 14 (the
 `interrupt_*_v1` four, `msg_lifecycle_v1`, `request_marker_lists_v1`,
-`lifecycle_wakeup_source_v1`, `sdk_mcp_tools_list_changed`, `sdk_mcp_manifests`,
-`mcp_read_resource_v1`, `mcp_tool_ui_meta_v1`, `ui_surface_v1`,
-`mcp_call_result_not_for_model_v1`; the same 13 again on 2026-10-29), 2.1.301
-sent 11, 2.1.292 sent 9. Read every key with `.get()`: 2.1.301 and 2.1.310 also
-sent undeclared keys (`original_cwd`, `memory_paths`, `view_mode`, …).
+`ask_user_question_unanswered_v1` (new), `lifecycle_wakeup_source_v1`,
+`sdk_mcp_tools_list_changed`, `sdk_mcp_manifests`, `mcp_read_resource_v1`,
+`mcp_tool_ui_meta_v1`, `ui_surface_v1`, `mcp_call_result_not_for_model_v1`);
+2.1.310 sent the other 13, 2.1.301 11, 2.1.292 9. Read every key with `.get()`:
+CLIs also send undeclared keys (`original_cwd`, `memory_paths`, `view_mode`, and
+from 2.1.316 `ultrathink_available`).
 `SandboxSettings.ignoreViolations` is now `dict[str, list[str]]` — a command
 pattern (`"*"` for all) to violation-text substrings, affecting reporting only;
 the Python docs page still shows the old `{file, network}` shape.
@@ -242,9 +243,8 @@ declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 `max_turns=1 -> num_turns=2` result was measured by this plugin on 2026-09-30;
 `costBasis`, `thinkingTokens` and the two-model `model_usage` 2026-10-11 (SDK
 0.2.165, CLI 2.1.294); the init keys, capabilities and fast-mode values
-2026-10-17 (CLI 2.1.301, 2.1.292) and 2026-10-24 (CLI 2.1.310). Re-read
-2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
-2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs, with
-every line number re-pinned to 0.2.174. The `max_turns=1` result was measured
-again 2026-10-29 (CLI 2.1.310); `[1m]` from the 2.1.311 changelog. Re-read
-2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+2026-10-17 (CLI 2.1.301, 2.1.292), 2026-10-24 (CLI 2.1.310) and 2026-11-02 (CLI
+2.1.316). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
+2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
+2.1.310 docs (line numbers re-pinned); `max_turns=1` re-measured 2026-10-29;
+`[1m]` from the 2.1.311 changelog. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

@@ -109,6 +109,23 @@ meaning is given first.
   options, tools, hooks, permissions, compaction, the files a long run reads
   and writes between sessions. In this plugin's file names it also means the
   wiring `/agent-sdk:agent-harness` checks.
+- **Message thread** — a Messages API (Claude Platform) beta: the first request
+  starts a thread with the whole conversation, later ones send only the new
+  messages plus the previous response's id; a thread expires 5 minutes after its
+  last request. Same billed tokens, lower time to first token. A platform fact:
+  nothing documents the Agent SDK using or exposing it.
+- **Tool Search Tool** — the API tool that lets Claude load deferred tool
+  definitions on demand. In the Agent SDK, tool search is on by default and
+  defers MCP schemas itself (`ENABLE_TOOL_SEARCH`); a `ToolSearch` call in a
+  trace is that mechanism, and the runner treats it as synthetic.
+- **Mirrored lean (deferral)** — two simulated users on the same task stating
+  opposite leans; if the agent's recommendation flips with the lean both times,
+  it defers rather than judges. `/agent-sdk:eval-simulation` builds the pair
+  (`gen_persona.py --lean`).
+- **Agentic AI Foundation (AAIF)** — the Linux Foundation body that, since
+  2026-10-22, governs the base Agent Skills open standard (and MCP). The
+  `SKILL.md` folder format is unchanged; Claude Code's own skill extensions are
+  not part of the donated spec.
 
 ---
 
@@ -131,4 +148,18 @@ Claude Code 2.1.310 docs. The four design terms follow
 2026-10-22, folding) and
 <https://www.anthropic.com/research/effective-harnesses-for-long-running-agents>
 ("Effective harnesses for long-running agents", 2025-11-26, the harness).
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+The four 2026-11-02 terms follow
+<https://claude.com/resources/articles/message-threads> ("Make long-running
+agents faster with message threads", 2026-11-02, message threads) and
+`https://platform.claude.com/docs/en/build-with-claude/message-threads` (expiry,
+beta status);
+<https://www.anthropic.com/research/advanced-tool-use> ("Introducing advanced
+tool use for Claude", 2025-11-24, the Tool Search Tool) and
+`https://code.claude.com/docs/en/agent-sdk/tool-search` (on by default);
+<https://www.anthropic.com/research/agents-judgment-calls> ("How AI agents shape
+experts' judgment calls", 2026-10-27, deferral measured by randomising the lean;
+the mirrored pair is this plugin's adaptation);
+<https://www.anthropic.com/news/donating-agent-skills-to-the-agentic-ai-foundation>
+("Donating Agent Skills to the Agentic AI Foundation", 2026-10-22, the AAIF)
+and `https://code.claude.com/docs/en/skills` (Claude Code's extensions).
+Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

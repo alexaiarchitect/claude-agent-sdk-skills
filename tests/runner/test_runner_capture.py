@@ -23,7 +23,7 @@ INIT_DATA = {
     "session_id": "s-1", "tools": ["Read", "StructuredOutput"],
     "mcp_servers": [{"name": "library", "status": "connected"}],
     "model": "claude-sonnet-5-5", "permissionMode": "dontAsk",
-    "apiKeySource": "none", "claude_code_version": "2.1.310",
+    "apiKeySource": "none", "claude_code_version": "2.1.316",
     "agents": ["Explore"], "skills": [], "plugins": [],
 }
 
@@ -69,7 +69,7 @@ def test_init_records_the_cli_version_and_the_api_key_source():
     cap = Capture(run_id="r", case="c")
     cap.add(sdk.SystemMessage(subtype="init", data=INIT_DATA))
     init = events_of(cap, "init")[0]
-    assert init["cli_version"] == "2.1.310", "the measured field is the CLI version, not the SDK's"
+    assert init["cli_version"] == "2.1.316", "the measured field is the CLI version, not the SDK's"
     assert init["api_key_source"] == "none", "the in-band credential proof"
     assert init["permission_mode"] == "dontAsk"
     assert init["occurrence"] == 1
@@ -483,6 +483,43 @@ def test_the_2_1_310_trace_fixture_is_what_capture_writes_from_its_script():
     stored = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     cap = Capture(run_id="1", case="echo-ready")
     for entry in _script_2_1_310():
+        cap.add(sdk.build_message(entry))
+    strip = lambda e: {k: v for k, v in e.items() if k != "t"}  # noqa: E731
+    assert [strip(e) for e in cap.events] == [strip(e) for e in stored]
+    assert "sk-ant" not in path.read_text() and "/Users/" not in path.read_text()
+
+
+# -- CLI 2.1.316 init (measured 2026-11-02) ----------------------------------
+
+def _script_2_1_316():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_316.script.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def test_a_2_1_316_init_records_fourteen_capabilities_and_drops_ultrathink_available():
+    """2.1.316 adds the capability `ask_user_question_unanswered_v1` and the init key
+    `ultrathink_available`. Capabilities are recorded, never required; the new key is
+    undeclared on `SystemInitData` (0.2.176), so it is tolerated, not copied."""
+    cap = Capture(run_id="r", case="c")
+    for entry in _script_2_1_316():
+        cap.add(sdk.build_message(entry))
+    init = events_of(cap, "init")[0]
+    assert init["cli_version"] == "2.1.316"
+    assert init["permission_mode"] == "default", "unset mode still starts in default"
+    assert len(init["capabilities"]) == 14
+    assert "ask_user_question_unanswered_v1" in init["capabilities"]
+    assert "ultrathink_available" not in init
+    assert [e["type"] for e in cap.events] == ["init", "assistant_text", "result"]
+    assert events_of(cap, "result")[0]["total_cost_usd"] == pytest.approx(0.001935325)
+
+
+def test_the_2_1_316_trace_fixture_is_what_capture_writes_from_its_script():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_316.trace.jsonl"
+    stored = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    cap = Capture(run_id="1", case="echo-ready")
+    for entry in _script_2_1_316():
         cap.add(sdk.build_message(entry))
     strip = lambda e: {k: v for k, v in e.items() if k != "t"}  # noqa: E731
     assert [strip(e) for e in cap.events] == [strip(e) for e in stored]

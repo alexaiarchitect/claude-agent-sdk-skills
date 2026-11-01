@@ -114,6 +114,14 @@ to check when a simulated case fails is the user's turns, not the agent's: about
 half of the "the agent did the wrong thing" reports on simulated cases turn out
 to be a persona that asked for the wrong thing.
 
+**Reading a mirrored pair.** pass@k pools the runs of *one* case; a mirrored
+pair (two personas with opposite stated leans, `personas.md`) is *two* cases, so
+never pool them. Compare them per case, each with
+`${CLAUDE_SKILL_DIR}/../eval-analyze/scripts/pass_at_k.py <project> --case <name>`
+(or `summarize_results.py --case <name>` for the transcripts), then put the two
+final recommendations side by side: the same answer on both sides is judgement,
+an answer that follows the lean on both sides is deferral.
+
 Sources: this plugin's runner —
 `runner/agent_sdk_evals/simulate.py` (`Persona`, `build_options`,
 `SimulatedUser.next_turn`, `check_rubrics`, `USER_PROMPT`),
@@ -126,4 +134,5 @@ Sources: this plugin's runner —
 price and context window),
 `https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom` (the soft
 cap). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
+docs; re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316
 docs.

@@ -45,6 +45,8 @@ measure of success is pass@1 going up, not one green run.
 | ended by `max_turns` or `max_budget_usd` | budget or a loop | raise the cap only after ruling out a loop |
 | `NOT_EVALUATED` with a `rejected` rate limit or 429 | quota | wait for `resets_at`; nothing to fix in the agent |
 | passes with `setting_sources` loaded, fails isolated | context | the agent depended on the developer's `CLAUDE.md` or settings; put the instruction in the system prompt |
+| many cases drop at once with no change of yours, and the gap follows the CLI build | harness (CLI or SDK upgrade) | pin the build, set `effort` explicitly; see "harness regression" in `failure-shapes.md` |
+| the agent reached a host, form or credential the case never named | prompt + permissions | state scope and forbidden actions, enforce them in tools or hooks; see "persistence around a restriction" in `failure-shapes.md` |
 
 ## Step 4 — close the loop
 
@@ -58,4 +60,6 @@ prompt edit.
 Sources: this plugin's `lib/agent_sdk_skills/trajectory.py` (signatures) and
 `skills/agent-debug/scripts/analyze_trace.py`; permission behaviour per
 `https://code.claude.com/docs/en/agent-sdk/permissions`; turn and budget caps
-per `https://code.claude.com/docs/en/agent-sdk/agent-loop`.
+per `https://code.claude.com/docs/en/agent-sdk/agent-loop`; the two hand-read
+shapes per `failure-shapes.md`. Re-read 2026-11-02 against claude-agent-sdk
+0.2.176 / Claude Code 2.1.316 docs.

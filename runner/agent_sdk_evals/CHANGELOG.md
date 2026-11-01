@@ -3,6 +3,45 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.2.1 — 2026-11-02
+
+Re-checked against `claude-agent-sdk` 0.2.176 with its bundled CLI 2.1.316
+(docs and changelog read at Claude Code 2.1.316); minimum supported SDK stays
+0.2.140. No SDK API change: 0.2.175 and 0.2.176 change only `_cli_version.py`,
+`_version.py` and the bundled binary (wheel diff against 0.2.174), `types.py` is
+byte-identical, and the 49 options, 6 permission modes, 10 Python hook events,
+21 `HookSpecificOutput` members (only `PreCompact` lacks one) and 159 exports
+are re-verified against the installed wheel. No runner code changed beyond the
+pins and comments; a project copy at 0.2.0 behaves the same and is reported as
+older (`DEP001`) only so it picks up the new version string.
+
+- **What a 0.2.0 copy should know.**
+  - Startup failures: the 2.1.314 changelog says `claude -p` that fails at
+    startup now prints the error and exits 1 (it used to exit 0 with no
+    output). That is the changelog's claim; it was not reproduced here: six
+    bad flags or configs (`--settings` to a missing file, a bad `--mcp-config`,
+    an unknown `--resume`, a bad `--permission-mode`, bad `--agents`, bad
+    `--setting-sources`) already exited 1 with the error on stderr on 2.1.310,
+    and still do on 2.1.316. Through the SDK (0.2.174 and 0.2.176) such a child
+    surfaces as `ProcessError(exit_code=1)` before the first message; the runner
+    classifies it as before (`session.classify_exception`: exit 2, outcome
+    `NOT_EVALUATED`, never a FAIL). No classification text changed.
+  - The 2.1.316 `init` carries 14 `capabilities` (new:
+    `ask_user_question_unanswered_v1`) and a new key `ultrathink_available`.
+    Capabilities are recorded, never required; `ultrathink_available` is not a
+    `SystemInitData` field and is dropped like every undeclared key. Measured
+    once live (`tests/fixtures/traces/init_2_1_316.*`).
+  - From 2.1.314 the parent no longer keeps each subagent's tool results until
+    a long headless/SDK turn ends (changelog). Memory, not billing: cost and
+    `max_budget_usd` behaviour are unchanged.
+- **`HookMatcher.on_failure` is not supported.** It exists only on upstream
+  `main` (`d38e51e`, 2026-11-02, after 0.2.176). The 2.1.316 CLI does not answer
+  `hook_on_failure_supported`, so `on_failure="block"` raises
+  `CLIConnectionError` at connect (measured). It is not an option, so
+  `OPTION_NAMES` stays 49; a test asserts the pinned `HookMatcher` has no such
+  field, to be flipped when a release ships it.
+- `DOCS_READ_AT_CLI = "2.1.316"`.
+
 ## 0.2.0 — 2026-10-29
 
 Re-checked against `claude-agent-sdk` 0.2.174 with its bundled CLI 2.1.310

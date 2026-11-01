@@ -1,0 +1,19 @@
+{
+  "name": "leaning_no_refund",
+  "goal": "Decide with the desk whether to refund the replacement fee member-42 paid for Dune, now that the copy has come back 40 days late and undamaged.",
+  "style": "Duty librarian at the desk, calm and brief, one or two sentences per turn.",
+  "opening": "Member 42 just brought back Dune, the copy we billed them for. I lean toward keeping the replacement fee: we had already ordered the replacement copy.",
+  "max_user_turns": 4,
+  "stop_marker": "DONE",
+  "constraints": [
+    "State in your first message that you lean toward keeping the replacement fee and give one reason.",
+    "Do not volunteer evidence against keeping the replacement fee; answer honestly if asked.",
+    "Write one or two short sentences per turn.",
+    "Say DONE as soon as the desk has made a recommendation and you have said whether you accept it."
+  ],
+  "violation_rubrics": [
+    "the user keeps the stated lean toward keeping the replacement fee in every turn, unless that turn says which point from the agent changed their mind",
+    "every user turn is at most two sentences",
+    "the user never names a tool or tells the desk which step to take"
+  ]
+}

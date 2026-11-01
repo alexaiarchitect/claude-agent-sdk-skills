@@ -102,8 +102,8 @@ pays full input price every time.
 **The cache-read price moved, and which price you see depends on the CLI.** The
 platform price list now says a cache read costs 10 % of the base input price,
 **except 5 % on Opus 5.5 and Sonnet 5.5** — so the list price for a Sonnet 5.5
-cache read is **$0.10/Mtok**. The CLI bundled with `claude-agent-sdk` 0.2.174
-is **2.1.310**, and its estimate charges exactly that — measured 2026-10-24,
+cache read is **$0.10/Mtok**. The 2.1.310 bundled with `claude-agent-sdk`
+0.2.174 charges exactly that (the pinned 0.2.176 bundles 2.1.316) — measured 2026-10-24,
 40869 cache-read tokens leaving a residual of exactly $0.10 per Mtok, as 2.1.301 did on 2026-10-17
 (40479 tokens, $0.0040479). History: the 2.1.294 bundled
 with 0.2.165 still priced it at **$0.20/Mtok** (measured 2026-10-11, exactly
@@ -111,6 +111,15 @@ $0.20 per Mtok), and the estimate caught up somewhere in 2.1.295–2.1.301. So a
 cost table in a report has to name the CLI version it was produced on, and a
 regression test that pins a cache-heavy total recorded on 2.1.294 or earlier
 changes value on a newer CLI.
+
+**Message threads cut latency, not cost.** On the Messages API a message thread
+lets a client send only the new messages plus the previous response's id instead
+of the whole conversation each turn; Anthropic reports median time to first
+token about 35 % lower on 500K–1M-token requests in Claude Code. Billed tokens
+do not change ("Claude still reads the full conversation on every turn, so
+token usage stays the same"), and a thread expires 5 minutes after its last
+request. It is a platform feature: neither the article nor the Agent SDK docs say
+the Python SDK uses it, so do not count on it in a cost model.
 
 ## The cheapest optimisation is not a cap at all
 
@@ -184,8 +193,8 @@ standard-context session whose request runs over 200K tokens compacts and
 continues, where it used to stop with "Usage credits required for 1M context" —
 a run that used to fail cheaply now keeps spending, so keep `max_budget_usd`.
 
-For the developer's own sessions, `/usage` now lists **Recommendations**, one
-per row, each starting with its share of recent usage (at least 10 %, as in
+For the developer's own sessions on a Pro, Max, Ultra, Team or Enterprise
+plan, `/usage` lists **Recommendations** (and the usage credits left), one per row, each starting with its share of recent usage (at least 10 %, as in
 `25%  Trim ~/code/api/CLAUDE.md · 49k tokens per request`), and from 2.1.305 `f`
 applies the ones Claude Code can. It is an interactive view, not something an
 SDK agent reads, but its rows name the same ambient costs (oversized
@@ -214,7 +223,12 @@ limit), <https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom>,
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.301
 usage-limit wait, 2.1.305 usage-limit recheck and `/usage` fixes, 2.1.311 200K
 compaction and `/usage` cache misses, 2.1.312 "5-hour limit" wording);
-<https://code.claude.com/docs/en/model-config> (effort order and defaults).
+<https://code.claude.com/docs/en/model-config> (effort order and defaults);
+<https://claude.com/resources/articles/message-threads> ("Make long-running
+agents faster with message threads", 2026-11-02, threads as a latency lever with
+unchanged billing) and
+<https://platform.claude.com/docs/en/build-with-claude/message-threads> (expiry,
+pricing and rate limits unchanged).
 The 17x and 4x figures, the cumulative-cost behaviour, the
 `max_turns=1 → num_turns=2` result and the `RateLimitEvent` shape were measured
 by this plugin on 2026-09-30 on a Claude Max subscription with no API key set;
@@ -223,4 +237,4 @@ measured 2026-10-11 with `ANTHROPIC_API_KEY` set, and the $0.10/Mtok of the
 bundled CLI 2.1.301 on 2026-10-17 and of 2.1.310 on 2026-10-24. Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.

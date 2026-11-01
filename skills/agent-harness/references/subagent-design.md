@@ -7,11 +7,11 @@ prompt string** through a tool call and receives the subagent's **final report**
 back — that is the docs' term for it, and it is one message. Nothing else
 crosses in either direction.
 
-That is the whole value: an exploration that would fill the main conversation
-happens somewhere else, and the parent gets a summary instead of forty file
-reads. It is also the whole risk: the parent cannot see what the subagent did,
-so whatever you need to verify has to be in the final report — or in a file, a
-mock call record, or `structured_output`.
+That is the whole value: an exploration that would fill the main conversation happens
+somewhere else, and the parent gets a summary instead of forty file reads. It is also
+the whole risk: the parent cannot see what the subagent did, so whatever you need to
+verify has to be in the final report — or in a file, a mock call record, or
+`structured_output`.
 
 | The subagent receives | The subagent does not receive |
 |---|---|
@@ -42,33 +42,35 @@ The **Agent tool itself** also takes an `effort` input (Claude Code **2.1.292+**
 so Claude can ask for a cheaper or harder-thinking subagent per call without the
 definition changing. Effort carries over across a model fallback: a subagent
 started at `medium` stays at `medium` on the fallback model even when that model
-defaults to `high`. An Agent-call `model` parameter "takes a model alias:
+defaults to `high`. From **2.1.316** `CLAUDE_CODE_SUBAGENT_EFFORT` in `env` sets the
+effort subagents run at when nothing else names one, instead of inheriting the
+session's (Claude Code `CHANGELOG.md` 2.1.316; the env-vars page read 2026-11-02 does
+not list it yet). An Agent-call `model` parameter "takes a model alias:
 `sonnet`, `opus`, `haiku`, or `fable`" — Claude cannot pass a full model id or
 `inherit` on that call; the definition's `model` field still can.
 
-In Python the multi-word names keep their **camelCase** spelling
-(`disallowedTools`, `mcpServers`, `maxTurns`) to match the wire format. This
-catches people out constantly; a `max_turns=` keyword on an `AgentDefinition` is
-not the same field, which is why the linter accepts both spellings and warns
-when neither is present.
+In Python the multi-word names keep their **camelCase** spelling (`disallowedTools`,
+`mcpServers`, `maxTurns`) to match the wire format. This catches people out constantly;
+a `max_turns=` keyword on an `AgentDefinition` is not the same field, which is why the
+linter accepts both spellings and warns when neither is present.
 
 ## The tool is called two things
 
 The docs and the SDK call it **`Agent`**; "the previous name `Task` is still
 accepted as an alias", and the init `SystemMessage`'s `tools` list still reports
-**`Task`** for backward compatibility (measured again 2026-10-29). So:
+**`Task`** for backward compatibility (measured again 2026-11-02 on 2.1.316). So:
 
 - `allowed_tools` should carry both, or delegation may silently not happen
   (`OPT040`);
 - a `tool_used` or `trajectory` grader naming either must match both;
 - a `disallowed_tools` entry for one and not the other is a half-closed door.
 
-A call to the Agent tool with no `subagent_type` gets the built-in
-`general-purpose` subagent, which Claude can spawn even when you define none of
-your own. `CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS=1` removes that default.
-The same renaming hit the background-stop tool: it is **`TaskStop`**, and the
-old names `KillShell`/`KillBash` are accepted only in permission rules, hook
-matchers and the `tools`/`allowed_tools`/`disallowed_tools` options.
+A call to the Agent tool with no `subagent_type` gets the built-in `general-purpose`
+subagent, which Claude can spawn even when you define none of your own.
+`CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS=1` removes that default. The same renaming hit
+the background-stop tool: it is **`TaskStop`**, and the old names `KillShell`/`KillBash`
+are accepted only in permission rules, hook matchers and the
+`tools`/`allowed_tools`/`disallowed_tools` options.
 
 ## Caps: depth, concurrency, spend
 
@@ -100,39 +102,41 @@ flagged request re-runs on the fallback model.
 **Two defaults changed in 2.1.302** for `claude -p` and the Agent SDK; the
 docs now describe both.
 
-**Forked subagents.** "A fork is a subagent that copies the conversation so far
-instead of starting fresh. From Claude Code v2.1.302, Claude can start forks in
-your application with nothing configured, by calling the Agent tool with
-`subagent_type: "fork"`." So an agent that defines no subagents can still
-delegate, and an eval that asserts on the set of `subagent_type` values sees
-`fork`. Deny forks only with `disallowed_tools=["Agent(fork)"]` (other subagents
-still run); turn fork mode off entirely with `CLAUDE_CODE_FORK_SUBAGENT=0` in
-`env`. From 2.1.307 forks launched together are each told which launch is
-theirs, so they rarely start each other's work.
+**Forked subagents.** "A fork is a subagent that copies the conversation so far instead
+of starting fresh. From Claude Code v2.1.302, Claude can start forks in your application
+with nothing configured, by calling the Agent tool with `subagent_type: "fork"`." So an
+agent that defines no subagents can still delegate, and an eval that asserts on the set
+of `subagent_type` values sees `fork`. Deny forks only with
+`disallowed_tools=["Agent(fork)"]` (other subagents still run); turn fork mode off
+entirely with `CLAUDE_CODE_FORK_SUBAGENT=0` in `env`. From 2.1.307 forks launched
+together are each told which launch is theirs, so they rarely start each other's work.
 
-**Who waits.** With `run_in_background` omitted, "your main agent's call runs
-the new agent in the background, and a subagent's call waits for it": from the
-main agent the Agent tool result has `status: "async_launched"` and the report
-arrives in a later turn (Claude still waits, `status: "completed"`, when its next
-step needs it, or when the prompt asks it to); from a subagent the call blocks,
-unless the definition sets `background=True` or fork mode is off. "Before Python
-SDK v0.2.169, agents that your subagents started also ran in the background by
-default. That release is the first to bundle Claude Code v2.1.302 or later."
-With `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` in `env`, "Claude waits for
-subagents to finish before it continues" (background shell commands are off too).
+**Who waits.** With `run_in_background` omitted, "your main agent's call runs the new
+agent in the background, and a subagent's call waits for it": from the main agent the
+Agent tool result has `status: "async_launched"` and the report arrives in a later turn
+(Claude still waits, `status: "completed"`, when its next step needs it, or when the
+prompt asks it to); from a subagent the call blocks, unless the definition sets
+`background=True` or fork mode is off. "Before Python SDK v0.2.169, agents that your
+subagents started also ran in the background by default. That release is the first to
+bundle Claude Code v2.1.302 or later." With `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1` in
+`env`, "Claude waits for subagents to finish before it continues" (background shell
+commands are off too).
 
-Since 2.1.299 an agent's `tools:` list that names an MCP server takes only
-**that server's** tools; list a server whose name contains `__` as
-`mcp__<whole name>__*`. From 2.1.304 a plugin can no longer keep a headless run
-going past `--max-turns`, Stop or ended input by spawning or re-running
-subagents. From 2.1.311 subagents can use MCP tools from servers that finish
-connecting after the subagent started (before, those tools were missing).
+Since 2.1.299 an agent's `tools:` list that names an MCP server takes only **that
+server's** tools; list a server whose name contains `__` as `mcp__<whole name>__*`. From
+2.1.304 a plugin can no longer keep a headless run going past `--max-turns`, Stop or
+ended input by spawning or re-running subagents. From 2.1.311 subagents can use MCP
+tools from servers that finish connecting after the subagent started (before, those
+tools were missing). From 2.1.314 the parent of a long headless or SDK turn no longer
+keeps each subagent's tool results until the turn ends; from 2.1.316 a subagent that
+inherited a parent subagent's model keeps it when a background job or message wakes it
+(before, it moved to the main model).
 
-Opus 5 delegates more readily than earlier models, so these matter most there.
-With the `claude_code` system-prompt preset, Claude Code adds a line telling
-Claude not to call the Agent tool unless asked; with a custom prompt or no
-system prompt, it does not, and you have to add that instruction yourself. Both
-only steer — the limits are what enforce.
+Opus 5 delegates more readily than earlier models, so these matter most there. With the
+`claude_code` system-prompt preset, Claude Code adds a line telling Claude not to call
+the Agent tool unless asked; with a custom prompt or no system prompt, it does not, and
+you have to add that instruction yourself. Both only steer — the limits are what
+enforce.
 
 ## Filesystem subagents
 
@@ -153,22 +157,21 @@ There is no `SubagentStartMessage`. Subagent activity arrives as:
 - `AssistantMessage` / `UserMessage` whose `parent_tool_use_id` is the spawning
   tool-use id.
 
-The **TypeScript** Agent SDK additionally puts `agent_id` on a subagent's
-assistant and user messages from v0.3.292, equal to the `task_id` of that
-subagent's task events, which is the reliable way to attribute interleaved
-parallel subagents. **Python has no such field** on `AssistantMessage` or
-`UserMessage` at 0.2.174 — `parent_tool_use_id` is what a Python reader
-correlates on. (From 0.2.166, `agent_id` does appear on the four
-tool-lifecycle *hook inputs*; that is a 0.2.166+ fact and a different surface.)
-Subagent transcripts record real token usage and stop reasons for streamed
-responses from 2.1.307 (before, placeholders and an empty stop reason), which
-matters to anyone pricing or grading from the session files.
+The **TypeScript** Agent SDK additionally puts `agent_id` on a subagent's assistant and
+user messages from v0.3.292, equal to the `task_id` of that subagent's task events,
+which is the reliable way to attribute interleaved parallel subagents. **Python has no
+such field** on `AssistantMessage` or `UserMessage` at 0.2.174 — `parent_tool_use_id` is
+what a Python reader correlates on. (From 0.2.166, `agent_id` does appear on the four
+tool-lifecycle *hook inputs*; that is a 0.2.166+ fact and a different surface.) Subagent
+transcripts record real token usage and stop reasons for streamed responses from 2.1.307
+(before, placeholders and an empty stop reason), which matters to anyone pricing or
+grading from the session files.
 
-Before v2.1.210 the parent read the subagent's final message verbatim; since
-then Claude Code scans it for instruction-shaped patterns (control tags, turn
-markers) and neutralises them in place, prepending a `[harness: ...]` line for
-the first two kinds. It never removes or rewords the text, but a grader doing an
-exact-match on a subagent's final message should know the scan exists.
+Before v2.1.210 the parent read the subagent's final message verbatim; since then Claude
+Code scans it for instruction-shaped patterns (control tags, turn markers) and
+neutralises them in place, prepending a `[harness: ...]` line for the first two kinds.
+It never removes or rewords the text, but a grader doing an exact-match on a subagent's
+final message should know the scan exists.
 
 ## When not to delegate: fold first
 
@@ -194,6 +197,14 @@ high-value work pays for it; tightly coupled work such as most coding does not.
 Each delegated task needs an objective, an output format, tool guidance and a
 boundary. For the decision itself use `/agent-sdk:agent-design`.
 
+A third shape has no orchestrator at all. In Anthropic's C-compiler project
+(2026-02-05) 16 `claude -p` loops, each in its own container with permissions
+skipped only there, shared one git repository; an agent claimed a task by writing
+a lock file, and a push conflict sent a second claimant to another task. It held
+together because the test suite was a near-perfect oracle — without one, the author
+warns, "Claude will solve the wrong problem". Lock files are a harness convention,
+not an SDK feature; the SDK's own subagents are orchestrated by the parent.
+
 For dozens to hundreds of agents, the `Workflow` tool moves orchestration into a
 script run outside the conversation context.
 
@@ -216,7 +227,11 @@ per-model `autoCompactWindow`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 MCP
 `tools:` scoping, 2.1.302 fork and foreground defaults, 2.1.304 headless
 stop, 2.1.307 fork identity and transcript usage, 2.1.311 late-connecting MCP
-servers, 2.1.312 `autoCompactWindow` lowering);
+servers, 2.1.312 `autoCompactWindow` lowering, 2.1.314 subagent tool results,
+2.1.316 `CLAUDE_CODE_SUBAGENT_EFFORT` and inherited-model fix);
+<https://www.anthropic.com/research/building-c-compiler> ("Building a C compiler with
+parallel Claudes", 2026-02-05, lock-file task claiming without an orchestrator, tests
+as a near-perfect oracle, containers);
 <https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop>
 ("Building agents: When to fold subagents into your main agent loop",
 2026-10-22, when to keep a subagent, split by context, fold one at a time, the
@@ -230,5 +245,5 @@ product, not the SDK's background default);
 `Task` / `Agent` naming difference was measured by this plugin on 2026-09-30
 from the CLI's own `init.tools` list. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-10-29 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (`types.py` byte-identical in
+0.2.176). Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
