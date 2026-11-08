@@ -191,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
                            fix="use `thinking={\"type\": \"adaptive\"}` (or "
                                "`{\"type\": \"enabled\", \"budget_tokens\": N}`). On newer "
                                "models the old field is read as on/off only.",
-                           source="claude-agent-sdk 0.2.178 types.py:2719")
+                           source="claude-agent-sdk 0.2.179 types.py:2719")
             else:
                 report.add("AGT031", "warn", "options",
                            "`debug_stderr` is deprecated and is no longer read by the "
@@ -199,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
                            path=module.path,
                            fix="pass the `stderr` callback instead: "
                                "`stderr=lambda line: log.debug(line)`.",
-                           source="claude-agent-sdk 0.2.178 types.py:2517")
+                           source="claude-agent-sdk 0.2.179 types.py:2517")
 
     # -- 3. model policy --------------------------------------------------
     option_models = [
@@ -365,7 +365,7 @@ def main(argv: list[str] | None = None) -> int:
                        f'effort="{effort_value}" is not one of the five levels',
                        path=primary.path, locator=f"line {primary.lineno}",
                        fix="one of: " + ", ".join(EFFORT_LEVELS),
-                       source="claude-agent-sdk 0.2.178 types.py:37 (EffortLevel)")
+                       source="claude-agent-sdk 0.2.179 types.py:37 (EffortLevel)")
     report.extend(subagent_findings(facts, claude))
 
     # -- what was found ---------------------------------------------------

@@ -130,6 +130,35 @@ team" is not.
 | a router that only picks a prompt | fold into skills; the main loop routes by reading skill descriptions |
 | no subagents, and the agent does one thing at a time | do not add one |
 
+## A harness written for the task
+
+*A harness for every task: dynamic workflows in Claude Code* (2026-06-02, article
+#34) is about **Claude Code's Workflow tool**, in which Claude writes a script
+that orchestrates its own subagents for the task in hand. A `Workflow` tool
+appears in the SDK `init` tool list, but no SDK page documents it, so treat it
+as Claude Code's, not an SDK API. What carries over is its reasons and patterns:
+
+- **Three failures of one context** on long, parallel or adversarial work:
+  stopping after partial progress, preferring its own findings when judging
+  them, and losing the goal across turns and compactions. Separate contexts
+  with narrow goals counter all three — a context-based reason in this page's
+  sense.
+- **Static against per-task.** An SDK app is a static harness that must cover
+  every case; the article's point is that a harness written for one task can be
+  narrower. In the SDK that is your code choosing `agents=` and the `query()`
+  calls per task type.
+- **Patterns**: classify then act; fan out then synthesize; an adversarial
+  verifier per worker; generate then filter; a pairwise tournament; loop until
+  a stop condition. Each is `agents=` plus the Agent tool, or several `query()`
+  calls (see [agent-loop.md](agent-loop.md)).
+- **Quarantine**: agents that read untrusted content get no high-privilege
+  tools; the agent that acts sees only their summaries.
+- **Cost**: these designs spend more tokens, and the article says routine
+  coding rarely needs them.
+
+None of this overrides the fold procedure: a per-task orchestration still keeps
+each subagent only when an eval says the folded version does worse.
+
 ## In this plugin
 
 - `design_brief.py` prints this table per `AgentDefinition`, plus the fold
@@ -139,4 +168,4 @@ team" is not.
 - `/agent-sdk:eval-create` writes the task-completion cases the fold needs;
   `/agent-sdk:eval-analyze` compares the two arms.
 
-Sources: https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, single loop with skills, keep conditions, split by context, the staged fold procedure, ten golden examples, running tasks more than once); https://www.anthropic.com/research/multi-agent-research-system ("How we built our multi-agent research system", 2025-06-13, the 90.2 % result, about 15× tokens, 80 % of variance from token usage, delegation rules, effort scaling, 3–5 parallel subagents); https://www.anthropic.com/research/effective-context-engineering-for-ai-agents ("Effective context engineering for AI agents", 2025-09-29, 1,000–2,000-token subagent summaries); https://code.claude.com/docs/en/agent-sdk/subagents (read 2026-10-29, `AgentDefinition` fields, inheritance, background default, forks, depth, concurrency and spend caps); https://code.claude.com/docs/en/agent-sdk/python (read 2026-10-29, `run_in_background`, `async_launched`, the `Agent`/`Task` naming); https://code.claude.com/docs/en/sub-agents (read 2026-10-29, Agent-call `model` aliases); https://www.anthropic.com/research/building-c-compiler ("Building a C compiler with parallel Claudes", 2026-02-05, lock-file task claiming without an orchestrator, one container per agent, tests as a near-perfect verifier, a known-good oracle to split one large task). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs.
+Sources: https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, single loop with skills, keep conditions, split by context, the staged fold procedure, ten golden examples, running tasks more than once); https://www.anthropic.com/research/multi-agent-research-system ("How we built our multi-agent research system", 2025-06-13, the 90.2 % result, about 15× tokens, 80 % of variance from token usage, delegation rules, effort scaling, 3–5 parallel subagents); https://www.anthropic.com/research/effective-context-engineering-for-ai-agents ("Effective context engineering for AI agents", 2025-09-29, 1,000–2,000-token subagent summaries); https://code.claude.com/docs/en/agent-sdk/subagents (read 2026-10-29, `AgentDefinition` fields, inheritance, background default, forks, depth, concurrency and spend caps); https://code.claude.com/docs/en/agent-sdk/python (read 2026-10-29, `run_in_background`, `async_launched`, the `Agent`/`Task` naming); https://code.claude.com/docs/en/sub-agents (read 2026-10-29, Agent-call `model` aliases); https://www.anthropic.com/research/building-c-compiler ("Building a C compiler with parallel Claudes", 2026-02-05, lock-file task claiming without an orchestrator, one container per agent, tests as a near-perfect verifier, a known-good oracle to split one large task).; https://claude.dev/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code/ ("A harness for every task: dynamic workflows in Claude Code", 2026-06-02, the three failures of a single context, static against per-task harnesses, six orchestration patterns, quarantine, token cost; Claude Code's Workflow tool, cited for the patterns). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316 docs. Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

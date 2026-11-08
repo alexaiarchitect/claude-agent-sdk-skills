@@ -222,10 +222,11 @@ def test_the_skill_body_fits_and_routes_away_what_it_does_not_do():
 REFERENCES = sorted((SKILL / "references").glob("*.md"))
 
 
-def test_there_are_five_references():
+def test_there_are_six_references():
+    # Five from 0.2.0; `memory-design.md` joined on 2026-11-08 (article 30).
     assert [p.name for p in REFERENCES] == [
         "agent-loop.md", "context-engineering.md", "long-running-harness.md",
-        "subagent-decisions.md", "tool-design.md"]
+        "memory-design.md", "subagent-decisions.md", "tool-design.md"]
 
 
 @pytest.mark.parametrize("reference", REFERENCES, ids=lambda p: p.name)
@@ -242,7 +243,8 @@ def test_each_reference_is_sized_and_ends_in_a_dated_footer(reference):
         assert re.match(r"\s*\(.*?\d{4}-\d{2}-\d{2}", segment, re.DOTALL), f"undated: {match.group(0)}"
     assert "code.claude.com/docs/en/" in footer
     assert any(url in footer for url in CANONICAL_ARTICLES)
-    assert "re-read" in footer or "Written 2026-10-29" in footer
+    # "Written 2026-10-29" for the first five, "Written 2026-11-08" for memory-design.md.
+    assert "re-read" in footer or "Written 2026-10-29" in footer or "Written 2026-11-08" in footer
 
 
 def test_every_reference_has_an_in_this_plugin_section():

@@ -69,7 +69,8 @@ def test_hooks_without_include_hook_events_is_an_informational_finding(run_scrip
     (project / "agent.py").write_text(source.replace("        include_hook_events=True,\n", ""))
     result = json.loads(run_script(LINT, str(project), "--json").stdout)
     hok031 = [f for f in result["findings"] if f["id"] == "HOK031"]
-    assert hok031 and "0.2.178 types.py:2567" in hok031[0]["source"]
+    # 0.2.179's types.py is byte-identical to 0.2.178's, so either prefix is right.
+    assert hok031 and any(f"{v} types.py:2567" in hok031[0]["source"] for v in ("0.2.178", "0.2.179"))
 
 
 def test_the_found_block_lists_every_matcher_and_server(lint):

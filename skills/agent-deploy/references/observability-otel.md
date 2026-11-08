@@ -50,7 +50,7 @@ versions its allow rules quietly stop settling calls.
 
 Two cost fields worth exporting beside the token counters: every `model_usage`
 row carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
-and `thinkingTokens`, neither of which is on the 0.2.178 `ModelUsage` TypedDict
+and `thinkingTokens`, neither of which is on the 0.2.179 `ModelUsage` TypedDict
 — read both with `.get()`. A dashboard that charts cost without the basis
 cannot tell a list-price estimate from a negotiated one, and `model_usage`
 routinely holds more than one model (measured 2026-10-11: the agent's Sonnet 5.5
@@ -102,21 +102,22 @@ marketplace instead of `"custom"`; and the docs now state that when `prometheus`
 is the **only** metrics exporter, the `USD`, `tokens` and `s` units are omitted
 so the scrape stays valid (combined exporters keep them).
 
-**2.1.317 additions (changelog; not on the monitoring page read 2026-11-04):**
-`anthropic.plan`, `anthropic.seat_type`, `anthropic.provider` and
-`anthropic.custom_base_url` on metrics, events and spans, so a collector can
-split usage by plan, seat or provider (and spot a custom base URL) without
-resource attributes of its own; and exports behind a proxy that never answers
-now time out after 10 seconds (`OTEL_EXPORTER_OTLP_TIMEOUT`, up to 30 seconds)
-instead of hanging. The docs call the cost metrics approximations and send
-billing questions to `costs#manage-costs-for-your-organization`.
+**2.1.317 additions (changelog; not on the monitoring page read 2026-11-04):** `anthropic.plan`,
+`anthropic.seat_type`, `anthropic.provider` and `anthropic.custom_base_url` on metrics, events and
+spans, so a collector can split usage by plan, seat or provider (and spot a custom base URL) without
+resource attributes of its own; and exports behind a proxy that never answers now time out after 10
+seconds (`OTEL_EXPORTER_OTLP_TIMEOUT`, up to 30 seconds) instead of hanging. The docs call the cost
+metrics approximations and send billing questions to `costs#manage-costs-for-your-organization`.
 
-A low `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` pushed `tool_use_id`,
-`tool_source` and `tool_parameters` off `tool_decision` before 2.1.302. The
-auto-mode classifier runs on Claude Sonnet 5 by default, and
-`CLAUDE_CODE_AUTO_MODE_MODEL` (2.1.302+, now on the env-vars and
-permission-modes pages) picks another, so a classifier's tokens can show up
-under a model the agent never named (see
+**2.1.319 (changelog-only):** `claude_code.session.count` no longer counts Agent SDK `prewarm()`
+processes that were never claimed; a pre-started process counts once, when claimed. `prewarm()` is a
+TypeScript SDK API — the Python SDK has none — so a Python fleet's session counts do not move, but a
+dashboard mixing TypeScript hosts on an older CLI may show inflated counts.
+
+A low `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` pushed `tool_use_id`, `tool_source` and
+`tool_parameters` off `tool_decision` before 2.1.302. The auto-mode classifier runs on Claude Sonnet
+5 by default, and `CLAUDE_CODE_AUTO_MODE_MODEL` (2.1.302+, now on the env-vars and permission-modes
+pages) picks another, so a classifier's tokens can show up under a model the agent never named (see
 `agent-harness/references/permission-model.md`).
 
 ## The spans
@@ -138,16 +139,13 @@ session filter into a timeline.
 
 ## Linking to your application
 
-The SDK injects W3C trace context (`TRACEPARENT`/`TRACESTATE`) into the child
-process when an OpenTelemetry span is active in your app, so
-`claude_code.interaction` becomes a child of your span and the agent run appears
-inside your trace rather than as a disconnected root. Event log records carry
-the same context, so events join to spans. The CLI also forwards `TRACEPARENT`
-to every Bash command it runs, so a command's own spans nest under
-`claude_code.tool.execution`.
+The SDK injects W3C trace context (`TRACEPARENT`/`TRACESTATE`) into the child process when an
+OpenTelemetry span is active in your app, so `claude_code.interaction` becomes a child of your span
+and the agent run appears inside your trace rather than as a disconnected root. Event log records
+carry the same context, so events join to spans. The CLI also forwards `TRACEPARENT` to every Bash
+command it runs, so a command's own spans nest under `claude_code.tool.execution`.
 
-Setting `TRACEPARENT` explicitly in `options.env` skips auto-injection, if you
-need to pin a parent.
+Setting `TRACEPARENT` explicitly in `options.env` skips auto-injection, if you need to pin a parent.
 
 ## Naming and attribution
 
@@ -167,17 +165,15 @@ as resource attributes on each `query()` call, percent-encoding the values —
 `OTEL_RESOURCE_ATTRIBUTES` reserves commas, spaces and equals signs.
 
 The same variable carries cost-centre tags (`department=engineering,cost_center=eng-123`):
-Anthropic's guide to Claude Code costs on Google Cloud (2026-10-27) tags every
-metric and event that way and charts usage and **estimated** cost by model, skill,
-plugin, agent and MCP server (real names on those metrics need
-`OTEL_LOG_TOOL_DETAILS=1`, below). The guide is about interactive Claude Code
-behind the Claude apps gateway; an SDK app inherits only this OTel side.
+Anthropic's guide to Claude Code costs on Google Cloud (2026-10-27) tags every metric and event that
+way and charts usage and **estimated** cost by model, skill, plugin, agent and MCP server (real
+names on those metrics need `OTEL_LOG_TOOL_DETAILS=1`, below). The guide is about interactive Claude
+Code behind the Claude apps gateway; an SDK app inherits only this OTel side.
 
 ## Sensitive data: off by default, and keep it that way
 
-Telemetry is structural: durations, model names, tool names always; token counts
-when the API returned usage. **Content is not recorded by default.** Four opt-in
-variables add it:
+Telemetry is structural: durations, model names, tool names always; token counts when the API
+returned usage. **Content is not recorded by default.** Four opt-in variables add it:
 
 | Variable | Adds |
 |---|---|
@@ -192,24 +188,20 @@ the exposure is total; decide once, in writing.
 
 ## When OpenTelemetry is not the right answer
 
-For an LLM-shaped view — prompts, completions, tool calls as first-class
-objects rather than spans — **OpenInference** publishes
-`openinference-instrumentation-claude-agent-sdk` (Arize). It instruments the
-SDK from your side of the process boundary rather than reading the CLI's
-export, so it sees what your code sees and nothing the subprocess does
-internally. The two are complementary: OTEL for operational health, OpenInference
-(or Braintrust, Langfuse, LangSmith, MLflow) for trace inspection and eval
-tooling.
+For an LLM-shaped view — prompts, completions, tool calls as first-class objects rather than spans —
+**OpenInference** publishes `openinference-instrumentation-claude-agent-sdk` (Arize). It instruments
+the SDK from your side of the process boundary rather than reading the CLI's export, so it sees what
+your code sees and nothing the subprocess does internally. The two are complementary: OTEL for
+operational health, OpenInference (or Braintrust, Langfuse, LangSmith, MLflow) for trace inspection
+and eval tooling.
 
-An agent that calls the Claude API or Managed Agents directly, rather than
-through the Agent SDK's CLI, is traced differently: the `anthropic` package
-emits its own spans and the API can deliver server-side spans under the same
-`traceparent`. The Claude Cookbooks' OpenTelemetry tracing notebook walks
-through that; none of it applies to the CLI's export described above.
+An agent that calls the Claude API or Managed Agents directly, rather than through the Agent SDK's
+CLI, is traced differently: the `anthropic` package emits its own spans and the API can deliver
+server-side spans under the same `traceparent`. The Claude Cookbooks' OpenTelemetry tracing notebook
+walks through that; none of it applies to the CLI's export described above.
 
-This plugin's own runner writes `*.trace.jsonl` from the message stream, which
-is a third thing again: a replayable artefact a grader can re-read offline with
-no collector involved.
+This plugin's own runner writes `*.trace.jsonl` from the message stream, which is a third thing
+again: a replayable artefact a grader can re-read offline with no collector involved.
 
 ---
 
@@ -230,18 +222,18 @@ reference, traces beta, `claude_code.safety_event` attributes and categories,
 event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default,
 2.1.307 `safety_event` and gateway headers fix; 2.1.312 `safety_event` withdrawn,
 OTel `effort` value, `mcp_server.name`; 2.1.316 `-p` auto-mode stop reason; 2.1.317
-`anthropic.*` attributes and export timeouts);
+`anthropic.*` attributes and export timeouts; 2.1.319 `session.count` and unclaimed `prewarm()`);
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (why telemetry-off sessions could start in `auto` before v2.1.302; "Default
 classifier model"), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
 <https://claude.com/resources/articles/how-to-manage-costs-and-demonstrate-roi-for-claude-code-on-google-cloud>
 ("Manage costs and demonstrate ROI for Claude Code on Google Cloud", 2026-10-27,
 cost-centre tags in `OTEL_RESOURCE_ATTRIBUTES`, cost by skill, plugin, agent and MCP
-server); `claude-agent-sdk` 0.2.178
+server); `claude-agent-sdk` 0.2.179
 `_internal/transport/subprocess_cli.py:814-860` (env merge and trace-context
 injection), `types.py:1680` (`ModelUsage`). The two-model `model_usage` and
 `costBasis: "list"` were measured by this plugin on 2026-10-11 against SDK
 0.2.165 with bundled CLI 2.1.294; `safety_stops` on 2026-10-24 on CLI 2.1.310.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

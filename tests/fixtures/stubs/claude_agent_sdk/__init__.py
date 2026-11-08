@@ -9,7 +9,8 @@ Faithfulness is the contract. Every public name, every dataclass field and every
 field *order* here was read from the installed wheel (`claude-agent-sdk` 0.2.174,
 bundled CLI 2.1.310; re-pinned to 0.2.176 / 2.1.316 on 2026-11-02, whose `types.py`
 is byte-identical, and to 0.2.178 / 2.1.318 on 2026-11-04, whose `types.py` adds
-`HookMatcher.on_failure` and so 13 lines; the stub mirrors a subset of the wheel's 159 exports); `ClaudeAgentOptions` carries all 49 fields in declaration
+`HookMatcher.on_failure` and so 13 lines, and to 0.2.179 / 2.1.319 on 2026-11-08,
+whose `types.py` is byte-identical to 0.2.178; the stub mirrors a subset of the wheel's 159 exports); `ClaudeAgentOptions` carries all 49 fields in declaration
 order, so a test can compare the runner's pinned option list against
 `__dataclass_fields__` exactly as the runner does at run time.
 
@@ -34,8 +35,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Generic, Literal, TypedDict, TypeVar
 
-__version__ = "0.2.178"
-__cli_version__ = "2.1.318"
+__version__ = "0.2.179"
+__cli_version__ = "2.1.319"
 
 T = TypeVar("T")
 
@@ -61,7 +62,7 @@ TERMINAL_TASK_STATUSES = {"completed", "failed", "stopped", "killed"}
 
 
 # -- exported in 0.2.166 (typed shapes only; `total=False` marks NotRequired) --
-# Mirrors `types.py` of 0.2.178 (lines as numbered there): hook-input extras
+# Mirrors `types.py` of 0.2.178 (= 0.2.179; lines as numbered there): hook-input extras
 # (`HookEffort` 299, `BackgroundTaskSummary` 391, `SessionCronSummary` 417), the 17
 # newly exported `*HookSpecificOutput` classes (511-725), `SystemInitData` and its
 # parts (1415-1472), `FastModeState`/`FastModeDisabledReason` (1454/1458). Nothing in

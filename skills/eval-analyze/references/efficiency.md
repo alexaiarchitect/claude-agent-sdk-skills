@@ -14,6 +14,34 @@ fails a case unless a `budget` grader says so.
 | cost USD | `result.total_cost_usd` | a session running total; per-turn deltas are in the trace |
 | duration | `result.duration_ms` | wall clock, noisy |
 
+## Cache-read share
+
+One number summarises how well a run reused its prompt cache:
+
+```
+cache-read share = cache_read_input_tokens
+                   / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)
+```
+
+all four from `runs[].result.usage` in `<case>.result.json`. The report does
+not print it; compute it per run from those fields. *Lessons from building
+Claude Code: Prompt caching is everything* (2026-04-30, article #32) explains
+why it matters: the cache matches a **prefix** (system prompt and tools first,
+then the conversation), Claude Code watches its hit rate like uptime, and
+anything that changes the prefix mid-session — a different tool set, a model
+switch, a timestamp in the prompt — makes every later turn pay full price.
+
+- Compare the share **across runs of the same case**, not across cases: a
+  one-turn case has little to reuse.
+- A drop after a change to `system_prompt`, `allowed_tools`, MCP servers or
+  `model` is the signal to look for; the article explains the mechanism, and
+  the link to these options is our reading.
+- The `claude_code` preset embeds the auto-memory location, so sessions with
+  different working directories can share less (the docs'
+  `exclude_dynamic_sections` note).
+- A `budget` grader's `max_cache_read_tokens` caps the absolute count; the
+  share is a reading aid, not a grader.
+
 ## Reading cost honestly
 
 - **Basis.** `api_key` means an estimate of the bill; `subscription` means an
@@ -41,4 +69,11 @@ model, same isolation; anything else compares two different experiments.
 
 Sources: `https://code.claude.com/docs/en/agent-sdk/cost-tracking` (`usage`,
 `model_usage`, running totals), measurements in `.dev/VERIFIED-FACTS.md`; this
-plugin's `lib/agent_sdk_skills/results.py` (`efficiency_rows`).
+plugin's `lib/agent_sdk_skills/results.py` (`efficiency_rows`);
+<https://claude.dev/blog/lessons-from-building-claude-code-prompt-caching-is-everything/>
+("Lessons from building Claude Code: Prompt caching is everything", 2026-04-30,
+prefix matching, no mid-session tool or model changes, hit rate monitored like
+uptime; Claude Code and Messages API practice, the cache-read share is our
+metric); `https://code.claude.com/docs/en/agent-sdk/modifying-system-prompts`
+(read 2026-11-08, the auto-memory location in the preset). Re-read 2026-11-08
+against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

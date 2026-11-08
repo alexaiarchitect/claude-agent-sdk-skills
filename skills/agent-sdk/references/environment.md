@@ -112,18 +112,18 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/check_env.py <project-dir>
 reports the credential and its source, the cost basis, the interpreter and SDK
 version, and the model with its policy grade, and exits 1 with the blockers
 listed when a run would fail. It also prints which versions the plugin was
-checked against — `claude-agent-sdk` **0.2.178** with its bundled Claude Code
-**2.1.318** — and raises **`ENV003`** at info level when the installed SDK is
+checked against — `claude-agent-sdk` **0.2.179** with its bundled Claude Code
+**2.1.319** — and raises **`ENV003`** at info level when the installed SDK is
 *newer* than that target. `ENV003` is never an error: a newer SDK is expected to
 work, and the note exists so a surprising behaviour can be attributed to the
 version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
 The documentation behind this plugin's references was read at Claude Code
-**2.1.318** (2026-11-04, and re-read 2026-11-05: docs lastmod 2026-11-04, no CLI
-release; before that at 2.1.316 on 2026-11-02 and 2.1.312 on 2026-10-29), the same build
-0.2.178 bundles (and the Homebrew `claude` on the build machine, byte for byte).
-0.2.177 is the first SDK API change since 0.2.166: `HookMatcher` gained
-`on_failure` (`types.py` grew by 13 lines, so line citations moved); 0.2.178
-changed only the bundled CLI. The **Ultra** plan appears in every docs list of
+**2.1.319** (docs re-read 2026-11-08, pages' lastmod 2026-11-06/07; before that at 2.1.318 on
+2026-11-04, read again on 2026-11-05 with docs lastmod 2026-11-04 and no CLI release; at 2.1.316 on
+2026-11-02 and 2.1.312 on 2026-10-29), the same build 0.2.179 bundles (and the natively installed
+`claude` on the build machine). 0.2.177 is the first SDK API change since 0.2.166: `HookMatcher`
+gained `on_failure` (`types.py` grew by 13 lines, so line citations moved); 0.2.178 and 0.2.179
+changed only the bundled CLI (0.2.179 has no SDK changelog entry; see its release page). The **Ultra** plan appears in every docs list of
 subscription plans (Pro, Max, Ultra, Team, Enterprise).
 
 A `claude -p` (or SDK) child that cannot start fails loudly. The Claude Code
@@ -136,12 +136,25 @@ stderr on both 2.1.310 and 2.1.316, and the SDK raised `ProcessError`
 (`exit_code=1`) on 0.2.174 and 0.2.176 alike. On 2.1.316 the init message lists
 14 `capabilities` (new: `ask_user_question_unanswered_v1`) and a new
 `ultrathink_available` key; 2.1.318 sends the same 14 plus an
-`ultrathink_typed_raises` key; read them with `.get()`. From 2.1.317 `claude -p`
+`ultrathink_typed_raises` key; 2.1.319 sends 15 `capabilities`, adding
+`mcp_call_check_permissions_v1` (undocumented; recorded, never required), with the same keys; read
+them with `.get()`. From 2.1.317 `claude -p`
 also exits 1 when a full disk loses its transcript or `~/.claude.json` writes, and
 from 2.1.318 a stored claude.ai sign-in is announced on stderr 10 days before it
 ends (`credential_expires_at` in `-p` JSON; absent with an API key). The `errors`
 page (read 2026-11-05) adds that a `claude -p` start exits 1 while `~/.claude.json`
 is broken, until someone repairs it, and when organization settings fail to load.
+
+**Environment variables new to this sync** (pass them in `env`; "docs" = on the env-vars page read
+2026-11-08, "changelog" = Claude Code 2.1.319 `CHANGELOG.md` only):
+`CLAUDE_CODE_AUTO_MODE_SERVER` (docs; `0` keeps the built-in auto-mode classifier when feature flags
+are off), `CLAUDE_CODE_DISABLE_FEATURE_FLAGS` (changelog; stops flag fetching, telemetry stays on),
+`CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND` (docs; an MCP task waits inside its tool call),
+`CLAUDE_CODE_DISABLE_MCP_TASKS` (changelog; turns MCP tasks off),
+`CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL` (docs, 2.1.319; drops a pending deferred call whose
+tool is gone) and `CLAUDE_CODE_CONFIG_LOCK_WAIT_MS` (docs, 2.1.318; how long `claude mcp add`/
+`remove` wait for the `~/.claude.json` lock). `permissions.denyInsteadOfPrompting` is a 2.1.319
+setting known from the changelog only, with no SDK support documented.
 
 ---
 
@@ -163,5 +176,7 @@ Claude Code 2.1.310 docs. The `-p` startup-failure and Ultra notes per the Claud
 (2.1.314) and the `authentication` docs; exit codes, init `capabilities` and
 `ultrathink_available` measured by this plugin on 2026-11-02; the 2.1.318 init keys and
 `-p` JSON keys on 2026-11-04; 2.1.317–2.1.318 changelog entries;
-`https://code.claude.com/docs/en/errors` (`claude -p` exit 1). Re-read 2026-11-05
-against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+`https://code.claude.com/docs/en/errors` (`claude -p` exit 1); the 2.1.319 init measured on
+2026-11-08; `https://code.claude.com/docs/en/env-vars` and the 2.1.319 changelog (the variables
+above); `https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.179`.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

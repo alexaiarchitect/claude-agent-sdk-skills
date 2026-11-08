@@ -60,10 +60,31 @@ of article #6.
   instead of three getters. Call patterns in transcripts show what to merge.
 - **Group by user intent**, not one tool per API (article #7).
 
+**Design from the model's seat.** *Seeing like an agent: how we design tools in
+Claude Code* (2026-04-10, article #31) describes how the Claude Code team shapes
+its own tools: to the model's abilities, learned by reading its outputs. Its
+lessons, as method rather than Claude Code's tool list:
+
+- **One goal per tool.** Questions bolted onto a plan-approval tool confused the
+  model; parsing a free-text format was unreliable; a dedicated tool with
+  structured input worked.
+- **Revisit tools when the model changes.** A to-do tool with periodic reminders
+  that once helped later held a stronger model to its list.
+- **Let the agent build its own context** with search tools rather than
+  pre-indexed retrieval.
+- **The bar for a new tool is high**: each is one more option to weigh. Try
+  progressive disclosure (a skill's bundled files) or a subagent that searches
+  in its own window and returns only the answer first.
+
 ## Returning context
 
 - Return **high-signal fields**: names over UUIDs, `file_type` over
   `mime_type`. Resolve opaque ids into something the model can reason about.
+- **Match the format to the reader.** A program gets structured output
+  (`output_format`, `structuredContent`); a person gets something readable.
+  *Using Claude Code: The unreasonable effectiveness of HTML* (2026-05-20,
+  article #33, the author's own practice in Claude Code) argues that HTML gets
+  read where long Markdown does not.
 - Offer a **`response_format`** parameter (`"concise"` / `"detailed"`) when
   follow-up calls sometimes need ids. Article #4 measured a concise response at
   about a third of the detailed one's tokens.
@@ -137,4 +158,4 @@ Article #4's loop: **prototype, evaluate, improve, repeat.**
   for tasks that exercise each tool; `/agent-sdk:eval-analyze` for tool-call
   counts and cost per task.
 
-Sources: https://www.anthropic.com/research/writing-tools-for-agents ("Writing effective tools for AI agents", 2025-09-11, choosing and consolidating tools, namespacing, response_format, pagination and truncation, actionable errors, parameter names, evaluation-driven iteration with held-out tasks); https://www.anthropic.com/research/building-effective-agents ("Building effective AI agents", 2024-12-19, Appendix 2: tool definitions as prompts, formats, poka-yoke); https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, the 30–50 tool-definition range, grouping by intent); https://www.anthropic.com/research/code-execution-with-mcp ("Code execution with MCP for efficient agents", 2025-11-04, filtering large results in code); https://code.claude.com/docs/en/agent-sdk/custom-tools (read 2026-10-29, `@tool`, optional parameters, annotations, `is_error`, `structuredContent`, TypeScript-only `permission_policy`); https://code.claude.com/docs/en/agent-sdk/mcp (read 2026-10-29, tool naming and the 25,000-token / 50,000-character output limits); https://code.claude.com/docs/en/agent-sdk/tool-search (read 2026-10-29 and 2026-11-02, on by default, `ENABLE_TOOL_SEARCH`, `auto` at 10 %, up to five tools per search); https://www.anthropic.com/research/advanced-tool-use ("Introducing advanced tool use for Claude", 2025-11-24, the ~10-tool / ~10K-token threshold for tool search, three to five tools kept loaded, Tool Use Examples, Programmatic Tool Calling). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+Sources: https://www.anthropic.com/research/writing-tools-for-agents ("Writing effective tools for AI agents", 2025-09-11, choosing and consolidating tools, namespacing, response_format, pagination and truncation, actionable errors, parameter names, evaluation-driven iteration with held-out tasks); https://www.anthropic.com/research/building-effective-agents ("Building effective AI agents", 2024-12-19, Appendix 2: tool definitions as prompts, formats, poka-yoke); https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop ("Building agents: When to fold subagents into your main agent loop", 2026-10-22, the 30–50 tool-definition range, grouping by intent); https://www.anthropic.com/research/code-execution-with-mcp ("Code execution with MCP for efficient agents", 2025-11-04, filtering large results in code); https://code.claude.com/docs/en/agent-sdk/custom-tools (read 2026-10-29, `@tool`, optional parameters, annotations, `is_error`, `structuredContent`, TypeScript-only `permission_policy`); https://code.claude.com/docs/en/agent-sdk/mcp (read 2026-10-29, tool naming and the 25,000-token / 50,000-character output limits); https://code.claude.com/docs/en/agent-sdk/tool-search (read 2026-10-29 and 2026-11-02, on by default, `ENABLE_TOOL_SEARCH`, `auto` at 10 %, up to five tools per search); https://www.anthropic.com/research/advanced-tool-use ("Introducing advanced tool use for Claude", 2025-11-24, the ~10-tool / ~10K-token threshold for tool search, three to five tools kept loaded, Tool Use Examples, Programmatic Tool Calling).; https://claude.dev/blog/seeing-like-an-agent/ ("Seeing like an agent: how we design tools in Claude Code", 2026-04-10, tools shaped to the model's abilities, one goal per tool, revisiting tools per model generation, search over pre-indexing, a high bar for new tools; Claude Code's own tools, cited for the method); https://claude.dev/blog/using-claude-code-the-unreasonable-effectiveness-of-html/ ("Using Claude Code: The unreasonable effectiveness of HTML", 2026-05-20, HTML for a human reader; the author's opinion). Written 2026-10-29 against claude-agent-sdk 0.2.174 / Claude Code 2.1.312 docs. Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

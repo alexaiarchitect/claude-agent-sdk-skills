@@ -78,6 +78,34 @@ Multi-turn cases are the ones that hit ceilings:
   and a long case costs more per turn than a short one. That is what
   `max_cache_read_tokens` is for.
 
+## Memory across sessions: a pair of cases and a consolidation case
+
+Everything above is memory *within* one session. Memory *across* sessions —
+notes a later session reads, as in *The components of agent memory* (2026-11-06,
+article #30; design in `/agent-sdk:agent-design`, `memory-design.md`) — lives in
+files, so it is tested through files and the trace, never a state store. One
+case is one session, so "two runs" is two cases:
+
+| Case | Setup | Assert |
+|---|---|---|
+| **write** | a task that teaches something worth keeping (a correction, a tested rule) | `file_exists` on `memory/*.md`; `regex` with `target: files` for the fact |
+| **read** | `scaffold_script` seeds `memory/` with the note the write case should produce; a task that needs it | `regex` with `target: trace` for a read of the note's path; `tool_used` with `max: 0` on the lookup the note makes unnecessary; `final_text` or `regex` for the fact |
+| **consolidate** | `scaffold_script` seeds a wrong note plus a log file that contradicts it; the prompt asks for one consolidation pass | `regex` with `target: files` for the corrected fact, and `match: not_contains` for the wrong one; `no_tool` on tools the pass must not use (`Bash`) |
+
+Seed the read case from a note a real write run produced, so the pair tests the
+same format. Add a **stale-note** variant (the seeded note contradicts what the
+scaffolded files now say; the agent should trust the files and update the note)
+when the agent's memory holds facts that change.
+
+**Keep the memory folder inside the run's working directory.** The runner forces
+`setting_sources=[]` but does not set `CLAUDE_CODE_DISABLE_AUTO_MEMORY`, and
+Claude Code's auto memory loads in SDK sessions regardless of `setting_sources`.
+Its directory sits under the config directory, outside the run's working
+directory, so a note saved there is invisible to `file_exists`; and since the
+directory is keyed to the project path, a run in a fresh directory most likely
+starts with an empty one (our reading of the memory docs). An agent whose memory
+is app-designed should set the variable in its own `env`.
+
 ## Isolation still applies
 
 Each *case* gets a fresh session and a fresh working directory; each *turn*
@@ -91,4 +119,11 @@ Sources: `.dev/CONTRACTS.md` §1 (`turns`, `simulated_user`, `EVC006`), §2.1
 (`is_multi_turn`, `EVC002`, `EVC040`);
 https://code.claude.com/docs/en/agent-sdk/python (`ClaudeSDKClient`, the
 message stream, `ResultMessage.num_turns`);
-https://code.claude.com/docs/en/agent-sdk/sessions (what a session is).
+https://code.claude.com/docs/en/agent-sdk/sessions (what a session is);
+https://www.anthropic.com/research/components-of-agent-memory ("The components of
+agent memory", 2026-11-06, notes for later sessions, correcting notes against
+transcripts; experiments on Claude Managed Agents, cited for the method);
+https://code.claude.com/docs/en/memory (read 2026-11-08, the auto-memory
+directory and what loads); https://code.claude.com/docs/en/agent-sdk/claude-code-features
+(read 2026-11-08, auto memory loads regardless of `setting_sources`).
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

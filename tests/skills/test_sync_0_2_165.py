@@ -57,6 +57,7 @@ REREAD_NOTE = (
 #: (permission-model.md, 2026-11-05); either shows the file was re-read.
 LATER_REREAD_NOTES = (
     "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
+    "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
 )
 
 

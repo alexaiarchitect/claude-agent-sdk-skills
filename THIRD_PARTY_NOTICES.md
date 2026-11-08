@@ -16,7 +16,10 @@ exact tree it came from.
     Licensed under the MIT License
     https://github.com/anthropics/claude-agent-sdk-python
 
-Snapshot: `3be907edb9c86269d30d1427a77937dd788d6419` (2026-11-04, `main` =
+Snapshot: `2209f2c134fee914c0f75733b631a5fc238ca846` (2026-11-08, `main` = `v0.2.179`, which
+bundles CLI 2.1.319 and changes only the version files, so `types.py` and every citation hold; no
+CHANGELOG entry, see https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.179;
+previously `3be907edb9c86269d30d1427a77937dd788d6419` on 2026-11-04, `main` =
 `v0.2.178`, which bundles CLI 2.1.318; `v0.2.177` added `HookMatcher.on_failure`,
 13 lines in `types.py` plus its handling in `_internal/query.py`, so every
 `types.py:N` citation is re-pinned to 0.2.178 (+11 from line 855, +13 from line
@@ -25,8 +28,8 @@ Snapshot: `3be907edb9c86269d30d1427a77937dd788d6419` (2026-11-04, `main` =
 `27858cbba9ecee26a06a90b8d39d3b5596121d11` on 2026-10-29,
 `0e89b298e771259378a6cd3734e00d323dff5703` on 2026-10-24, `f93e29cc` after
 `v0.2.168`, `b6e9d12f` and `bbf09e3c`, which was `v0.2.162`). Behaviour was
-measured against the installed `claude-agent-sdk` **0.2.178 wheel (bundled CLI
-2.1.318)** on 2026-11-04, the 0.2.176 wheel (bundled CLI 2.1.316) on 2026-11-02,
+measured against the installed `claude-agent-sdk` **0.2.179 wheel (bundled CLI
+2.1.319)** on 2026-11-08, the 0.2.178 wheel (bundled CLI 2.1.318) on 2026-11-04, the 0.2.176 wheel (bundled CLI 2.1.316) on 2026-11-02,
 and the 0.2.174 wheel (bundled CLI 2.1.310) up to 2026-10-29; earlier
 figures in this plugin's references name the wheel they came from (0.2.174 with
 CLI 2.1.310, 0.2.168 with CLI 2.1.301, 0.2.165 with CLI 2.1.294, or 0.2.162 with
@@ -46,8 +49,9 @@ transcript shape of the SDK's `tests/test_sessions.py::_parallel_tool_turn`
     Proprietary license; see LICENSE.md in that repository
     https://github.com/anthropics/claude-code
 
-Snapshot: `26382c08758260c9f5deb2019d8fe851f89fa9ae` (2026-11-04, Claude Code
-2.1.318; previously `1a0f9a9d18e1272d3fbaa817d192b6b057bba623` at 2.1.316 on
+Snapshot: `0ed94698aa0aeee471465fc9c867c2e8434c4d68` (2026-11-08, Claude Code 2.1.319;
+nothing under its `mods/` was read or copied; previously
+`26382c08758260c9f5deb2019d8fe851f89fa9ae` at 2.1.318 on 2026-11-04, then `1a0f9a9d18e1272d3fbaa817d192b6b057bba623` at 2.1.316 on
 2026-11-02, `58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102` at 2.1.312 on
 2026-10-29, `318b7e6ac4e726e88a4ad326214866a93c373b1b` at 2.1.310 on
 2026-10-24, `c017428c` at 2.1.302, `3deb8736` at 2.1.296 and `732e167e` at
@@ -65,7 +69,8 @@ are redistributed; the repository's own license terms apply to its contents.
     Licensed under the MIT License
     https://github.com/anthropics/claude-cookbooks
 
-Snapshot: `ce8b2629efe8b24048b127b4c79af1e9cbab93d4` (2026-11-04, read 2026-11-05: the
+Snapshot: `ce8b2629efe8b24048b127b4c79af1e9cbab93d4` (2026-11-04, read 2026-11-05 and unmoved on
+2026-11-08: the
 two new commits add a Managed Agents "dreaming" cookbook under `managed_agents/` and
 fix a registry duplicate, outside the directories this plugin reads; previously
 `785d7a06457b` from 2026-11-02, read 2026-11-04, whose `claude_agent_sdk/` notebooks
@@ -83,8 +88,10 @@ No notebook content is redistributed.
     Copyright (c) Anthropic, PBC
     https://github.com/anthropics/skills
 
-Snapshot: `ca45fc496a3436251f191354091d557da31c15b5` (2026-10-29, unmoved on
-2026-11-02, 2026-11-04 and 2026-11-05; the one new commit touches `mcp-builder` only; previously `dbd4588f`, unmoved from
+Snapshot: `2c5958ecac7cee2b583967a2c4981d0f4a75c579` (2026-11-08: the new commit moves the
+Office skills to Apache 2.0, license files only; previously
+`ca45fc496a3436251f191354091d557da31c15b5` from 2026-10-29, unmoved on
+2026-11-02, 2026-11-04 and 2026-11-05, whose one new commit touched `mcp-builder` only; before that `dbd4588f`, unmoved from
 2026-10-09 to 2026-10-24, and `8a1541c4`. The `skill-creator` content is
 byte-identical across all three). The grader design (burden of
 proof on the expectation, no partial credit, critique of weak assertions)
@@ -97,7 +104,8 @@ files apply to that repository's contents; nothing from it is redistributed.
     Licensed under the Apache License, Version 2.0
     https://github.com/anthropics/cwc-workshops
 
-Snapshot: `2c65d16c6de16f8f24117d539a712ea706b5dee7` (2026-11-04, read 2026-11-05: the
+Snapshot: `2c65d16c6de16f8f24117d539a712ea706b5dee7` (2026-11-04, read 2026-11-05 and unmoved on
+2026-11-08: the
 new commit adds a `building-blocks/` code-along for the Messages API, outside the part
 this plugin reads; previously `4c34ec4863df` from 2026-10-17, unmoved to 2026-11-04,
 and `068b84bb`). The
@@ -110,7 +118,7 @@ baseline comparison informed the grader catalog. No files are redistributed.
     No repository-level license file at the snapshot
     https://github.com/anthropics/claude-agent-sdk-demos
 
-Snapshot: `826b2685` (unmoved since 2026-03-13; re-checked 2026-11-05). Used as
+Snapshot: `826b268506a5f3707623c9e6140b200befcbebae` (unmoved since 2026-03-13; re-checked 2026-11-05 and 2026-11-08). Used as
 example projects for the read-only sweep that checks this plugin's static
 readers on real code. Nothing is redistributed.
 
@@ -129,7 +137,9 @@ added on 2026-11-02, and on **2026-11-04** at Claude Code **2.1.318** (the same 
 files, 23 pages byte-changed, all with text changes), and re-read on **2026-11-05**,
 still at Claude Code 2.1.318 (no CLI release; the pages' lastmod moved on
 2026-11-04; the same 86 files, 13 pages with text changes, among them the rewritten
-permission-evaluation flow);
+permission-evaluation flow), and on **2026-11-08** at Claude Code **2.1.319** (the same 86 files,
+17 pages with text changes, among them the Monitor rule on the SDK hooks page, Python plugin reload
+by `/reload-plugins` and the `Write`/`Glob`/`Grep` path-rule heading);
 every reference names the pages it distills and carries the re-read date in its
 `Sources:` footer. The TypeScript SDK repository, whose contents are under
 Anthropic's commercial terms, was consulted for its documentation only and
@@ -140,11 +150,11 @@ nothing from it is included.
 Anthropic's published engineering and product articles supply the design
 rationale in this plugin's references; current mechanics are always cited from
 the documentation above. They come from three hosts: `anthropic.com` (`/research`, `/news`),
-`claude.com`, and, for articles 26–29, Anthropic's developer blog at `claude.dev`
+`claude.com`, and, for articles 26–29 and 31–41, Anthropic's developer blog at `claude.dev`
 (`https://claude.dev/blog/<slug>/`, canonical URLs with the trailing slash).
 Articles 1–14 were read on 2026-10-29 and articles
 15–23 on 2026-11-02, and articles 24–25 on 2026-11-04, and articles 26–29 on
-2026-11-05, each at the canonical URL below
+2026-11-05, and articles 30–41 on 2026-11-08, each at the canonical URL below
 (the older engineering-blog paths under `anthropic.com` now redirect to
 `anthropic.com/research/<slug>`). The references **paraphrase** them, with at
 most a short attributed quote; no article text is reproduced at length, and the
@@ -181,6 +191,18 @@ articles remain Anthropic's.
 | 27 | "How the Claude Code team does code review" (Osmani, Westlee Lunt, Wang; Claude Code's own review process, not SDK guidance) | https://claude.dev/blog/solving-code-review-at-anthropic/ | 2026-10-15 | `agent-review/references/review-checklist.md`, `agent-harness/references/subagent-design.md`, `eval-create/references/case-taxonomy.md`, `eval-create/references/golden-traces.md` |
 | 28 | "Building effective agent automations" (Martin, Avilla; a Managed Agents and `ant` CLI reference implementation: the patterns are cited, not the tooling) | https://claude.dev/blog/building-effective-agent-automations/ | 2026-10-08 | `agent-deploy/references/hosting-options.md`, `agent-deploy/references/cost-controls.md`, `agent-design/references/long-running-harness.md`, `agent-sdk/references/glossary.md` |
 | 29 | "Claude Code in the cloud: a field guide to cloud sessions" (Osmani; about Claude Code cloud sessions, which an SDK app does not run in) | https://claude.dev/blog/claude-code-in-the-cloud/ | 2026-10-06 | `agent-deploy/references/hosting-options.md` |
+| 30 | "The components of agent memory" (Lance Martin; experiments on Claude Managed Agents, compared with Claude Code's auto memory, no Agent SDK mention: the method is cited, the SDK mapping is ours) | https://www.anthropic.com/research/components-of-agent-memory | 2026-11-06 | `agent-design/references/memory-design.md`, `agent-design/references/context-engineering.md`, `agent-design/references/long-running-harness.md`, `eval-create/references/memory-and-multiturn.md`, `agent-deploy/references/hosting-options.md`, `agent-sdk/references/glossary.md` |
+| 31 | "Seeing like an agent: how we design tools in Claude Code" (Thariq Shihipar; Claude Code's own tools, cited for the method, not the tool list) | https://claude.dev/blog/seeing-like-an-agent/ | 2026-04-10 | `agent-design/references/tool-design.md` |
+| 32 | "Lessons from building Claude Code: Prompt caching is everything" (Shihipar; Claude Code on the Messages API cache; the SDK mapping is ours) | https://claude.dev/blog/lessons-from-building-claude-code-prompt-caching-is-everything/ | 2026-04-30 | `agent-deploy/references/cost-controls.md`, `eval-analyze/references/efficiency.md`, `agent-sdk/references/glossary.md` |
+| 33 | "Using Claude Code: The unreasonable effectiveness of HTML" (Shihipar; the author's own Claude Code practice, one sentence) | https://claude.dev/blog/using-claude-code-the-unreasonable-effectiveness-of-html/ | 2026-05-20 | `agent-design/references/tool-design.md` |
+| 34 | "A harness for every task: dynamic workflows in Claude Code" (Shihipar, Sid Bidasaria; Claude Code's Workflow tool, not an SDK API) | https://claude.dev/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code/ | 2026-06-02 | `agent-harness/references/subagent-design.md`, `agent-design/references/subagent-decisions.md` |
+| 35 | "Lessons from building Claude Code: How we use skills" (Shihipar; Claude Code skills practice; skill-scoped hooks and marketplaces are Claude Code features) | https://claude.dev/blog/lessons-from-building-claude-code-how-we-use-skills/ | 2026-06-03 | `agent-design/references/context-engineering.md`, `agent-harness/references/context-and-settings.md` |
+| 36 | "The new rules of context engineering for Claude 5 generation models" (Shihipar; the >80 % cut is Claude Code's own system prompt, not the SDK preset) | https://claude.dev/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models/ | 2026-07-24 | `agent-design/references/context-engineering.md` |
+| 37 | "Getting the most out of Opus 5.5 in Claude and Claude Code" (Addy Osmani; Claude apps and Claude Code usage) | https://claude.dev/blog/getting-the-most-out-of-opus-5-5/ | 2026-09-22 | `agent-review/references/model-policy.md`, `agent-design/references/agent-loop.md` |
+| 38 | "Using Claude Code: Spending your effort" (Shihipar; Claude Code's `/effort`, which the SDK's `effort` maps to; benchmark figures not cited) | https://claude.dev/blog/spending-your-effort/ | 2026-09-25 | `agent-deploy/references/cost-controls.md`, `agent-review/references/options-reference.md`, `eval-analyze/references/reliability.md`, `agent-sdk/references/glossary.md` |
+| 39 | "What a task costs on Opus 5.5" (Osmani; Claude Code costs; no prices copied) | https://claude.dev/blog/what-a-task-costs-on-opus-5-5/ | 2026-09-25 | `agent-deploy/references/cost-controls.md` |
+| 40 | "Building with Claude Sonnet 5.5" (Osmani; a Messages API model guide with a Claude Code section; API-only parameters not carried into SDK references) | https://claude.dev/blog/building-with-claude-sonnet-5-5/ | 2026-09-28 | `agent-review/references/model-policy.md`, `agent-deploy/references/cost-controls.md` |
+| 41 | "Getting started with Claude Code mods" (Osmani; Claude Code mods, hooks shipped in plugins; nothing from the `mods/` tree of `anthropics/claude-code` is copied) | https://claude.dev/blog/getting-started-with-claude-code-mods/ | 2026-10-01 | `agent-harness/references/hooks-catalog.md` |
 
 Two articles cited before this set: "How we contain Claude across products"
 (https://www.anthropic.com/research/how-we-contain-claude, 2026-05-25), cited by

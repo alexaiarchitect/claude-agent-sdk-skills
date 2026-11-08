@@ -2,15 +2,13 @@
 
 ## The naming rule everything depends on
 
-A tool from an MCP server reaches the model as **`mcp__<server>__<tool>`**, where
-`<server>` is the key in the `mcp_servers` dict (or in `.mcp.json`) with any `.` or space
-turned into `_`, and `<tool>` is the name the server advertises. A plugin's server takes
-the scoped form `plugin_<plugin>_<server>`. Change the key and every `allowed_tools`
-entry, every grader and every trajectory changes with it.
+A tool from an MCP server reaches the model as **`mcp__<server>__<tool>`**, where `<server>` is the key
+in the `mcp_servers` dict (or in `.mcp.json`) with any `.` or space turned into `_`, and `<tool>` is the
+name the server advertises. A plugin's server takes the scoped form `plugin_<plugin>_<server>`. Change
+the key and every `allowed_tools` entry, every grader and every trajectory changes with it.
 
-An `mcp__x__` prefix with no server `x` is `MCP001`: an allow rule that can
-never match, so the tool it was meant to approve prompts or is denied instead.
-Nothing warns at run time.
+An `mcp__x__` prefix with no server `x` is `MCP001`: an allow rule that can never match, so the tool it
+was meant to approve prompts or is denied instead. Nothing warns at run time.
 
 ## Three transports
 
@@ -23,11 +21,10 @@ Nothing warns at run time.
 In `.mcp.json` and other JSON config, `"streamable-http"` is accepted as an alias for
 `"http"`; the SDK's own `McpHttpServerConfig` declares only `"http"`, so use that in code.
 
-A server declared in a **plugin manifest** also accepts `requestTimeout` — a positive
-integer in milliseconds, default **60000**, needing Claude Code **2.1.288+**. It is a
-manifest field, not a `ClaudeAgentOptions` one: there is no per-server timeout among the
-49 options, so an SDK-configured server that is slow has to be wrapped or replaced by a
-mock instead.
+A server declared in a **plugin manifest** also accepts `requestTimeout` — a positive integer in
+milliseconds, default **60000**, needing Claude Code **2.1.288+**. It is a manifest field, not a
+`ClaudeAgentOptions` one: there is no per-server timeout among the 49 options, so an SDK-configured
+server that is slow has to be wrapped or replaced by a mock instead.
 
 ### In-process is the one to prefer
 
@@ -45,62 +42,53 @@ async def reserve_book(args: dict[str, Any]) -> dict[str, Any]:
 - `tool(name, description, input_schema)` returns an `SdkMcpTool`. The schema
   may be a `{param: type}` dict, a `TypedDict` class, or a full JSON Schema
   dict; `Annotated[str, "..."]` adds a per-parameter description.
-- The handler must be `async`, and returns
-  `{"content": [{"type": "text", "text": ...}], "is_error"?: True}`. Content
-  items may be `text`, `image` (`data` + `mimeType`), `resource_link` or a text
+- The handler must be `async`, and returns `{"content": [{"type": "text", "text": ...}], "is_error"?:
+  True}`. Content items may be `text`, `image` (`data` + `mimeType`), `resource_link` or a text
   `resource`; binary resources and unknown types are **dropped with a warning**.
-- Arguments are validated against the schema before the handler runs. An
-  invalid input and a raised exception both come back to Claude as an error
-  result, and the loop continues — so how you report an error decides what
-  Claude reads, not whether the query fails.
+- Arguments are validated against the schema before the handler runs. An invalid input and a raised
+  exception both come back to Claude as an error result, and the loop continues — so how you report an
+  error decides what Claude reads, not whether the query fails.
 - Prefer returning `{"is_error": True}` with a sentence the model can act on
   over raising: an exception's message reaches Claude as raw text.
-- Annotations: `readOnlyHint`/`idempotentHint` decide which HTTP calls are
-  retried (2.1.307). `destructiveHint: true` matters to the TypeScript
-  `permission_policy: "always_ask"` (TypeScript-only, v0.3.301+): under `auto`
-  or `plan` set it explicitly so those calls still reach `canUseTool`, because
-  unset counts as `false` there. In Python the hint is advisory; gate a
-  destructive tool with `can_use_tool` or a `PreToolUse` hook.
+- Annotations: `readOnlyHint`/`idempotentHint` decide which HTTP calls are retried (2.1.307).
+  `destructiveHint: true` matters to the TypeScript `permission_policy: "always_ask"` (TypeScript-only,
+  v0.3.301+): under `auto` or `plan` set it explicitly so those calls still reach `canUseTool`, because
+  unset counts as `false` there. In Python the hint is advisory; gate a destructive tool with
+  `can_use_tool` or a `PreToolUse` hook.
 
 ### Writing the tools themselves
 
-Anthropic's tool-writing guidance (2025-09-11) in brief, with the current mechanics from
-the docs:
+Anthropic's tool-writing guidance (2025-09-11) in brief, with the current mechanics from the docs:
 
-- **Few, deliberate tools.** Search over list (`search_contacts`, not
-  `list_contacts`); consolidate a multi-step operation into one tool
-  (`schedule_event` instead of list-users + list-events + create-event); give
-  each tool one clear purpose — overlapping tools are the commonest failure.
-- **Namespace by service and resource** (`library_books_search`,
-  `library_loans_create`): the `mcp__<server>__` prefix separates servers, not
-  resources within one.
-- **Return high-signal fields** (names over opaque UUIDs) and offer a
-  `response_format` enum (`"concise"`/`"detailed"`) when IDs are only sometimes
-  needed. Claude Code limits MCP output to **25,000 tokens** by default
-  (`MAX_MCP_OUTPUT_TOKENS`; text over 50,000 characters is saved to a file), so
-  paginate, filter or truncate with defaults, and when you truncate say how to
-  narrow the next call.
+- **Few, deliberate tools.** Search over list (`search_contacts`, not `list_contacts`); consolidate a
+  multi-step operation into one tool (`schedule_event` instead of list-users + list-events +
+  create-event); give each tool one clear purpose — overlapping tools are the commonest failure.
+- **Namespace by service and resource** (`library_books_search`, `library_loans_create`): the
+  `mcp__<server>__` prefix separates servers, not resources within one.
+- **Return high-signal fields** (names over opaque UUIDs) and offer a `response_format` enum
+  (`"concise"`/`"detailed"`) when IDs are only sometimes needed. Claude Code limits MCP output to
+  **25,000 tokens** by default (`MAX_MCP_OUTPUT_TOKENS`; text over 50,000 characters is saved to a
+  file), so paginate, filter or truncate with defaults, and when you truncate say how to narrow the next
+  call.
 - **Actionable errors** (what to change, an example of valid input) and
   **unambiguous parameter names** (`user_id`, not `user`).
 
-The code-execution alternative (2025-11-04): present servers as code APIs the agent calls
-from scripts, so definitions load on demand and intermediate data stays out of the window
-— the article cites one workflow dropping from 150,000 to 2,000 tokens — at the price of
-running agent-written code in a sandbox with resource limits and monitoring
-(`secure-deployment.md`).
+The code-execution alternative (2025-11-04): present servers as code APIs the agent calls from scripts,
+so definitions load on demand and intermediate data stays out of the window — the article cites one
+workflow dropping from 150,000 to 2,000 tokens — at the price of running agent-written code in a sandbox
+with resource limits and monitoring (`secure-deployment.md`).
 
-The advanced-tool-use article (2025-11-24) adds three Messages API features. The **Tool Search
-Tool** pays off past roughly 10 tools or 10K tokens of definitions ("Keep your three to five
-most-used tools always loaded, defer the rest"), and search matches names and descriptions, so write
-them to be found. **Tool Use Examples** (1–5 realistic `input_examples` per tool) fix parameter
-formats a schema cannot express. **Programmatic Tool Calling** has Claude call tools from a script
-so only the final output enters context. The article predates the SDK's tool search, which is **on
-by default** for remote and in-process SDK MCP tools (`ENABLE_TOOL_SEARCH`; `auto` defers once
-deferrable definitions reach 10 % of the context window; up to five tools loaded per search): an SDK
-agent does not set `defer_loading` itself. `input_examples` and Programmatic Tool Calling have no
-`ClaudeAgentOptions` field in 0.2.178; the code-execution pattern above, or a custom tool that
-aggregates server-side, is the SDK analogue. For a design review of a tool set,
-`/agent-sdk:agent-design`.
+The advanced-tool-use article (2025-11-24) adds three Messages API features. The **Tool Search Tool**
+pays off past roughly 10 tools or 10K tokens of definitions ("Keep your three to five most-used tools
+always loaded, defer the rest"), and search matches names and descriptions, so write them to be found.
+**Tool Use Examples** (1–5 realistic `input_examples` per tool) fix parameter formats a schema cannot
+express. **Programmatic Tool Calling** has Claude call tools from a script so only the final output
+enters context. The article predates the SDK's tool search, which is **on by default** for remote and
+in-process SDK MCP tools (`ENABLE_TOOL_SEARCH`; `auto` defers once deferrable definitions reach 10 % of
+the context window; up to five tools loaded per search): an SDK agent does not set `defer_loading`
+itself. `input_examples` and Programmatic Tool Calling have no `ClaudeAgentOptions` field in 0.2.179;
+the code-execution pattern above, or a custom tool that aggregates server-side, is the SDK analogue. For
+a design review of a tool set, `/agent-sdk:agent-design`.
 
 ### Errors and status
 
@@ -115,8 +103,7 @@ plugin-provided servers and claude.ai connectors. Measured on the build machine,
 with `setting_sources=[]` still had the managed `claude.ai Claude Docs` MCP server
 attached; only `strict_mcp_config=True` dropped it.
 
-For an eval that means: **the agent's tool surface depends on the machine**
-until you set it. Set both.
+For an eval that means: **the agent's tool surface depends on the machine** until you set it. Set both.
 
 `tools=["Read"]` does not help here — measured, the init message listed `Read`
 plus every `mcp__claude_ai_Claude_Docs__*` tool. `tools` governs built-ins only.
@@ -138,48 +125,46 @@ called `a__b` or `a_`, and a server whose normalised name contains `__` or ends 
 must be written in the wildcard form with its whole name (`mcp__reports__v2__*`). The same
 release scoped an agent's `tools:` list to the named server's tools.
 
-Two tools escape the allow list entirely. A tool whose server sets
-`requiresUserInteraction`, and a connector tool an organisation has set to `ask`, always
-reach the ask step however they are pre-approved — and in `dontAsk` they are **denied**
-rather than prompted, because that mode never prompts. An unattended suite that needs such
-a tool has to mock it; no allow rule will do.
+Two tools escape the allow list entirely. A tool whose server sets `requiresUserInteraction`, and a
+connector tool an organisation has set to `ask`, always reach the ask step however they are pre-approved
+— and in `dontAsk` they are **denied** rather than prompted, because that mode never prompts. An
+unattended suite that needs such a tool has to mock it; no allow rule will do.
 
 Claude Code trims MCP tool descriptions and server instructions to **4096** characters
 (**16384** for a tool loaded through tool search; `CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`
 replaces both), so keep a server's usage rules near the top of its description.
 
-**Behind an LLM gateway** (`ANTHROPIC_BASE_URL`), tool search is on by default, so Claude
-Code expects the gateway to forward `defer_loading` tool fields and `tool_reference` blocks
-with the `anthropic-beta` header; an error naming either means the gateway drops them (docs
-read 2026-11-04, which no longer offer `ENABLE_TOOL_SEARCH=false` as the workaround there).
-**A 401 from an HTTP server**: with a stored refresh token Claude Code refreshes, reconnects
-and retries once; without one it connects once without the token and deletes the rejected
-one. In a `claude -p` or SDK run on macOS, a request sent while the stored token could not be
-read fails with a stored-credentials error. A plugin's `stdio` server also gets
-`CLAUDE_PROJECT_DIR` substituted, beside `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PLUGIN_DATA`.
+**Behind an LLM gateway** (`ANTHROPIC_BASE_URL`), tool search is on by default, so Claude Code expects
+the gateway to forward `defer_loading` tool fields and `tool_reference` blocks with the `anthropic-beta`
+header; an error naming either means the gateway drops them (docs read 2026-11-04, which no longer offer
+`ENABLE_TOOL_SEARCH=false` as the workaround there). **A 401 from an HTTP server**: with a stored
+refresh token Claude Code refreshes, reconnects and retries once; without one it connects once without
+the token and deletes the rejected one. In a `claude -p` or SDK run on macOS, a request sent while the
+stored token could not be read fails with a stored-credentials error. A plugin's `stdio` server also
+gets `CLAUDE_PROJECT_DIR` substituted, beside `CLAUDE_PLUGIN_ROOT` and `CLAUDE_PLUGIN_DATA`.
 
 Fixes that an SDK agent can feel (Claude Code 2.1.305–2.1.318):
 
-- a server passed with the SDK's `setMcpServers` (TypeScript; the Python
-  client has no such call at 0.2.178) is no longer replaced later in the session
-  by a same-named server from the user's settings (2.1.305);
-- an HTTP MCP tool call is no longer sent twice when the connection closes
-  mid-call: only read-only or idempotent tools are retried (2.1.307), so mark a
-  tool's annotations honestly; and a turn no longer starts without an SDK MCP
-  server's latest tools while a background task runs (2.1.307);
-- a disabled MCP server is no longer reconnected by a later permission prompt in
-  print and SDK sessions (2.1.309);
-- a call that times out in a non-interactive session while the server's
-  elicitation goes unanswered now tells Claude "that no answer came and not to
-  repeat the call" (2.1.310) — an unattended agent cannot answer elicitations,
-  so mock such a tool rather than wait;
-- subagents can use MCP tools from servers that finish connecting after the
-  subagent started (2.1.311);
-- a plugin MCP server's `headersHelper` script no longer gets a corrupted
-  `CLAUDE_PLUGIN_ROOT` and server URL when a credential-named environment variable
-  is set to a switch value such as `1` (2.1.316);
-- an MCP tool called before it is loaded now returns an error carrying its input
-  schema (2.1.318), so Claude can retry with the right arguments.
+- a server passed with the SDK's `setMcpServers` (TypeScript; the Python client has no such call at
+  0.2.179) is no longer replaced by a same-named server from the user's settings (2.1.305);
+- an HTTP MCP tool call is no longer sent twice when the connection closes mid-call: only read-only
+  or idempotent tools are retried (2.1.307), so mark a tool's annotations honestly; and a turn no
+  longer starts without an SDK MCP server's latest tools while a background task runs (2.1.307);
+- a disabled MCP server is no longer reconnected by a later permission prompt in print and SDK
+  sessions (2.1.309);
+- a call that times out in a non-interactive session while the server's elicitation goes unanswered
+  now tells Claude "that no answer came and not to repeat the call" (2.1.310) — an unattended agent
+  cannot answer elicitations, so mock such a tool rather than wait;
+- subagents can use MCP tools from servers that finish connecting after they started (2.1.311); a
+  plugin server's `headersHelper` no longer gets a corrupted `CLAUDE_PLUGIN_ROOT` and URL when a
+  credential-named variable is set to `1` (2.1.316); an MCP tool called before it is loaded returns
+  an error carrying its input schema (2.1.318), so Claude can retry with the right arguments.
+
+With `MCP_PROTOCOL_NEGOTIATION` unset, Claude Code can skip asking a stdio server for 7 days (for
+example after the server exited when asked); set it to `auto` to have an upgraded server asked sooner.
+`CLAUDE_CODE_CONFIG_LOCK_WAIT_MS` (2.1.318) is how long `claude mcp add`/`remove` at `user` or `local`
+scope keep trying for the `~/.claude.json` lock (unset, about 10–20 s); the "was not saved" error now
+names it, so a host that writes MCP config from parallel jobs can raise it (docs read 2026-11-08).
 
 **Skipped servers are reported.** An `--mcp-config` entry that fails config validation is
 absent from `mcp_servers` and listed in `mcp_server_errors` (`name`, `type` such as
@@ -187,22 +172,29 @@ absent from `mcp_servers` and listed in `mcp_server_errors` (`name`, `type` such
 output — the key is omitted when empty, so a CI gate can fail on a non-empty array — and
 in stream-json runs in the `system/init` event's `mcp_server_errors` field.
 
-A `claude -p` run does not wait for MCP work in the background when it ends: a
-remote MCP task goes on (resume the session to follow it), and the result of a
-call that automatic backgrounding moved is lost.
+**MCP tasks.** The `mcp` page (already on 2026-11-05) covers Agent SDK sessions in both languages:
+a call the server runs as a task becomes an MCP task only when, among other conditions, the session
+has `CLAUDE_AUTO_BACKGROUND_TASKS=1`, `CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND` is not `1` and
+`CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS` is not `0`, with input kept open. Claude Code 2.1.319 moves such
+a task to the background at once and tells Claude the result when it finishes;
+`CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND=1` makes it wait inside the tool call, and
+`CLAUDE_CODE_DISABLE_MCP_TASKS=1` turns tasks off (changelog-only). The TypeScript SDK's 0.3.319
+changelog reports such a task with `task_type: "mcp_task"`; the Python page still lists only
+`local_bash`, `local_agent` and `remote_agent`, so do not expect that value in Python. Since 2.1.317
+a task answer may omit `createdAt`, `lastUpdatedAt` or `ttlMs` and send `pollIntervalMs: null`
+(before, the call failed with `Unsupported result type`). A `claude -p` run does not wait for MCP
+work in the background when it ends: a remote MCP task goes on (resume the session to follow it),
+and the result of a call that automatic backgrounding moved is lost.
 
 ## Mocks, for evals
 
 An eval that calls a real external server is testing the server. Replace it:
 
-- the runner substitutes any server named in a case's `mocks` list with an
-  in-process server built from `evals/mocks/<server>/<tool>.md`, so the tool
-  **names stay identical** (`mcp__library__reserve` is still
-  `mcp__library__reserve`) and a trajectory grader written against the real
-  agent keeps working;
-- one file per tool, carrying the schema it advertises, an optional `expect`
-  guard on the input, a canned result body, and optional `error` and
-  `latency_ms`;
+- the runner substitutes any server named in a case's `mocks` list with an in-process server built from
+  `evals/mocks/<server>/<tool>.md`, so the tool **names stay identical** (`mcp__library__reserve` is
+  still `mcp__library__reserve`) and a trajectory grader written against the real agent keeps working;
+- one file per tool, carrying the schema it advertises, an optional `expect` guard on the input, a
+  canned result body, and optional `error` and `latency_ms`;
 - because the names are unchanged, a mock for a server the agent no longer has
   is a finding (`MCP020` in the simulation skill), not a silent no-op.
 
@@ -211,40 +203,45 @@ statically; for external servers the runner's `list-tools` subcommand asks the s
 
 ## Discovering what a server actually publishes
 
-The `SystemMessage(subtype="init")` event lists the session's tools, including `mcp__`
-names, but only for servers that connected in time or had a cached tool list. A server
-that has not connected is simply absent from that list — read `get_mcp_status()` rather
-than concluding the tools do not exist.
+The `SystemMessage(subtype="init")` event lists the session's tools, including `mcp__` names, but only
+for servers that connected in time or had a cached tool list. A server that has not connected is simply
+absent from that list — read `get_mcp_status()` rather than concluding the tools do not exist.
 
 ---
 
-Sources: <https://code.claude.com/docs/en/agent-sdk/mcp> (naming, transports, allowing tools,
-connection timing, error handling), <https://code.claude.com/docs/en/agent-sdk/custom-tools> (the
-`@tool` contract, content types, error handling, annotations, TypeScript-only `permission_policy`
-and `destructiveHint`), <https://code.claude.com/docs/en/mcp> (output limits, `mcp_server_errors` in
-`system/init`, tool search through a gateway, 401 reconnects, stored-credentials error), <https://code.claude.com/docs/en/headless> (`mcp_server_errors`);
-<https://www.anthropic.com/research/writing-tools-for-agents> ("Writing effective tools for AI
-agents", 2025-09-11, search over list, consolidation, namespacing, `response_format`, truncation,
-actionable errors, parameter names); <https://www.anthropic.com/research/code-execution-with-mcp>
-("Code execution with MCP for efficient agents", 2025-11-04, the code-API trade-off and its
-150,000→2,000-token example); `claude-agent-sdk` 0.2.178 `__init__.py:267` (`SdkMcpTool`), `:277`
-(`tool`), `:477-515` (content-item handling), `:517` (`create_sdk_mcp_server`), `types.py:1229`
-(`ToolResultBlock`), `:2378` (`mcp_servers`), `:2386` (`strict_mcp_config`), `client.py:471`
-(`get_mcp_status`), `:540` (`get_server_info`); this plugin's `.dev/CONTRACTS.md` §2 for the mock
-format. <https://code.claude.com/docs/en/plugins/manifest-reference#mcpservers> (`requestTimeout`,
-`CLAUDE_PROJECT_DIR` for `stdio` servers),
-<https://code.claude.com/docs/en/permission-modes> (`dontAsk`'s always-denied list),
-<https://code.claude.com/docs/en/permissions#mcp> (rule syntax, `_` normalisation, plugin form),
-<https://code.claude.com/docs/en/env-vars> (`CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`),
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 rule scoping,
-2.1.305, 2.1.307, 2.1.309 and 2.1.310 MCP entries, 2.1.311 late-connecting servers, 2.1.316
-`headersHelper`, 2.1.318 input schema on early calls),
-<https://code.claude.com/docs/en/agent-sdk/tool-search> (on by default, `ENABLE_TOOL_SEARCH`, the 10
-% threshold); <https://www.anthropic.com/research/advanced-tool-use> ("Introducing advanced tool use
-for Claude", 2025-11-24, the Tool Search Tool thresholds, Tool Use Examples, Programmatic Tool
-Calling), <https://code.claude.com/docs/en/headless> ("MCP work when a non-interactive run ends").
-The `is_error is None`, ambient-connector and `tools=["Read"]` observations were measured by this
-plugin on 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
-docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs
-(`__init__.py` unchanged through 0.2.178). Re-read 2026-11-04 against claude-agent-sdk
-0.2.178 / Claude Code 2.1.318 docs.
+Sources: <https://code.claude.com/docs/en/agent-sdk/mcp> (naming, transports, allowing tools, connection
+timing, error handling), <https://code.claude.com/docs/en/agent-sdk/custom-tools> (the `@tool` contract,
+content types, error handling, annotations, TypeScript-only `permission_policy` and `destructiveHint`),
+<https://code.claude.com/docs/en/mcp> (output limits, `mcp_server_errors` in `system/init`, tool search
+through a gateway, 401 reconnects, stored-credentials error), <https://code.claude.com/docs/en/headless>
+(`mcp_server_errors`); <https://www.anthropic.com/research/writing-tools-for-agents> ("Writing effective
+tools for AI agents", 2025-09-11, search over list, consolidation, namespacing, `response_format`,
+truncation, actionable errors, parameter names);
+<https://www.anthropic.com/research/code-execution-with-mcp> ("Code execution with MCP for efficient
+agents", 2025-11-04, the code-API trade-off and its 150,000→2,000-token example); `claude-agent-sdk`
+0.2.179 `__init__.py:267` (`SdkMcpTool`), `:277` (`tool`), `:477-515` (content-item handling), `:517`
+(`create_sdk_mcp_server`), `types.py:1229` (`ToolResultBlock`), `:2378` (`mcp_servers`), `:2386`
+(`strict_mcp_config`), `client.py:471` (`get_mcp_status`), `:540` (`get_server_info`); this plugin's
+`.dev/CONTRACTS.md` §2 for the mock format.
+<https://code.claude.com/docs/en/plugins/manifest-reference#mcpservers> (`requestTimeout`,
+`CLAUDE_PROJECT_DIR` for `stdio` servers), <https://code.claude.com/docs/en/permission-modes>
+(`dontAsk`'s always-denied list), <https://code.claude.com/docs/en/permissions#mcp> (rule syntax, `_`
+normalisation, plugin form), <https://code.claude.com/docs/en/env-vars>
+(`CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH`, `CLAUDE_CODE_CONFIG_LOCK_WAIT_MS`,
+`MCP_PROTOCOL_NEGOTIATION`), <https://code.claude.com/docs/en/mcp> (MCP task conditions and answer
+fields, the 7-day negotiation skip, read 2026-11-08), <https://code.claude.com/docs/en/errors> (the
+config-lock error), <https://code.claude.com/docs/en/agent-sdk/python> (`task_type` values), the
+TypeScript SDK `CHANGELOG.md` 0.3.319 (`mcp_task`),
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 rule scoping, 2.1.305,
+2.1.307, 2.1.309 and 2.1.310 MCP entries, 2.1.311 late-connecting servers, 2.1.316 `headersHelper`,
+2.1.318 input schema on early calls, 2.1.319 MCP tasks in the background and
+`CLAUDE_CODE_DISABLE_MCP_TASKS`), <https://code.claude.com/docs/en/agent-sdk/tool-search> (on by
+default, `ENABLE_TOOL_SEARCH`, the 10 % threshold);
+<https://www.anthropic.com/research/advanced-tool-use> ("Introducing advanced tool use for Claude",
+2025-11-24, the Tool Search Tool thresholds, Tool Use Examples, Programmatic Tool Calling),
+<https://code.claude.com/docs/en/headless> ("MCP work when a non-interactive run ends"). The `is_error
+is None`, ambient-connector and `tools=["Read"]` observations were measured by this plugin on
+2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
+2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (`__init__.py` unchanged through
+0.2.179).
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

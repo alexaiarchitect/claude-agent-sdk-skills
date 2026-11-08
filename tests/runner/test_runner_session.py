@@ -345,3 +345,36 @@ def test_a_refused_run_is_graded_not_marked_inconclusive():
     outcome = FakeOutcome(error="the model declined", error_kind="refusal")
     assert run_status(outcome, []) == FAILED
     assert run_status(outcome, [FakeGrader(PASSED)]) == PASSED
+
+
+# -- auto memory is off in every run (0.2.4) ---------------------------------
+
+def test_every_run_disables_claude_code_auto_memory_and_keeps_the_agents_env(tmp_path, monkeypatch):
+    """Auto memory loads in SDK sessions whatever `setting_sources` says, so one run
+    could leave notes the next reads; the runner adds the switch to the options'
+    `env`, keeps the agent's own entries, and an agent value cannot turn it back on."""
+    from agent_sdk_evals import RUN_ENV_DEFAULTS
+    from agent_sdk_evals.session import run_once
+
+    assert RUN_ENV_DEFAULTS == {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+    monkeypatch.chdir(tmp_path)
+    sdk.set_script([
+        {"__class__": "AssistantMessage", "content": [{"__class__": "TextBlock", "text": "ready"}],
+         "model": "claude-sonnet-5-5"},
+        {"__class__": "ResultMessage", "subtype": "success", "duration_ms": 1, "duration_api_ms": 1,
+         "is_error": False, "num_turns": 1, "session_id": "s-1", "total_cost_usd": 0.0},
+    ])
+    options = sdk.ClaudeAgentOptions(model="claude-sonnet-5-5", permission_mode="dontAsk",
+                                     env={"LIBRARY_DB": "x", "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0"})
+    case = Case(name="c", dir=tmp_path, prompt="say ready")
+    asyncio.run(run_once(case, Config(evals_dir=tmp_path), options, run=1, run_id="c.1",
+                         sdk=sdk, mock_calls=[]))
+    started = sdk.calls()[0]["options"]
+    assert started.env == {"LIBRARY_DB": "x", "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+    assert options.env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] == "0", "the caller's options are not mutated"
+
+
+def test_an_agent_without_env_still_gets_the_switch():
+    from agent_sdk_evals.session import run_options_env
+
+    assert run_options_env(sdk.ClaudeAgentOptions()) == {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}

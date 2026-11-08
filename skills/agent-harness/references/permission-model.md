@@ -24,17 +24,16 @@ calls, use a `PreToolUse` hook, which runs for them too" (`hooks-catalog.md`); a
 applies even in `bypassPermissions`. A scoped allow rule such as `Bash(npm test *)` approves
 its matches; other `Bash` calls that need approval fall through to the permission mode.
 
-**Actions no mode auto-approves** (`permission-modes`), `bypassPermissions` included: tools
-matched by an explicit ask rule; connector tools the organization set to `ask`; tools that
-require user interaction (`AskUserQuestion`, MCP tools marked `requiresUserInteraction`);
-recognized critical-path `rm`/`rmdir` removals, "which no allow rule or `PreToolUse` hook
-`"allow"` approves, and Bash commands flagged `Dangerous rm operation not ruled out`"; the
-cross-session messaging safeguards; and reads or writes outside the working directories while
+**Actions no mode auto-approves** (`permission-modes`), `bypassPermissions` included: tools matched
+by an explicit ask rule; connector tools the organization set to `ask`; tools that require user
+interaction (`AskUserQuestion`, MCP tools marked `requiresUserInteraction`); recognized
+critical-path `rm`/`rmdir` removals, "which no allow rule or `PreToolUse` hook `"allow"` approves,
+and Bash commands flagged `Dangerous rm operation not ruled out`"; the cross-session messaging
+safeguards; and reads or writes outside the working directories while
 `blockReadsOutsideWorkingDirectories` (2.1.257+) or `blockWritesOutsideWorkingDirectories`
-(2.1.314+) is on. Writes to a protected path are **not** on the list: `bypassPermissions`
-approves them, `acceptEdits` does not. Under `bypassPermissions` in the SDK, org-`ask`
-connectors, user-interaction tools, critical-path removals and `Dangerous rm` commands reach
-`can_use_tool`.
+(2.1.314+) is on. Writes to a protected path are **not** on the list: `bypassPermissions` approves
+them, `acceptEdits` does not. Under `bypassPermissions` in the SDK, org-`ask` connectors,
+user-interaction tools, critical-path removals and `Dangerous rm` commands reach `can_use_tool`.
 
 ## The two layers, and the mistake everyone makes
 
@@ -67,14 +66,19 @@ automount path has its own check that no allow rule, `PreToolUse` `"allow"` or c
 bypasses: it always prompts, and in `dontAsk` it is **denied outright**. Mount the share
 locally and pass `--add-dir` if the agent needs the data.
 
-`Edit(path)` rules govern every built-in that writes files, `Write` and `NotebookEdit`
-included: "`Write(path)`, `NotebookEdit(path)`, and `Glob(path)` rules never match", so write
-`Edit(docs/**)` or `Read(docs/**)` (a bare tool name still matches every call of that tool).
-In `allowed_tools`/`disallowed_tools`, `//path` is an absolute path and a single `/path` is a
-path inside the session's working directory. `Edit(//secrets/**)` blocks writes under
-`/secrets` from Claude's file tools and from Bash `tee` and `> file` redirection, but "A script
-that Claude runs and that opens files itself can still write under `/secrets`": use the
-sandbox for enforcement by the operating system.
+**"`Write(path)`, `Glob(path)`, and `Grep(path)` rules don't match"** (the permissions page's
+heading, 2026-11-06). Claude Code checks file permissions against `Edit(path)` and `Read(path)`
+rules only: it accepts a rule with a path other than `*` for Write, NotebookEdit, legacy MultiEdit,
+Glob or Grep but never matches a call against it — "A `Grep(docs/**)` deny rule doesn't stop Grep
+from searching `docs`". Write `Edit(docs/**)` for the writing tools and `Read(docs/**)` for Glob and
+Grep (a bare tool name still matches every call of that tool). `Read(path)` **deny** rules are
+applied best-effort to Grep, Glob, `@file` mentions and the context a connected IDE shares; as an
+**ask** rule, `Read(docs/**)` prompts when Claude calls Grep or Glob on a matching path, but not
+when a search of a directory above it returns matching files. In `allowed_tools`/`disallowed_tools`,
+`//path` is an absolute path and a single `/path` is a path inside the session's working directory.
+`Edit(//secrets/**)` blocks writes under `/secrets` from Claude's file tools and from Bash `tee` and
+`> file` redirection, but "A script that Claude runs and that opens files itself can still write
+under `/secrets`": use the sandbox for enforcement by the operating system.
 
 ## The six modes
 
@@ -89,96 +93,95 @@ sandbox for enforcement by the operating system.
 
 `dontAsk` is the right default for an unattended run: it never blocks waiting for an answer
 that will not come, and it fails closed. `bypassPermissions` fails open, which is `OPT002`.
+`permissions.denyInsteadOfPrompting` (Claude Code 2.1.319, **changelog-only**: the settings page
+read 2026-11-08 does not list it) denies a call that would wait on a permission prompt and lets the
+turn continue, "in terminal sessions, subagents and teammates"; nothing documents it for SDK
+sessions, so an SDK app keeps `dontAsk`.
 
-**Leaving `permission_mode` unset is a decision too, and its answer depends on the CLI
-version.** With the mode `None` the CLI resolves it: `permissions.defaultMode` from a settings
-file where one applies, otherwise the built-in default. The docs now state the rule ("Tool
-calls denied in `claude -p` and Agent SDK runs"): "In Claude Code v2.1.302 or later, `claude
--p` and Agent SDK runs with no permission mode set start in Manual mode. This mode appears as
-`default` in SDK options and settings," and "Before v2.1.302, these runs could start in auto
-mode if they didn't fetch feature flags, for example on a third-party provider or with
-`DISABLE_TELEMETRY`" — the **2.1.285–2.1.301** window. Measured by this plugin: unset sessions
-reported `permissionMode: "default"` on 2.1.292, 2.1.301, 2.1.310 and 2.1.316 (2026-10-17 to
-2026-11-02). In `default` a call that needs approval is **denied** unless an allow rule, hook,
-`can_use_tool` or `--permission-prompt-tool` approves it. In `auto`, broad allow rules are
-dropped, so a bare `Bash` entry quietly stops pre-approving. Pass `"default"` or `"dontAsk"`
-explicitly; the linters report the omission as **`OPT013`** (a warn: the outcome depends on CLI
-version and environment), and this plugin's runner forces `"dontAsk"` when it is unset. Managed
-settings can block auto mode with `permissions.disableAutoMode: "disable"`. Server-side
-classifier review needs Claude Code 2.1.278+ in `-p` and VS Code sessions, 2.1.281+ in Agent
-SDK and desktop sessions. An `auto` session that `set_model()`s to a model without auto-mode
+**Leaving `permission_mode` unset is a decision too, and its answer depends on the CLI version.**
+With the mode `None` the CLI resolves it: `permissions.defaultMode` from a settings file where one
+applies, otherwise the built-in default. The docs now state the rule ("Tool calls denied in `claude
+-p` and Agent SDK runs"): "In Claude Code v2.1.302 or later, `claude -p` and Agent SDK runs with no
+permission mode set start in Manual mode. This mode appears as `default` in SDK options and
+settings," and "Before v2.1.302, these runs could start in auto mode if they didn't fetch feature
+flags, for example on a third-party provider or with `DISABLE_TELEMETRY`" — the **2.1.285–2.1.301**
+window (measured by this plugin, footer). In `default` a call that needs approval is
+**denied** unless an allow rule, hook, `can_use_tool` or `--permission-prompt-tool` approves it. In
+`auto`, broad allow rules are dropped, so a bare `Bash` entry quietly stops pre-approving. Pass
+`"default"` or `"dontAsk"` explicitly; the linters report the omission as **`OPT013`** (a warn: the
+outcome depends on CLI version and environment), and this plugin's runner forces `"dontAsk"` when it
+is unset. Managed settings can block auto mode with `permissions.disableAutoMode: "disable"`.
+Server-side classifier review needs Claude Code 2.1.278+ in `-p` and VS Code sessions, 2.1.281+ in
+Agent SDK and desktop sessions. An `auto` session that `set_model()`s to a model without auto-mode
 support drops to `default`; from 2.1.314 a settings file excluded with `--setting-sources` (the
 SDK's `setting_sources`) no longer supplies auto-mode rules or saved permission consents.
 
-**Subagent inheritance:** "The subagent inherits `plan`, `acceptEdits`, `auto`, or
-`bypassPermissions` from the main session, and under a `default`- or `dontAsk`-mode main
-session it runs in the mode you set." **Plan mode pins a subagent**: under a plan-mode
-parent, a subagent set to `acceptEdits` still runs in plan mode, so its source edits still
-reach `can_use_tool`. Even under `default`/`dontAsk`, Claude Code never applies a
-`bypassPermissions` value from an `AgentDefinition` (2.1.267+) — a subagent runs that way
-only when the parent already does, with the parent's full autonomous access — and applies an
-`"auto"` value only when auto mode is **available to that subagent**.
+**Auto mode without feature flags (2.1.319, changelog-only).** With telemetry or feature flags off,
+including behind an LLM gateway, auto mode no longer falls back to the built-in classifier: calls the
+server cannot check are asked about or denied. `CLAUDE_CODE_AUTO_MODE_SERVER=0` keeps the built-in
+classifier (Bedrock, Vertex, Foundry unchanged); `CLAUDE_CODE_DISABLE_FEATURE_FLAGS` stops flag
+fetching without turning telemetry off. `claude -p` now exits 1 (text and JSON) when auto mode refused
+actions for lack of a safety check (it exited 0). The same release made Bash deny and ask rules match
+commands written with quoted words and fixed a `sed` case that skipped the permission check in
+`acceptEdits` and `auto`.
 
-**The auto-mode classifier's model.** "By default, classifier requests go to Claude Sonnet
+**Subagent inheritance:** "The subagent inherits `plan`, `acceptEdits`, `auto`, or `bypassPermissions`
+from the main session, and under a `default`- or `dontAsk`-mode main session it runs in the mode you
+set." **Plan mode pins a subagent**: under a plan-mode parent, a subagent set to `acceptEdits` still
+runs in plan mode, so its source edits still reach `can_use_tool`. Even under `default`/`dontAsk`,
+Claude Code never applies a `bypassPermissions` value from an `AgentDefinition` (2.1.267+) — a subagent
+runs that way only when the parent already does, with the parent's full autonomous access — and applies
+an `"auto"` value only when auto mode is **available to that subagent**. **The auto-mode classifier's model:** "By default, classifier requests go to Claude Sonnet
 5" (an unavailable choice falls back to the session's model). `CLAUDE_CODE_AUTO_MODE_MODEL`
 takes a full model id, ignored for Opus 5, Sonnet 5.5, Opus 5.5 or a policy-excluded model;
 if the provider cannot serve it "Classifier checks fail, so Claude Code denies each action it
 checks" (`--debug-file`: `classifier_request_started`).
 
-**Critical paths are a best-effort check.** No allow rule or hook `"allow"` approves an
-`rm`/`rmdir` "whose target it recognizes as a critical path" (root, home, working directory);
-under `default` it needs approval even with a matching allow rule, "a permission gate, not a
-sandbox" (`agent-sdk/secure-deployment`). But "the check can miss some commands, so it doesn't
-replace an operating-system control such as sandboxing": a missed command gets no special
-handling, so an allow rule, `bypassPermissions` or the sandbox's auto-allow approves it. A
-recursive `rm` on a **mounted drive** (`/Volumes/…`, `/media/<user>/…`, `/run/media/…`,
-`/mnt/<name>`, WSL `/mnt/c/…`) is handled the same way even with an `rm` allow rule, reason
-`Dangerous rm operation on mounted drive path: <path>` (2.1.304).
-`CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT=1` turns that prompt off, and only from the
-environment that starts Claude Code: a settings file's `env` block is ignored.
-
-**Critical-path removals in `-p` and SDK runs.** No terminal prompt exists there, so such a
-removal, and a Bash command flagged `Dangerous rm operation not ruled out — the shell may
-read this command differently than it was parsed`, is **denied in `auto`**; in
-`default`/`acceptEdits`/`bypassPermissions` your `can_use_tool` callback or
-`--permission-prompt-tool` decides (its `decisionReason` starts with `Dangerous rm`), and
-with neither it is denied unless a `PermissionRequest` hook allows it; `dontAsk` denies. No
-`Bash`/ `Bash(*)` allow rule, sandbox auto-allow or hook `"allow"` approves it.
+**Critical paths are a best-effort check.** No allow rule or hook `"allow"` approves an `rm`/`rmdir`
+"whose target it recognizes as a critical path" (root, home, working directory); under `default` it
+needs approval even with a matching allow rule, "a permission gate, not a sandbox"
+(`agent-sdk/secure-deployment`). But "the check can miss some commands, so it doesn't replace an
+operating-system control such as sandboxing": a missed command gets no special handling, so an allow
+rule, `bypassPermissions` or the sandbox's auto-allow approves it. A recursive `rm` on a **mounted
+drive** (`/Volumes/…`, `/media/<user>/…`, `/run/media/…`, `/mnt/<name>`, WSL `/mnt/c/…`) is handled
+the same way even with an `rm` allow rule, reason `Dangerous rm operation on mounted drive path:
+<path>` (2.1.304). `CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT=1` turns that prompt off, and only
+from the environment that starts Claude Code: a settings file's `env` block is ignored. **Critical-path removals in `-p` and SDK runs:** No terminal prompt exists there, so such a removal, and
+a Bash command flagged `Dangerous rm operation not ruled out — the shell may read this command
+differently than it was parsed`, is **denied in `auto`**; in `default`/`acceptEdits`/`bypassPermissions`
+your `can_use_tool` callback or `--permission-prompt-tool` decides (its `decisionReason` starts with
+`Dangerous rm`), and with neither it is denied unless a `PermissionRequest` hook allows it; `dontAsk`
+denies. No `Bash`/ `Bash(*)` allow rule, sandbox auto-allow or hook `"allow"` approves it.
 `CLAUDE_CODE_DISABLE_DANGEROUS_RM_TIMEOUT=1` hands these to the classifier in `auto`;
 `CLAUDE_CODE_EVEN_MORE_DANGEROUSLY_SKIP_PERMISSIONS=1` (2.1.311+) runs them unprompted in
-`bypassPermissions` only. Both are read from the launch environment (the SDK's `env`
-option), never from a settings file.
+`bypassPermissions` only. Both are read from the launch environment (the SDK's `env` option), never from
+a settings file.
 
 **Sandbox interplay.** macOS `denyWrite` globs apply at a path's real location through a
 symlink; nothing sandboxed may modify the `--mcp-config` file; from 2.1.314 sandbox
-protections also apply to a worktree entered by `claude -p --resume` or `--continue`.
-
-**Writes outside the working directories (2.1.314+).** Beside the read block
+protections also apply to a worktree entered by `claude -p --resume` or `--continue`. **Writes outside the working directories (2.1.314+):** Beside the read block
 (`permissions.blockReadsOutsideWorkingDirectories`),
-`permissions.blockWritesOutsideWorkingDirectories: true` makes `Write`, `Edit` and
-`NotebookEdit` refuse paths outside the working directories "in every permission mode,
-including `bypassPermissions`". It does not limit shell commands, MCP tools or the programs
-hooks run: use the sandbox for those. While it is on, `EnterWorktree`/`ExitWorktree` are
-removed, settings files are refused even inside the working directories (one could lift the
-block), and a `true` in any loaded file applies, so a repository can turn it on but cannot
-lift yours; a cloud session might not apply it. Plan files, the scratchpad and this
-project's auto-memory `.md` files stay writable. To let one directory through use
-`/add-dir`, `--add-dir` (the SDK's `add_dirs`) or `additionalDirectories` in user or managed
-settings — "No allow rule lets Claude's file tools through either block."
+`permissions.blockWritesOutsideWorkingDirectories: true` makes `Write`, `Edit` and `NotebookEdit`
+refuse paths outside the working directories "in every permission mode, including
+`bypassPermissions`". It does not limit shell commands, MCP tools or the programs hooks run: use the
+sandbox for those. While it is on, `EnterWorktree`/`ExitWorktree` are removed, settings files are
+refused even inside the working directories (one could lift the block), and a `true` in any loaded
+file applies, so a repository can turn it on but cannot lift yours; a cloud session might not apply
+it. Plan files, the scratchpad and this project's auto-memory `.md` files stay writable. To let one
+directory through use `/add-dir`, `--add-dir` (the SDK's `add_dirs`) or `additionalDirectories` in
+user or managed settings — "No allow rule lets Claude's file tools through either block."
 
-**Auto mode, by design and by the docs.** Anthropic's write-up of auto mode (2026-03-25):
-three tiers (a safe-tool allowlist plus your narrow allow rules, in-project file edits, and
-a transcript classifier for the rest); the classifier is two-stage and "reasoning-blind by
-design" (user messages and tool calls only); a block returns as a tool result and Claude
-continues; 3 consecutive or 20 total blocks escalate. It reports a 0.4 % false-positive rate
-on real traffic and a 17 % miss rate on real overeager actions. Current behaviour comes from
-the docs: a `-p` run without `--permission-prompt-tool` skips the action, "Claude keeps
-working. Claude Code doesn't stop the run." Interactively a blocked action is listed in
-`/permissions` under **Recently blocked**; with no verdict Claude Code blocks the action
-without that entry (2.1.314) and "can stop the turn after ten responses in a row with no
-verdict". A hook or mod that changes an
-action's input after the server's review can also draw a no-verdict denial, and such
-denials do not count toward the ten (see `hooks-catalog.md`, `updatedInput` in auto mode).
+**Auto mode, by design and by the docs.** Anthropic's write-up of auto mode (2026-03-25): three tiers (a
+safe-tool allowlist plus your narrow allow rules, in-project file edits, and a transcript classifier for
+the rest); the classifier is two-stage and "reasoning-blind by design" (user messages and tool calls
+only); a block returns as a tool result and Claude continues; 3 consecutive or 20 total blocks escalate.
+It reports a 0.4 % false-positive rate on real traffic and a 17 % miss rate on real overeager actions.
+Current behaviour comes from the docs: a `-p` run without `--permission-prompt-tool` skips the action,
+"Claude keeps working. Claude Code doesn't stop the run." Interactively a blocked action is listed in
+`/permissions` under **Recently blocked**; with no verdict Claude Code blocks the action without that
+entry (2.1.314) and "can stop the turn after ten responses in a row with no verdict". A hook or mod that
+changes an action's input after the server's review can also draw a no-verdict denial, and such denials
+do not count toward the ten (see `hooks-catalog.md`, `updatedInput` in auto mode).
 
 ## `can_use_tool` versus a hook
 
@@ -186,65 +189,62 @@ denials do not count toward the ten (see `hooks-catalog.md`, `updatedInput` in a
 returning `PermissionResultAllow(updated_input=..., updated_permissions=...)` or
 `PermissionResultDeny(message=..., interrupt=...)`.
 
-It is a **prompt handler**, not an observer: the SDK calls it when the flow resolves to a
-prompt, and a call an allow rule or the mode approved is skipped (above). Setting it alongside
-a bare `allowed_tools` entry or `bypassPermissions` raises a `CanUseToolShadowedWarning` at
-connect. A `PermissionResultAllow` with **more than 4,096 `updated_permissions` items** is
-invalid and the call is denied: each `PermissionUpdate` counts, and so does each entry in its
-`rules` or `directories`. A tool-level `permission_policy` (`always_ask`/`always_deny`) is
-TypeScript-only (Agent SDK v0.3.301+); in Python gate such a tool with a scoped `allowed_tools`
-plus `can_use_tool`, or a `PreToolUse` hook.
+It is a **prompt handler**, not an observer: the SDK calls it when the flow resolves to a prompt, and a
+call an allow rule or the mode approved is skipped (above). Setting it alongside a bare `allowed_tools`
+entry or `bypassPermissions` raises a `CanUseToolShadowedWarning` at connect. A `PermissionResultAllow`
+with **more than 4,096 `updated_permissions` items** is invalid and the call is denied: each
+`PermissionUpdate` counts, and so does each entry in its `rules` or `directories`. A tool-level
+`permission_policy` (`always_ask`/`always_deny`) is TypeScript-only (Agent SDK v0.3.301+); in Python
+gate such a tool with a scoped `allowed_tools` plus `can_use_tool`, or a `PreToolUse` hook.
 
-To see or gate **every** call, rule- and mode-approved ones included, use a `PreToolUse` hook.
-(A hook that returns `allow` skips `can_use_tool` for that call, so the two are alternatives,
-not layers.) A guard hook fails open when it crashes unless its matcher sets
-`on_failure="block"` (0.2.177+, CLI 2.1.317+; `HOK011`); on `PermissionRequest` that block
-counts only if the failure lands before `can_use_tool` answers, so a crashing
-`PermissionRequest` guard is no substitute for a `can_use_tool` that denies. The docs'
-"Precedence among rules, hooks, and mods" section is the table above in prose: hooks answer
-first, deny and ask rules still apply after a hook's `allow`, and a mod's `tool.check` answers
-last.
+To see or gate **every** call, rule- and mode-approved ones included, use a `PreToolUse` hook. (A
+hook that returns `allow` skips `can_use_tool` for that call, so the two are alternatives, not
+layers.) A guard hook fails open when it crashes unless its matcher sets `on_failure="block"`
+(0.2.177+, CLI 2.1.317+; `HOK011`); on `PermissionRequest` that block counts only if the failure
+lands before `can_use_tool` answers, so a crashing `PermissionRequest` guard is no substitute for a
+`can_use_tool` that denies. The docs' "Precedence among rules, hooks, and mods" section is the table
+above in prose: hooks answer first, deny and ask rules still apply after a hook's `allow`, and a
+mod's `tool.check` answers last.
 
 ## Choosing, in one paragraph
 
-Decide availability first: `tools=[]` plus in-process MCP tools is the smallest agent you
-can build, and the easiest to evaluate, because the trajectory can only contain names you
-defined. Then pre-approve exactly those names in `allowed_tools`. Then pick `dontAsk` so
-nothing waits. Then add a `PreToolUse` hook if you need an audit trail or a rule the allow
-list cannot express. Scoped deny rules are for the narrow case where a tool must stay
-available but one shape of call must not.
+Decide availability first: `tools=[]` plus in-process MCP tools is the smallest agent you can build,
+and the easiest to evaluate, because the trajectory can only contain names you defined. Then
+pre-approve exactly those names in `allowed_tools`. Then pick `dontAsk` so nothing waits. Then add a
+`PreToolUse` hook if you need an audit trail or a rule the allow list cannot express. Scoped deny
+rules are for the narrow case where a tool must stay available but one shape of call must not.
 
 ---
 
-Sources: <https://code.claude.com/docs/en/agent-sdk/permissions> (evaluation order and the
-calls that skip `can_use_tool`, allow and deny rules, path patterns in rules, permission modes,
-subagent inheritance, plan mode and `Dangerous rm` in the callback, "Auto mode", the
-`set_model()` drop to `default`), <https://code.claude.com/docs/en/agent-sdk/python> (the
-4,096-item `updated_permissions` limit),
-<https://code.claude.com/docs/en/agent-sdk/custom-tools> (TypeScript-only `permission_policy`;
+Sources: <https://code.claude.com/docs/en/agent-sdk/permissions> (evaluation order and the calls that
+skip `can_use_tool`, allow and deny rules, path patterns in rules, permission modes, subagent
+inheritance, plan mode and `Dangerous rm` in the callback, "Auto mode", the `set_model()` drop to
+`default`), <https://code.claude.com/docs/en/agent-sdk/python> (the 4,096-item `updated_permissions`
+limit), <https://code.claude.com/docs/en/agent-sdk/custom-tools> (TypeScript-only `permission_policy`;
 `#control-tool-access`, the availability/permission table),
-<https://code.claude.com/docs/en/agent-sdk/user-input> (`can_use_tool`; "An earlier step can
-allow or deny a call before `canUseTool` runs"),
-<https://code.claude.com/docs/en/agent-sdk/secure-deployment>,
-<https://code.claude.com/docs/en/permission-modes> ("Tool calls denied in `claude -p` and Agent
-SDK runs", `#which-mode-a-non-interactive-run-starts-in`; "Default classifier model", "Choose
-the classifier model", critical paths, "The mounted drive prompt", "Critical-path removals in
-each permission mode", "Time limits and denials", "Repeated-block thresholds", `acceptEdits`
-commands, **Recently blocked**, "Actions no mode auto-approves", "Server-side classifier
-review"), <https://code.claude.com/docs/en/env-vars>,
-<https://code.claude.com/docs/en/sub-agents> (plan-mode parent),
-<https://code.claude.com/docs/en/permissions> (`#bash-rule-limits`; `#network-paths`, the
+<https://code.claude.com/docs/en/agent-sdk/user-input> (`can_use_tool`; "An earlier step can allow or
+deny a call before `canUseTool` runs"), <https://code.claude.com/docs/en/agent-sdk/secure-deployment>,
+<https://code.claude.com/docs/en/permission-modes> ("Tool calls denied in `claude -p` and Agent SDK
+runs", `#which-mode-a-non-interactive-run-starts-in`; "Default classifier model", "Choose the classifier
+model", critical paths, "The mounted drive prompt", "Critical-path removals in each permission mode",
+"Time limits and denials", "Repeated-block thresholds", `acceptEdits` commands, **Recently blocked**,
+"Actions no mode auto-approves", "Server-side classifier review"),
+<https://code.claude.com/docs/en/env-vars>, <https://code.claude.com/docs/en/sub-agents> (plan-mode
+parent), <https://code.claude.com/docs/en/permissions> (`#bash-rule-limits`; the `Write`/`Glob`/`Grep`
+path-rule heading and the `Read(path)` deny and ask behaviour, read 2026-11-08; `#network-paths`, the
 network-path check and the mod precedence rules; `#precedence-among-rules-hooks-and-mods`;
 `#hook-approvals-in-plan-mode`; `#mcp`; "Block file-tool reads and writes outside the working
 directories"), <https://code.claude.com/docs/en/settings-reference>
 (`permissions.blockWritesOutsideWorkingDirectories`),
-<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (versions named above);
-<https://www.anthropic.com/research/claude-code-auto-mode> ("How we built Claude Code auto
-mode", 2026-03-25, permission tiers, reasoning-blind classifier, deny-and-continue thresholds,
-reported error rates); `claude-agent-sdk` 0.2.178 `types.py:25` (`PermissionMode`), `:259`
-(`PermissionResultAllow`), `:268` (`PermissionResultDeny`), `:278` (`CanUseTool`), `:2201-2290`
-(`CanUseToolShadowedWarning`), `:2342-2361` (`tools` and `allowed_tools` docstrings), `:2393`
-(`permission_mode`), `:864` (`on_failure`);
-<https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails>. The
-unset-mode `default` was measured by this plugin on 2026-10-17, 2026-10-24 and 2026-11-02.
-Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+<https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (versions named above; 2.1.319
+`permissions.denyInsteadOfPrompting`, auto mode without feature flags,
+`CLAUDE_CODE_DISABLE_FEATURE_FLAGS`, the `-p` exit 1, quoted-word and `sed` fixes);
+<https://www.anthropic.com/research/claude-code-auto-mode> ("How we built Claude Code auto mode",
+2026-03-25, permission tiers, reasoning-blind classifier, deny-and-continue thresholds, reported error
+rates); `claude-agent-sdk` 0.2.179 `types.py:25` (`PermissionMode`), `:259` (`PermissionResultAllow`),
+`:268` (`PermissionResultDeny`), `:278` (`CanUseTool`), `:2201-2290` (`CanUseToolShadowedWarning`),
+`:2342-2361` (`tools` and `allowed_tools` docstrings), `:2393` (`permission_mode`), `:864`
+(`on_failure`);
+<https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails>. The unset-mode
+`default` was measured by this plugin on 2026-10-17, 2026-10-24 and 2026-11-02.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

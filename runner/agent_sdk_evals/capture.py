@@ -261,7 +261,8 @@ class Capture:
             self.init_count += 1
             # Recorded when present, never required (CONTRACTS section 14.4):
             # `capabilities` (CLI 2.1.205+; 11 strings on 2.1.301, 13 on 2.1.310, 14 on
-            # 2.1.316 and 2.1.318) is for feature detection instead of version comparison, and the
+            # 2.1.316 and 2.1.318, 15 on 2.1.319) is for feature detection instead of
+            # version comparison, and the
             # fast-mode pair is declared on `SystemInitData` from SDK 0.2.166. Undeclared
             # keys the CLI also sends (`original_cwd`, `memory_paths`, `view_mode`,
             # `ultrathink_available` from 2.1.316, `ultrathink_typed_raises` from 2.1.318, ...) are ignored, and `plugins[]` entries are copied as they come

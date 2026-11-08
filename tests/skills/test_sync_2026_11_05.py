@@ -39,6 +39,10 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN_ROOT / "skills"
 
 NEW_NOTE = "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs"
+#: A later sync may replace the note above with its own; either shows a re-read.
+LATER_REREAD_NOTES = (
+    "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
+)
 
 
 def flat(text: str) -> str:
@@ -63,14 +67,21 @@ def _load(relative: str, name: str):
 
 # -- 1. pins and version ----------------------------------------------------------
 
+def _version(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in text.split("."))
+
+
 def test_the_pins_did_not_move():
-    # No SDK or Claude Code release between 2026-11-04 and 2026-11-05.
+    # No SDK or Claude Code release between 2026-11-04 and 2026-11-05, so the pins
+    # stayed 0.2.178 / 2.1.318 here; they only move forward (0.2.179 / 2.1.319 from
+    # 2026-11-08, checked in `test_sync_2026_11_08.py`).
     import agent_sdk_skills as plugin
-    assert (plugin.SDK_TARGET, plugin.CLI_BUNDLED_WITH_TARGET) == ("0.2.178", "2.1.318")
-    assert plugin.DOCS_READ_AT_CLI == "2.1.318", "the docs moved without a CLI release"
+    assert _version(plugin.SDK_TARGET) >= (0, 2, 178)
+    assert _version(plugin.CLI_BUNDLED_WITH_TARGET) >= (2, 1, 318)
+    assert _version(plugin.DOCS_READ_AT_CLI) >= (2, 1, 318)
     assert plugin.SDK_MIN_SUPPORTED == "0.2.140", "the minimum does not move with the pin"
     runner = read("runner/agent_sdk_evals/__init__.py")
-    assert 'DOCS_READ_AT_CLI = "2.1.318"' in runner
+    assert f'DOCS_READ_AT_CLI = "{plugin.DOCS_READ_AT_CLI}"' in runner
 
 
 def test_the_docs_re_read_is_dated_next_to_the_constant():
@@ -80,22 +91,27 @@ def test_the_docs_re_read_is_dated_next_to_the_constant():
 
 
 def test_the_release_is_0_2_3_everywhere_lane_a_owns():
+    # 0.2.3 at this sync; every carrier follows `__version__` from 0.2.4 on.
     import agent_sdk_skills as plugin
-    assert plugin.__version__ == plugin.RUNNER_VERSION == "0.2.3"
-    assert read("runner/agent_sdk_evals/VERSION").strip() == "0.2.3"
-    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == "0.2.3"
-    assert 'version = "0.2.3"' in read("pyproject.toml")
-    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == "0.2.3"
+    version = plugin.__version__
+    assert _version(version) >= (0, 2, 3)
+    assert plugin.RUNNER_VERSION == version
+    assert read("runner/agent_sdk_evals/VERSION").strip() == version
+    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == version
+    assert f'version = "{version}"' in read("pyproject.toml")
+    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == version
 
 
 def test_the_fixtures_carry_0_2_3():
+    # 0.2.3 at this sync; the fixtures follow `RUNNER_VERSION` from 0.2.4 on.
+    from agent_sdk_skills import RUNNER_VERSION
     for aggregate in (PLUGIN_ROOT / "tests" / "fixtures" / "results").glob("*/aggregate.json"):
         payload = json.loads(aggregate.read_text(encoding="utf-8"))
-        assert payload["runner_version"] == "0.2.3", aggregate
+        assert payload["runner_version"] == RUNNER_VERSION, aggregate
     for config in (PLUGIN_ROOT / "tests").rglob("eval_config.json"):
         if "stale_runner" in config.parts:
             continue                       # stale on purpose (0.0.1)
-        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == "0.2.3", config
+        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == RUNNER_VERSION, config
 
 
 def test_the_changelog_records_a_docs_only_release():
@@ -111,7 +127,9 @@ def test_the_changelog_records_a_docs_only_release():
 
 
 def test_the_runner_stale_rubric_names_0_2_3():  # awaits lane B
-    assert "0.2.3" in read("plugin-evals/runner-stale/graders/criteria.md")
+    # 0.2.3 at this sync; the rubric names the current runner version from 0.2.4 on.
+    from agent_sdk_skills import RUNNER_VERSION
+    assert RUNNER_VERSION in read("plugin-evals/runner-stale/graders/criteria.md")
 
 
 # -- 2. the hygiene pattern learns claude.dev --------------------------------------
@@ -257,7 +275,8 @@ REREAD = (  # awaits lane B; the orchestrator appends what lane B reports
 
 @pytest.mark.parametrize("name", REREAD)
 def test_every_reference_re_read_in_this_sync_carries_the_new_note(name):  # awaits lane B
-    assert NEW_NOTE in flat((SKILLS / name).read_text(encoding="utf-8"))
+    text = flat((SKILLS / name).read_text(encoding="utf-8"))
+    assert any(note in text for note in (NEW_NOTE, *LATER_REREAD_NOTES))
 
 
 #: (file, needles that must appear, lower-cased, whitespace-flattened). The plan's
@@ -266,8 +285,8 @@ PRESENT = (  # awaits lane B
     ("skills/agent-harness/references/permission-model.md", ("pretooluse", "//path")),
     ("skills/agent-harness/references/hooks-catalog.md", ("--bare",)),
     ("skills/agent-deploy/references/secure-deployment.md", ("--network none",)),
-    ("skills/agent-review/references/model-policy.md", ("as of 2026-11-05",)),
-    ("README.md", ("29 published anthropic articles", "re-read 2026-11-05")),
+    # model-policy's "as of 2026-11-05" moves each sync (reworded on 2026-11-08)
+    ("README.md", ("41 published anthropic articles", "read at claude code 2.1.319 (2026-11-08)")),
     ("THIRD_PARTY_NOTICES.md",
      ("ce8b2629efe8b24048b127b4c79af1e9cbab93d4", "2c65d16c6de16f8f24117d539a712ea706b5dee7",
       "claude.dev")),
@@ -338,10 +357,11 @@ LANE_PRESENT = (
     ("skills/agent-sdk/references/glossary.md",
      ("**hillclimbing**", "**held-out (test) set**", "**destination-confirmed completion**")),
     ("skills/agent-sdk/references/environment.md",
-     ("re-read 2026-11-05: docs lastmod 2026-11-04, no cli release",)),
+     ("read again on 2026-11-05 with docs lastmod 2026-11-04 and no cli release",)),
     ("THIRD_PARTY_NOTICES.md", ("articles 26–29 on 2026-11-05", "re-read on **2026-11-05**")),
-    ("plugin-evals/README.md", ("re-read 2026-11-05 (no cli release): nothing changed",)),
-    ("plugin-evals/runner-stale/graders/criteria.md", ("0.2.3",)),
+    ("plugin-evals/README.md", ("read again on 2026-11-05 (no cli release): nothing changed",)),
+    # runner-stale names the current runner version ("0.2.3" here), checked above
+    # through `RUNNER_VERSION` from 0.2.4 on.
 )
 
 LANE_ABSENT = (

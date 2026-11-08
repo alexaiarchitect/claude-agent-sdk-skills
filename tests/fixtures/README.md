@@ -46,7 +46,7 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `sessions/one_turn.jsonl` | A real `claude -p` session file, scrubbed. The shape `load_session` must survive, and it has no cost line. |
 | `traces/max_turns_one.trace.jsonl` | One tool call under `max_turns=1`: `subtype: "error_max_turns"`, `stop_reason: "tool_use"`, `is_error: true`, `num_turns: 2`, no final text. Reports must name the "+1" sizing rule. |
 | `traces/refusal_success.trace.jsonl` | A refusal: `subtype: "success"` with `is_error: true` and `stop_reason: "refusal"`, whose text names a quota. Reports must call it a refusal, never an API error or a usage-limit hit. |
-| `traces/init_2_1_301.*`, `traces/init_2_1_310.*`, `traces/init_2_1_316.*` | A measured `init` per bundled CLI (11, 13 and 14 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). |
+| `traces/init_2_1_301.*`, `traces/init_2_1_310.*`, `traces/init_2_1_316.*`, `traces/init_2_1_319.*` | A measured `init` per bundled CLI (11, 13, 14 and 15 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). |
 | `sessions/escaped_chars.jsonl` | Two hand-written lines whose assistant text holds `\u0007`, `\u200b`, `\u007f` and `\u0085` escapes, the way Claude Code 2.1.311+ writes DEL, C1 and format characters. `load_session` must decode and keep them. |
 | `sessions/sdk_parallel_tools.jsonl` | One response that ran three tools in parallel: the transcript forks, and `load_session` must still emit every call, then every result, then the continuation. |
 | `sessions/sdk_with_tool.jsonl` | A real `entrypoint: "sdk-py"` session with three tool calls, scrubbed. It carries the `cost-state` and `system`/`stop_hook_summary` lines, which is what makes an imported cost testable. |
@@ -142,6 +142,18 @@ trace is what the 0.2.1 `Capture` writes from that script (it drops
 `ultrathink_available` like every other undeclared key), and a test regenerates
 it. Scrubbed as for 2.1.310; the trace clock is one tick per second.
 
+**`traces/init_2_1_319.script.jsonl`** and **`traces/init_2_1_319.trace.jsonl`**
+come from one live `query()` on 2026-11-08 (SDK 0.2.179, bundled CLI 2.1.319,
+`claude-haiku-5-5`, `permission_mode` unset, `setting_sources=[]`,
+`strict_mcp_config=True`, API key; `.dev/measured/2026-11-08/live/d-init-permission-mode-none.jsonl`,
+$0.0007). Three messages, as on 2.1.316: the `init` (`permissionMode: "default"`,
+15 `capabilities` — the 14 of 2.1.316/2.1.318 plus the new
+`mcp_call_check_permissions_v1`, recorded, never required; init key set and the
+24 tools as on 2.1.318, `plugins[]` now lists a fourth built-in entry), the reply
+and the result. The trace is what the 0.2.4 `Capture` writes from that script,
+and a test regenerates it. Scrubbed as for 2.1.316; the trace clock is one tick
+per second.
+
 **`traces/refusal_success.trace.jsonl`** is the `happy` trace cut down to
 `init`, the user turn, the reply and the result, with the result rewritten to the
 shape the Python SDK docs (read at Claude Code 2.1.310) give for a refusal:
@@ -174,10 +186,10 @@ test also replays the SDK test's four result orders.
 
 **The SDK venv.** `tests/lib/test_sdk_surface_live.py` and the encoding test in
 `test_trace.py` need the real wheel. `tests/conftest.py` looks for it at
-`$AGENT_SDK_TEST_PYTHON`, then at `../tmp/venvs/casdk-venv-0.2.178/bin/python`
+`$AGENT_SDK_TEST_PYTHON`, then at `../tmp/venvs/casdk-venv-0.2.179/bin/python`
 next to the repo (`/Users/alex/Documents/Business/adk-evanl-skills/tmp/venvs/` on
-the machine that syncs it), then at the old `/tmp/casdk-venv-*` paths, and skips
-without one. It moved out of `/tmp` because macOS cleared it on 2026-10-22.
+the machine that syncs it), then at the previous pin's `casdk-venv-0.2.178`,
+then at the old `/tmp/casdk-venv-*` paths, and skips without one. It moved out of `/tmp` because macOS cleared it on 2026-10-22.
 
 **`sessions/sdk_with_tool.jsonl`** is derived from a real session the runner
 itself produced (`.dev/measured/session_with_tool.jsonl`, 37 lines, three MCP

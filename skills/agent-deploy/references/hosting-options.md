@@ -52,43 +52,45 @@ eviction, memory growth — is harder.
 These write-ups describe how Anthropic hosts agents; they are design rationale,
 and the SDK mechanics that implement them are in the docs.
 
-- **Decouple the brain from the hands** (Managed Agents, 2026-04-08). Keep three
-  things apart: the **session**, a durable, append-only event log that lives
-  outside the context window; the **harness**, the loop calling Claude, kept
-  stateless so a crashed one resumes from the log by session id; and the
-  **sandbox**, called like any other tool through an `execute(name, input)`-style
-  interface, so a dead container is a retryable tool error rather than a lost
-  session. Provision sandboxes **lazily**, only when a tool call needs one (the
-  article reports large time-to-first-token gains). **Credentials never inside
-  the sandbox**: wire them into the resource at setup, or keep them in a vault
-  and reach external services through a proxy that adds them per call. In SDK
-  terms: a `SessionStore` (or the transcript under a per-session
-  `CLAUDE_CONFIG_DIR`) is the log, resume is `resume=<session_id>`, the egress
-  proxy holds the credentials (`secure-deployment.md`). Claude Code's own cloud
-  sessions apply the same shape (Osmani, 2026-10-06; about Claude Code, which an
-  SDK app does not run in): a fresh, disposable VM per task, the GitHub token held
-  outside it by a proxy, a network level per environment (None, Trusted, Custom,
-  Full: "Pick the narrowest network level that works."), and all outbound traffic
-  through a proxy that logs hostnames.
-- **Production lessons from the research system** (2025-06-13). Agents are
-  stateful and errors compound, so **resume from a checkpoint** where the error
-  happened rather than restart; tell the agent a tool is failing and let it
-  adapt; deploy with **rainbow deployments** — shift traffic gradually while old
-  and new versions both run, so in-flight sessions finish on the code they
-  started on; and keep **full tracing** of decisions and tool calls without
-  reading conversation contents (`observability-otel.md`).
-- **Unattended scheduled agents** (Martin, Avilla, 2026-10-08; a Managed Agents and
-  `ant` CLI reference implementation, so the patterns transfer, not the tooling).
-  Give each source its own **bookmark** (the newest item read) instead of a fixed
-  time window, so a late run leaves no gap and an early one repeats nothing.
-  "Report a failed read as unreadable, never as a quiet day", and keep that source's
-  bookmark. Count an action as done only when the **destination confirms it**
-  (check first whether today's post already exists), and move bookmarks and the
-  ledger only after that, so a re-run is idempotent. Give the agent scoped,
-  read-only credentials kept out of the sandbox (the article uses a vault; in the
-  SDK, a host proxy that injects them) and cap each run's spend: the article's cap
-  pauses a Managed Agents run, while `max_budget_usd` **ends** an SDK run with
-  `error_max_budget_usd` (`cost-controls.md`).
+- **Decouple the brain from the hands** (Managed Agents, 2026-04-08). Keep three things apart: the
+  **session**, a durable, append-only event log that lives outside the context window; the
+  **harness**, the loop calling Claude, kept stateless so a crashed one resumes from the log by
+  session id; and the **sandbox**, called like any other tool through an `execute(name,
+  input)`-style interface, so a dead container is a retryable tool error rather than a lost session.
+  Provision sandboxes **lazily**, only when a tool call needs one (the article reports large
+  time-to-first-token gains). **Credentials never inside the sandbox**: wire them into the resource
+  at setup, or keep them in a vault and reach external services through a proxy that adds them per
+  call. In SDK terms: a `SessionStore` (or the transcript under a per-session `CLAUDE_CONFIG_DIR`)
+  is the log, resume is `resume=<session_id>`, the egress proxy holds the credentials
+  (`secure-deployment.md`). Claude Code's own cloud sessions apply the same shape (Osmani,
+  2026-10-06; about Claude Code, which an SDK app does not run in): a fresh, disposable VM per task,
+  the GitHub token held outside it by a proxy, a network level per environment (None, Trusted,
+  Custom, Full: "Pick the narrowest network level that works."), and all outbound traffic through a
+  proxy that logs hostnames.
+- **Memory across sessions** (Martin, 2026-11-06; experiments on Claude Managed Agents with a
+  mounted memory directory, compared with Claude Code's auto memory; the article never mentions the
+  SDK). The method transfers — notes written as predictions of what a later session needs, a small
+  top layer loaded at start, an offline pass that checks notes against transcripts — but the mounted
+  directory is a Managed Agents feature. An SDK session inherits Claude Code's auto memory
+  (`~/.claude/projects/<project>/memory/`) unless `env` sets `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, so
+  a multi-tenant host turns it off and gives a memory folder it designs its own volume
+  (`../../agent-design/references/memory-design.md`).
+- **Production lessons from the research system** (2025-06-13). Agents are stateful and errors
+  compound, so **resume from a checkpoint** where the error happened rather than restart; tell the
+  agent a tool is failing and let it adapt; deploy with **rainbow deployments** — shift traffic
+  gradually while old and new versions both run, so in-flight sessions finish on the code they
+  started on; and keep **full tracing** of decisions and tool calls without reading conversation
+  contents (`observability-otel.md`).
+- **Unattended scheduled agents** (Martin, Avilla, 2026-10-08; a Managed Agents and `ant` CLI
+  reference implementation, so the patterns transfer, not the tooling). Give each source its own
+  **bookmark** (the newest item read) instead of a fixed time window, so a late run leaves no gap
+  and an early one repeats nothing. "Report a failed read as unreadable, never as a quiet day", and
+  keep that source's bookmark. Count an action as done only when the **destination confirms it**
+  (check first whether today's post already exists), and move bookmarks and the ledger only after
+  that, so a re-run is idempotent. Give the agent scoped, read-only credentials kept out of the
+  sandbox (the article uses a vault; in the SDK, a host proxy that injects them) and cap each run's
+  spend: the article's cap pauses a Managed Agents run, while `max_budget_usd` **ends** an SDK run
+  with `error_max_budget_usd` (`cost-controls.md`).
 
 ## Provisioning
 
@@ -103,71 +105,60 @@ and the SDK mechanics that implement them are in the docs.
 
 ## Cost, in proportion
 
-Token cost typically dominates container cost by an order of magnitude or more:
-a minimally provisioned container runs roughly $0.05/hour, while one long agent
-session can spend dollars. Optimise the ceilings and the isolation before you
-optimise the instance type.
+Token cost typically dominates container cost by an order of magnitude or more: a minimally
+provisioned container runs roughly $0.05/hour, while one long agent session can spend dollars.
+Optimise the ceilings and the isolation before you optimise the instance type.
 
-Two figures to date rather than quote. `max_budget_usd` is a **soft** cap: the
-running estimate can pass the value before the query stops, so the instance
-budget needs headroom above it. And the cache-read price depends on which CLI
-the image carries — the platform list price for a Sonnet 5.5 cache read is
-**$0.10/Mtok**, which the CLI 2.1.310 bundled with `claude-agent-sdk` 0.2.174
-(the pin before 0.2.176) charges (measured 2026-10-24, as 2.1.301 did on 2026-10-17), while the 2.1.294 bundled with 0.2.165 charged
-**$0.20/Mtok** (measured 2026-10-11). Pin the SDK version in the image and
-record it beside any cost figure.
+Two figures to date rather than quote. `max_budget_usd` is a **soft** cap: the running estimate can
+pass the value before the query stops, so the instance budget needs headroom above it. And the
+cache-read price depends on which CLI the image carries — the platform list price for a Sonnet 5.5
+cache read is **$0.10/Mtok**, which the CLI 2.1.310 bundled with `claude-agent-sdk` 0.2.174 (the pin
+before 0.2.176) charges (measured 2026-10-24, as 2.1.301 did on 2026-10-17), while the 2.1.294
+bundled with 0.2.165 charged **$0.20/Mtok** (measured 2026-10-11). Pin the SDK version in the image
+and record it beside any cost figure.
 
 A host that embeds Claude Code and routes the model provider itself sets
-`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`: Claude Code then ignores the provider,
-endpoint and credential variables (`CLAUDE_CODE_USE_BEDROCK`,
-`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`) in settings files and the
-model-selection keys in managed settings, so neither can override the host's
-routing. Large requests to api.anthropic.com are gzip-compressed even with
-telemetry off from 2.1.300; `CLAUDE_CODE_GZIP_REQUEST_BODIES=0` turns that off
-for a proxy that cannot decompress. Resuming a headless or SDK session after a
-compaction lost recent messages or brought back pre-compaction history in two
-cases fixed in 2.1.300 — another reason to pin a CLI at least that new when a
-`SessionStore` resumes sessions across containers. Memory is the other
-compaction cost: from 2.1.310 non-interactive sessions (`-p`, Agent SDK) use
-less memory compacting when the transcript file is very large, and 2.1.304 sends
-the first request after resuming a large compacted session sooner — size a
-long-running agent's container on a CLI at least that new. From **2.1.311** a
-standard-context session whose request passes 200K tokens compacts and
-continues instead of stopping with "Usage credits required for 1M context".
+`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`: Claude Code then ignores the provider, endpoint and
+credential variables (`CLAUDE_CODE_USE_BEDROCK`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`) in
+settings files and the model-selection keys in managed settings, so neither can override the host's
+routing. Large requests to api.anthropic.com are gzip-compressed even with telemetry off from
+2.1.300; `CLAUDE_CODE_GZIP_REQUEST_BODIES=0` turns that off for a proxy that cannot decompress.
+Resuming a headless or SDK session after a compaction lost recent messages or brought back
+pre-compaction history in two cases fixed in 2.1.300 — another reason to pin a CLI at least that new
+when a `SessionStore` resumes sessions across containers. Memory is the other compaction cost: from
+2.1.310 non-interactive sessions (`-p`, Agent SDK) use less memory compacting when the transcript
+file is very large, and 2.1.304 sends the first request after resuming a large compacted session
+sooner — size a long-running agent's container on a CLI at least that new. From **2.1.311** a
+standard-context session whose request passes 200K tokens compacts and continues instead of stopping
+with "Usage credits required for 1M context".
 
-**Bedrock, Vertex, Foundry (from the changelog; `CLAUDE_CODE_MODEL_CATALOG` is
-not on the env-vars page read 2026-11-04).**
-From 2.1.311 Claude Code on those providers (and Mantle) loads model settings
-from a signed file on downloads.claude.ai; `CLAUDE_CODE_MODEL_CATALOG=off`
-turns that off, which an image without that egress needs. From 2.1.312 a model
-name Claude Code does not recognise there (a custom deployment name, an
-inference-profile ARN) gets the shorter system prompt even when it fronts
-Sonnet or Haiku; `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0` keeps the full prompt.
-They were newer than the 2.1.310 bundled with 0.2.174; the 2.1.318 bundled with
-the pinned 0.2.178 carries them.
+**Bedrock, Vertex, Foundry (from the changelog; `CLAUDE_CODE_MODEL_CATALOG` is not on the env-vars
+page read 2026-11-04).** From 2.1.311 Claude Code on those providers (and Mantle) loads model
+settings from a signed file on downloads.claude.ai; `CLAUDE_CODE_MODEL_CATALOG=off` turns that off,
+which an image without that egress needs. From 2.1.312 a model name Claude Code does not recognise
+there (a custom deployment name, an inference-profile ARN) gets the shorter system prompt even when
+it fronts Sonnet or Haiku; `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0` keeps the full prompt. They were
+newer than the 2.1.310 bundled with 0.2.174; the 2.1.319 bundled with the pinned 0.2.179 carries
+them.
 
-**When agents are the main clients of your repository.** Anthropic's
-source-control team reports that agents and jobs became nearly all of its
-monorepo's clients (merges grew more than tenfold in four months) and drew three
-lessons that carry over to any fleet of coding agents: a merge queue behind a
-**global lock** does not scale, so invest in post-merge and pre-deploy automated
-testing instead; expose every source-control query an agent needs (history,
-blame, file at a revision) as an **API**, so a job often needs no checkout at all;
-and expect many short, always-online clients rather than a few long-lived ones.
-Its system is internal; the lessons are what to borrow.
+**When agents are the main clients of your repository.** Anthropic's source-control team reports
+that agents and jobs became nearly all of its monorepo's clients (merges grew more than tenfold in
+four months) and drew three lessons that carry over to any fleet of coding agents: a merge queue
+behind a **global lock** does not scale, so invest in post-merge and pre-deploy automated testing
+instead; expose every source-control query an agent needs (history, blame, file at a revision) as an
+**API**, so a job often needs no checkout at all; and expect many short, always-online clients
+rather than a few long-lived ones. Its system is internal; the lessons are what to borrow.
 
 ## Known limitations worth planning around
 
 - Local disk is the default for every kind of state, and it is not durable.
-- A **background Bash command** in an unattended session can run far longer than
-  a foreground one: default **1800000 ms**, ceiling **7200000 ms** (Claude Code
-  **2.1.285+**), and `BASH_DEFAULT_TIMEOUT_MS`/`BASH_MAX_TIMEOUT_MS` above their
-  defaults raise both. Size the container's lifetime and its token budget for
-  that, not for the 600000 ms foreground cap.
-- `permission_mode` left unset could start a headless session that fetches no
-  feature flags in **`auto`** on 2.1.285–2.1.301, where broad allow rules are
-  dropped; from 2.1.302 such runs "start in Manual mode" (`default`), where an
-  unapproved call is denied. Pass it explicitly.
+- A **background Bash command** in an unattended session can run far longer than a foreground one:
+  default **1800000 ms**, ceiling **7200000 ms** (Claude Code **2.1.285+**), and
+  `BASH_DEFAULT_TIMEOUT_MS`/`BASH_MAX_TIMEOUT_MS` above their defaults raise both. Size the
+  container's lifetime and its token budget for that, not for the 600000 ms foreground cap.
+- `permission_mode` left unset could start a headless session that fetches no feature flags in
+  **`auto`** on 2.1.285–2.1.301, where broad allow rules are dropped; from 2.1.302 such runs "start
+  in Manual mode" (`default`), where an unapproved call is denied. Pass it explicitly.
 - A session pinned to a container dies with it unless a `SessionStore` is
   configured. From **2.1.316** shell commands are no longer left running on
   macOS and Linux when Claude Code exits by itself (refused credentials, an
@@ -176,28 +167,25 @@ Its system is internal; the lessons are what to borrow.
   error and exits 1 (text and json output) when a full disk or quota loses its
   transcript or `~/.claude.json` writes; before, it exited 0 (full NFS exports
   may still be missed). Treat exit 1 as a failure and size the state volume.
-- **`~/.claude.json` on a shared or read-only volume.** From **2.1.318**
-  unattended runs (`claude -p`, SDK apps) stop rewriting it when nothing in it
-  changed, and a non-interactive launch no longer replaces one that is not valid
-  JSON with defaults: the start fails, says how to restore the file and leaves it
-  as is — a corrupted file now stops the job instead of being silently reset.
-  The `errors` page (read 2026-11-05) says such a start "exits with code 1 each
-  time until you repair the file", and a `-p` run whose organization settings
-  cannot load prints the message and exits with status 1.
-- **A stored claude.ai sign-in ends on a date.** From 2.1.318 `claude -p` text
-  output warns on stderr 10 days before it, `claude -p` JSON carries
-  `credential_expires_at` and `claude auth status` `loginExpiresAt` (changelog;
-  absent with an API key, measured 2026-11-04). Another reason a hosted agent
-  runs on an API key.
+- **`~/.claude.json` on a shared or read-only volume.** From **2.1.318** unattended runs (`claude
+  -p`, SDK apps) stop rewriting it when nothing in it changed, and a non-interactive launch no
+  longer replaces one that is not valid JSON with defaults: the start fails, says how to restore the
+  file and leaves it as is — a corrupted file now stops the job instead of being silently reset. The
+  `errors` page (read 2026-11-05) says such a start "exits with code 1 each time until you repair
+  the file", and a `-p` run whose organization settings cannot load prints the message and exits
+  with status 1.
+- **A stored claude.ai sign-in ends on a date.** From 2.1.318 `claude -p` text output warns on
+  stderr 10 days before it, `claude -p` JSON carries `credential_expires_at` and `claude auth
+  status` `loginExpiresAt` (changelog; absent with an API key, measured 2026-11-04). Another reason
+  a hosted agent runs on an API key.
 - `SessionStore` mirror writes are best-effort: when a batch cannot be
   delivered the SDK drops it, emits a `{"type": "system", "subtype":
   "mirror_error"}` message and continues. Alert on those if durability matters.
 
 ## Where to start
 
-The hosting cookbook has deployable code for local Docker, Modal and
-Kubernetes. Choose a session pattern here, a deployment target there, and run
-`deploy_check.py` before you build the image.
+The hosting cookbook has deployable code for local Docker, Modal and Kubernetes. Choose a session
+pattern here, a deployment target there, and run `deploy_check.py` before you build the image.
 
 ---
 
@@ -211,7 +199,7 @@ the bundled binary),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
 limit), <https://code.claude.com/docs/en/permission-modes>,
 <https://platform.claude.com/docs/en/about-claude/models/overview> (cache-read
-percentages); `claude-agent-sdk` 0.2.178
+percentages); `claude-agent-sdk` 0.2.179
 `_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2464`
 (`cwd`), `:2772` (`session_store`), `:2424` (`max_budget_usd`), `:2393`
 (`permission_mode`); <https://code.claude.com/docs/en/env-vars>
@@ -236,9 +224,12 @@ writes) and 2.1.318 (`~/.claude.json` handling, sign-in expiry);
 <https://claude.dev/blog/building-effective-agent-automations/> ("Building effective
 agent automations", 2026-10-08, per-source bookmarks, failed reads, destination-confirmed
 completion, scoped read-only credentials, a per-run budget cap);
-<https://claude.dev/blog/claude-code-in-the-cloud/> ("Claude Code in the cloud: a field
+<https://www.anthropic.com/research/components-of-agent-memory> ("The components of agent
+memory", 2026-11-06, notes as predictions, a small injected top layer, consolidation; Managed
+Agents experiments); <https://code.claude.com/docs/en/agent-sdk/claude-code-features> (auto memory
+in SDK sessions); <https://claude.dev/blog/claude-code-in-the-cloud/> ("Claude Code in the cloud: a field
 guide to cloud sessions", 2026-10-06, a disposable VM per task, network levels, a
 hostname-logging egress proxy). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
 was measured by this plugin on 2026-10-11, the $0.10/Mtok of 2.1.301 on
-2026-10-17 and of 2.1.310 on 2026-10-24. Re-read 2026-11-05 against
-claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+2026-10-17 and of 2.1.310 on 2026-10-24.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

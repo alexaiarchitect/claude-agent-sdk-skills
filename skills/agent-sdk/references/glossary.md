@@ -144,6 +144,20 @@ meaning is given first.
   to another system) as done only when the destination confirms it, and moving
   bookmarks or ledgers only after that, so a re-run of a scheduled agent is
   idempotent (`/agent-sdk:agent-design`, `long-running-harness.md`).
+- **Memory note** — a file an agent writes for a later session, as a prediction of
+  what that session will need; not a transcript, not compaction, not in-context
+  learning (`/agent-sdk:agent-design`, `memory-design.md`).
+- **Consolidation ("dreaming")** — an offline pass between sessions that corrects
+  notes against transcripts, builds linked representations, promotes notes to the
+  top file, focuses memory on a goal and fills gaps one session left.
+- **Salience** — whether something is worth remembering: keep what the environment
+  will not tell you again (plans, tested rules, decisions), skip what can be re-read.
+- **Prompt-cache prefix** — the fixed start of each request (system prompt, tools,
+  then earlier turns) that the cache matches; changing it mid-session makes every
+  later turn pay full input price (`agent-deploy/references/cost-controls.md`).
+- **Effort** — `ClaudeAgentOptions.effort` (`low` … `max`): how much the model spends
+  on verification and edge cases; the SDK side of Claude Code's `/effort`. Hold it
+  fixed across compared eval runs.
 
 ---
 
@@ -188,4 +202,11 @@ The three 2026-11-05 terms follow
 and hillclimbing with Claude", 2026-09-28, hillclimbing and the held-out test set) and
 <https://claude.dev/blog/building-effective-agent-automations/> ("Building effective agent
 automations", 2026-10-08, destination-confirmed completion).
-Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+The five 2026-11-08 terms follow
+<https://www.anthropic.com/research/components-of-agent-memory> ("The components of agent
+memory", 2026-11-06, memory note, consolidation, salience; Managed Agents experiments),
+<https://claude.dev/blog/lessons-from-building-claude-code-prompt-caching-is-everything/>
+("Lessons from building Claude Code: Prompt caching is everything", 2026-04-30, the cache prefix)
+and <https://claude.dev/blog/spending-your-effort/> ("Using Claude Code: Spending your effort",
+2026-09-25, effort); `effort` per `https://code.claude.com/docs/en/agent-sdk/python`.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

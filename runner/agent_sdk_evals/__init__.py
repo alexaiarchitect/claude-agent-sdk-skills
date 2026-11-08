@@ -47,7 +47,8 @@ MODEL_ENV_VAR = "CLAUDE_MODEL"
 #: The Claude Code version whose documentation the references were read against
 #: (a test keeps it equal to the plugin library's copy; re-read 2026-11-04).
 #: docs re-read 2026-11-05 (lastmod 2026-11-04), no CLI release.
-DOCS_READ_AT_CLI = "2.1.318"
+#: docs re-read 2026-11-08 (lastmod 2026-11-06/07), CLI 2.1.319.
+DOCS_READ_AT_CLI = "2.1.319"
 
 #: The plugin's model policy, copied here so a run can grade a model id without
 #: the plugin's library (a test asserts the four copies are equal). `CURRENT` are
@@ -106,7 +107,7 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). With the mode
 #: unset the CLI picks it, and which one depends on its version and environment.
 #: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
-#: read at 2.1.318): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: read at 2.1.319): "In Claude Code v2.1.302 or later, `claude -p` and Agent
 #: SDK runs with no permission mode set start in Manual mode" (`default`;
 #: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
 #: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
@@ -118,6 +119,17 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: The trace `init` event records which way it went as `permission_mode_source`,
 #: either `"agent"` or `"runner-default"`.
 ISOLATION_DEFAULTS = {"setting_sources": [], "strict_mcp_config": True}
+
+#: Variables the runner adds to `ClaudeAgentOptions.env` for every run, on top of
+#: whatever the agent's own options carry; a case cannot override them. Claude
+#: Code's auto memory loads in Agent SDK sessions regardless of `setting_sources`
+#: (`agent-sdk/claude-code-features`; `agent-sdk/hosting` tells multi-tenant apps
+#: to set this variable; measured: `memory_paths.auto` in the 2.1.319 `init` with
+#: `setting_sources=[]`, 2026-11-08), and the agent can write notes there under
+#: `~/.claude/projects/<cwd>/memory/`. The per-run temporary `cwd` already keeps
+#: the folders apart; turning memory off guarantees no run reads or leaves notes
+#: (0.2.4).
+RUN_ENV_DEFAULTS = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
 
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "bypassPermissions", "dontAsk", "auto")
 SETTING_SOURCES = ("user", "project", "local")
@@ -148,13 +160,13 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.318): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.319): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
 #: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
 #: and any other value, which is an error reported in place of a model response.
 #: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
 #: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
-#: through from the CLI unchanged (0.2.178 `_internal/message_parser.py`).
+#: through from the CLI unchanged (0.2.179 `_internal/message_parser.py`).
 RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")
 
@@ -202,7 +214,7 @@ __all__ = [
     "DEFAULT_MODEL", "DEFAULT_JUDGE_MODEL", "MODEL_ENV_VAR", "DOCS_READ_AT_CLI",
     "CURRENT_MODELS", "DEPRECATED_MODELS", "RETIRING_MODELS", "RETIRED_MODELS",
     "OPTION_NAMES", "RUNNER_OWNED_OPTIONS", "OVERRIDABLE_OPTIONS", "DEPRECATED_OPTIONS",
-    "ISOLATION_DEFAULTS", "PERMISSION_MODES", "SETTING_SOURCES", "EFFORT_LEVELS",
+    "ISOLATION_DEFAULTS", "RUN_ENV_DEFAULTS", "PERMISSION_MODES", "SETTING_SOURCES", "EFFORT_LEVELS",
     "PYTHON_HOOK_EVENTS", "HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT",
     "SYNTHETIC_TOOLS", "SUBAGENT_TOOL_NAMES",
     "RESULT_SUBTYPES", "TERMINAL_REASONS", "RESULT_STOP_REASON_OUTCOMES",

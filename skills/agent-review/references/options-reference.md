@@ -1,7 +1,7 @@
 # `ClaudeAgentOptions`: all 49 fields
 
-Read from the installed dataclass, `claude-agent-sdk` 0.2.178
-(`types.py:2339-2799`; the same 49 fields since 0.2.174). It is a plain `@dataclass`, so an unknown or misspelled
+Read from the installed dataclass, `claude-agent-sdk` 0.2.179
+(`types.py:2339-2799`; the same 49 fields since 0.2.174; 0.2.179's `types.py` is byte-identical to 0.2.178's). It is a plain `@dataclass`, so an unknown or misspelled
 keyword raises `TypeError` at construction, and `dataclasses.replace()` works
 for per-case overrides.
 
@@ -14,8 +14,8 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 |---|---|---|---|---|
 | `model` | `str \| None` | `None` | O | unset means Claude Code's default for the account. From 2.1.311 the `[1m]` suffix is dropped from names where it has no effect (still accepted) |
 | `fallback_model` | `str \| None` | `None` | O | one id or a comma-separated chain |
-| `effort` | `EffortLevel \| None` | `None` | O | `low` `medium` `high` `xhigh` `max` |
-| `thinking` | `ThinkingConfig \| None` | `None` | O | `{"type":"adaptive"}`, `{"type":"enabled","budget_tokens":N}`, `{"type":"disabled"}`, optional `display` |
+| `effort` | `EffortLevel \| None` | `None` | O | `low` `medium` `high` `xhigh` `max`; the SDK side of Claude Code's `/effort` (passed as `--effort`). Higher levels mostly buy more verification and edge-case checking, not a better approach (`agent-deploy/references/cost-controls.md`, article of 2026-09-25) |
+| `thinking` | `ThinkingConfig \| None` | `None` | O | `{"type":"adaptive"}`, `{"type":"enabled","budget_tokens":N}`, `{"type":"disabled"}`, optional `display`. On Amazon Bedrock and Google Cloud's Agent Platform, Claude Code doesn't pass `display` for Opus 4.6, Sonnet 4.6, Haiku 4.5 and earlier models, which use their default (docs 2026-11-06) |
 | `max_thinking_tokens` | `int \| None` | `None` | O | **deprecated**, use `thinking` |
 | `betas` | `list[SdkBeta]` | `[]` | O | only `"context-1m-2025-08-07"` |
 
@@ -42,7 +42,7 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `hooks` | `dict[HookEvent, list[HookMatcher]] \| None` | `None` | R | callables; the runner adds its capture and fault hooks here. `HookMatcher` fields: `matcher`, `hooks`, `timeout`, and from 0.2.177 `on_failure` (`"continue"`/`"block"`/`None`; `HOK011`, `hooks-catalog.md`) |
 | `output_format` | `dict \| None` | `None` | O | only `{"type":"json_schema","schema":{...}}` is acted on |
 | `verbatim_prompts` | `bool` | `False` | O | needs CLI 2.1.248+ |
-| `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166; `allowAllUnixSockets` also covers Linux VM sockets (`AF_VSOCK`); `failIfUnavailable`, `filesystem` (`denyWrite`) and `allowNestedUserNamespaces` (2.1.305) are forwarded though undeclared |
+| `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166 (`types.py:1137`), as the Python page now documents: each key matches part of a command or `*`, each value lists text to match in a violation line, and "A matching access is still blocked" — it filters the report only; `allowAllUnixSockets` also covers Linux VM sockets (`AF_VSOCK`); `failIfUnavailable`, `filesystem` (`denyWrite`) and `allowNestedUserNamespaces` (2.1.305) are forwarded though undeclared |
 | `plugins` | `list[SdkPluginConfig]` | `[]` | O | |
 
 ## Ceilings
@@ -145,7 +145,7 @@ before `elif e.terminal_reason == "api_error":`. A declined run has no
   `skills`, `messageBreakdown`, `apiUsage` — an **unbilled** off-stream request.
 - `ModelUsage` rows in `ResultMessage.model_usage` carry `costBasis`
   (`list` | `managed` | `unknown`, Claude Code 2.1.246+) and `thinkingTokens`
-  on the wire, and **neither is on the 0.2.178 TypedDict** — read both with
+  on the wire, and **neither is on the 0.2.179 TypedDict** — read both with
   `.get()`. Measured 2026-10-11: `costBasis == "list"` on an API key, and the
   dict held two models (the agent's and the CLI's background Haiku 5.5).
 - `credential_expires_at` (Claude Code 2.1.318 changelog; not in the docs) is in
@@ -199,8 +199,8 @@ fields. Guard those names on 0.2.140–0.2.165. **`SystemInitData`** types
 `mcp_servers`, `model`, `permissionMode`, `apiKeySource`, `skills`, `plugins`,
 `fast_mode_state?` (`off`/`cooldown`/`on`), `fast_mode_disabled_reason?`
 (`sdk_opt_in_required` measured) and `capabilities?`, among others. Use `capabilities` to **feature-detect instead of
-comparing versions**, ignoring unknown strings: CLI 2.1.316 sent 14 and 2.1.318
-the same 14 (the `interrupt_*_v1` four, `msg_lifecycle_v1`,
+comparing versions**, ignoring unknown strings: CLI 2.1.319 sends 15, adding the undocumented
+`mcp_call_check_permissions_v1` (recorded, never required) to the 14 that 2.1.316 and 2.1.318 sent (the `interrupt_*_v1` four, `msg_lifecycle_v1`,
 `request_marker_lists_v1`, `ask_user_question_unanswered_v1`,
 `lifecycle_wakeup_source_v1`, `sdk_mcp_tools_list_changed`, `sdk_mcp_manifests`,
 `mcp_read_resource_v1`, `mcp_tool_ui_meta_v1`, `ui_surface_v1`,
@@ -208,13 +208,10 @@ the same 14 (the `interrupt_*_v1` four, `msg_lifecycle_v1`,
 `.get()`: CLIs also send undeclared keys (`original_cwd`, `memory_paths`,
 `view_mode`, `ultrathink_available` from 2.1.316, `ultrathink_typed_raises` from
 2.1.318).
-`SandboxSettings.ignoreViolations` is now `dict[str, list[str]]` — a command
-pattern (`"*"` for all) to violation-text substrings, affecting reporting only;
-the Python docs page still shows the old `{file, network}` shape.
 
 ---
 
-Sources: `claude-agent-sdk` 0.2.178, installed at
+Sources: `claude-agent-sdk` 0.2.179, installed at
 `site-packages/claude_agent_sdk/types.py:2339-2799` (the 49 fields in
 declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 `SettingSource`, `:37` `EffortLevel`, `:284` `HookEvent`, `:864` `on_failure`, `:1706`
@@ -234,7 +231,10 @@ declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 <https://code.claude.com/docs/en/agent-sdk/permissions> (auto mode and
 `set_model()`), <https://code.claude.com/docs/en/headless> (`init.capabilities`),
 <https://code.claude.com/docs/en/settings-reference> (`sandbox.filesystem.denyWrite`,
-`sandbox.failIfUnavailable`, `sandbox.ignoreViolations`); `types.py:1472`
+`sandbox.failIfUnavailable`, `sandbox.ignoreViolations`); the Python page's
+`SandboxIgnoreViolations` and `thinking.display` text read 2026-11-08;
+<https://claude.dev/blog/spending-your-effort/> ("Using Claude Code: Spending your effort",
+2026-09-25, what effort buys); `types.py:1472`
 `SystemInitData`, `:1454` `FastModeState`, `:1458` `FastModeDisabledReason`,
 `:1137` `SandboxIgnoreViolations`, `:1152` `SandboxSettings`. The
 `max_turns=1 -> num_turns=2` result was measured by this plugin on 2026-09-30;
@@ -245,5 +245,6 @@ the `-p` JSON keys); the CHANGELOG 2.1.318 (`credential_expires_at`). Re-read
 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (line numbers
 re-pinned); `max_turns=1` re-measured 2026-10-29; `[1m]` from the 2.1.311 changelog.
-Line numbers re-pinned to 0.2.178 on 2026-11-04. Re-read 2026-11-05 against
-claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+Line numbers re-pinned to 0.2.178 on 2026-11-04 (unchanged in 0.2.179); 15 capabilities measured on
+2.1.319 on 2026-11-08.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

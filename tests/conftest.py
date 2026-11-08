@@ -43,18 +43,23 @@ class ScriptRun:
 #: Where the target venv lives: next to the plugin repo, outside it, in
 #: `../tmp/venvs/` (macOS cleared `/tmp` on 2026-10-22 and the surface tests
 #: skipped silently until the 0.2.174 sync noticed).
-SDK_VENV_NAME = "casdk-venv-0.2.178"
+SDK_VENV_NAME = "casdk-venv-0.2.179"
+#: The previous pin's venv, kept as a fallback (0.2.179 changed no `types.py` line).
+SDK_VENV_FALLBACK = "casdk-venv-0.2.178"
 
 #: Interpreters that may have the real `claude_agent_sdk` installed, most
 #: specific first. `AGENT_SDK_TEST_PYTHON` overrides everything; then the venv
-#: named for the release the plugin was checked against (`SDK_TARGET`, 0.2.178),
+#: named for the release the plugin was checked against (`SDK_TARGET`, 0.2.179),
 #: found relative to the repo (`parents[2]` of this file is the directory that
-#: holds the repo) so it survives a move, then at its absolute path; the old
-#: `/tmp` venvs are the earlier convention, kept as fallbacks.
+#: holds the repo) so it survives a move, then at its absolute path, then the
+#: previous pin's venv (0.2.178) the same two ways; the old `/tmp` venvs are
+#: the earlier convention, kept as fallbacks.
 SDK_VENV_CANDIDATES = (
     os.environ.get("AGENT_SDK_TEST_PYTHON") or "",
     str(Path(__file__).resolve().parents[2] / "tmp" / "venvs" / SDK_VENV_NAME / "bin" / "python"),
     "/Users/alex/Documents/Business/adk-evanl-skills/tmp/venvs/" + SDK_VENV_NAME + "/bin/python",
+    str(Path(__file__).resolve().parents[2] / "tmp" / "venvs" / SDK_VENV_FALLBACK / "bin" / "python"),
+    "/Users/alex/Documents/Business/adk-evanl-skills/tmp/venvs/" + SDK_VENV_FALLBACK + "/bin/python",
     "/tmp/casdk-venv-0.2.168/bin/python",
     "/tmp/casdk-venv-0.2.165/bin/python",
     "/tmp/casdk-venv/bin/python",
@@ -98,7 +103,7 @@ def sdk_python() -> str:
             + ", ".join(c for c in SDK_VENV_CANDIDATES if c)
             + ". Build one next to the repo with: python3.12 -m venv ../tmp/venvs/"
             + SDK_VENV_NAME + " && ../tmp/venvs/" + SDK_VENV_NAME
-            + "/bin/pip install 'claude-agent-sdk==0.2.178' pytest"
+            + "/bin/pip install 'claude-agent-sdk==0.2.179' pytest"
         )
     return found
 

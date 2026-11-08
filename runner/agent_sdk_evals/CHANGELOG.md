@@ -3,6 +3,72 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.2.4 — 2026-11-08
+
+Re-pinned to `claude-agent-sdk` 0.2.179 with its bundled CLI 2.1.319 (docs and
+changelog re-read at Claude Code 2.1.319, 17 pages with lastmod 2026-11-06/07);
+minimum supported SDK stays 0.2.140. 0.2.179 is a **CLI-only release**: against
+0.2.178 it changes `pyproject.toml`, `_version.py`, `_cli_version.py` and the
+bundled binary, and its tag carries no CHANGELOG entry (see
+https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.179 and
+the v0.2.178...v0.2.179 compare). `types.py` is byte-identical (2,914 lines), so
+every `types.py:<line>` citation holds, and the 49 options, 6 permission modes,
+10 Python hook events, 21 `HookSpecificOutput` members, 159 exports, 19
+`ResultMessage` fields and the 4 `HookMatcher` fields are unchanged. One runner
+behaviour changed (below, auto memory); the rest is version strings, comments
+and a new test fixture. A project copy at 0.2.3 is reported as older (`DEP001`)
+and should be updated so its runs stop sharing auto memory.
+
+- **The runner disables Claude Code auto memory in eval runs so runs stay
+  independent.** Every run's `ClaudeAgentOptions.env` now carries
+  `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` (`RUN_ENV_DEFAULTS`), added to the agent's
+  own `env` entries, which are kept; neither the agent's options nor a case can
+  turn it back on. Auto memory loads in Agent SDK sessions regardless of
+  `setting_sources` (`agent-sdk/claude-code-features`; `agent-sdk/hosting`
+  recommends this variable for multi-tenant apps; the 2.1.319 `init` reports
+  `memory_paths.auto` with `setting_sources=[]`, measured 2026-11-08), and the
+  agent writes it with `Write`/`Edit` under `~/.claude/projects/<cwd>/memory/`.
+  The runner's per-run temporary `cwd` already gives each run its own folder,
+  so the switch is what guarantees it: no run loads memory, none leaves a
+  memory folder behind on the host, and a run whose path is ever reused cannot
+  read an earlier run's notes. A 0.2.3
+  copy can get the same by setting the variable in the agent's own options'
+  `env` (case `env` keys must start with `EVAL_` and only reach the scaffold).
+
+- **`init` on 2.1.319 carries 15 `capabilities`** (14 on 2.1.316 and 2.1.318):
+  the new string is `mcp_call_check_permissions_v1`; the init key set and the
+  tool list are unchanged (measured 2026-11-08 with `setting_sources=[]`).
+  `Capture` records capabilities when present and never requires them, so no
+  code changed; `tests/fixtures/traces/init_2_1_319.{script,trace}.jsonl` hold
+  the measured message and what `Capture` writes from it.
+- **What a 0.2.3 copy should know** (Claude Code 2.1.319 changelog unless noted;
+  changelog only, not reproduced here unless said so):
+  - `claude -p` now exits 1 (text and JSON output) when auto mode refused actions
+    because no safety check was available. The runner forces `dontAsk` unless a
+    case sets a mode; a case that runs in `auto` can now end with
+    `ProcessError(exit_code=1)`, which the runner classifies as before (exit 2,
+    outcome `NOT_EVALUATED`, never a FAIL).
+  - A run that hits a full disk now gives an SDK host the run's own error rather
+    than an unrelated one, so the `NOT_EVALUATED` reason names the real cause.
+  - Claude Code moves MCP tasks to the background at once;
+    `CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND=1` makes it wait inline. A call
+    becomes an MCP task in an Agent SDK session only under the conditions the
+    `mcp` page lists (among them `CLAUDE_AUTO_BACKGROUND_TASKS=1`), which the
+    runner never sets; a case that sets them and wants the call to wait can put
+    the variable in its `env`.
+  - `claude -p --resume` with a deferred MCP tool that is no longer available
+    exits 1 and keeps the pending call; `CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL=1`
+    with a prompt drops it (also on the `hooks` and `env-vars` pages, 2.1.319).
+    The runner owns `resume` (a case cannot set it) and starts every run fresh,
+    so it is not affected; a resumed session's
+    `stop_reason: "tool_deferred_unavailable"` is still reported as the
+    `tool_deferred` outcome.
+  - The `hook_callback_failed` informational texts (both `on_failure` modes) were
+    measured on 2.1.319 and are identical to 2.1.318's; the 2.1.319 changelog's
+    fix for text dropped from informational messages sent to SDK clients does
+    not change them. The runner's fault and budget hooks keep the default.
+- `DOCS_READ_AT_CLI = "2.1.319"` (was 2.1.318).
+
 ## 0.2.3 — 2026-11-05
 
 Docs-only re-read: no SDK or Claude Code release since 0.2.2, so the pins stay

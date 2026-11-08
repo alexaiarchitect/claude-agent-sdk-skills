@@ -4,16 +4,18 @@ description: >-
   Design review and advice for a Claude Agent SDK (Python) agent, grounded in
   Anthropic's published guidance on building agents: the gather-context /
   take-action / verify loop, context engineering, tool design, whether a
-  subagent is warranted at all, and long-running harness patterns. Runs
-  `design_check.py` and `design_brief.py` over the agent's source and reports
+  subagent is warranted at all, long-running harness patterns, and memory
+  design across sessions. Runs `design_check.py` and `design_brief.py` over
+  the agent's source and reports
   `DSG0xx` findings — tool descriptions, ambiguous parameters, list tools with
   no limit, missing namespaces, overlapping tools, too many tool definitions,
   underspecified subagents, unbounded runs — each with the article and the
   docs page it cites. Writes nothing unless asked. Use when asked "is my tool
   set well designed", "too many tools", "should this be a subagent", "fold my
   subagents", "my agent runs out of context", "how do I make it run for hours",
-  "design review", or "which pattern should I use". Don't use for wiring checks
-  of hooks, permissions and MCP servers (use `/agent-sdk:agent-harness`), a
+  "design review", "which pattern should I use", or "how should my agent
+  remember across sessions". Don't use for wiring checks of hooks,
+  permissions and MCP servers (use `/agent-sdk:agent-harness`), a
   static lint of the code (use `/agent-sdk:agent-review`), a run that
   misbehaved (use `/agent-sdk:agent-debug`), hosting (use
   `/agent-sdk:agent-deploy`), or writing the app itself (use
@@ -22,7 +24,7 @@ argument-hint: "[project-dir]"
 allowed-tools: Read, Grep, Glob, Write, Edit, AskUserQuestion, Skill, Bash(python3 *)
 ---
 
-# Agent design: loop, context, tools, subagents, long runs
+# Agent design: loop, context, tools, subagents, long runs, memory
 
 The wiring skills answer "does this work as written". This one answers "is it
 shaped the way the model needs": what the model is shown about each tool, how
@@ -60,7 +62,7 @@ directory. Use it verbatim in every command below.
    python3 ${CLAUDE_SKILL_DIR}/scripts/design_brief.py <project>
    ```
 
-   It lays the same facts out as the five questions below: the tool table,
+   It lays the same facts out as the first five questions below: the tool table,
    the keep-or-fold table per subagent, the verification ladder against this
    plugin's graders, and the long-running checklist with `yes`/`no`/`ask`.
 
@@ -87,7 +89,7 @@ but label it as one and keep it apart from the findings.
 The thresholds are heuristics from the articles, not SDK limits. Say that a
 finding is a question for the evals to settle, not a defect to fix blindly.
 
-## The five design questions
+## The six design questions
 
 1. **Loop and verification.** Is this an agent or a workflow — can the steps
    be predicted? What stops it (`max_turns`, counting each turn with tool calls
@@ -111,6 +113,12 @@ finding is a question for the evals to settle, not a defect to fix blindly.
    list, progress file, one feature per session, git checkpoints, an
    end-to-end check at session start, and an evaluator separate from the
    generator. (DSG008) → [long-running-harness.md](references/long-running-harness.md)
+6. **Memory across sessions.** Must a later session know what this one
+   learned? Then: notes as predictions of what will be needed, a small top file
+   loaded at start, consolidation in a separate scheduled run, and Claude Code's
+   auto memory — which an SDK session inherits — kept on or turned off
+   (`CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`) on purpose; off for multi-tenant apps.
+   (no DSG rule) → [memory-design.md](references/memory-design.md)
 
 ## Decision rules
 
@@ -151,6 +159,7 @@ finding is a question for the evals to settle, not a defect to fix blindly.
 | Each DSG tool rule and why, `response_format`, output limits, `@tool` annotations, eval-driven iteration | [tool-design.md](references/tool-design.md) |
 | Keep or fold, the fold procedure, delegation rules, background/fork/caps facts | [subagent-decisions.md](references/subagent-decisions.md) |
 | Initializer and coding sessions, feature list, progress file, generator/evaluator, the session log | [long-running-harness.md](references/long-running-harness.md) |
+| Memory notes, the memory hierarchy, salience, consolidation ("dreaming"), inherited auto memory against an app-designed memory folder | [memory-design.md](references/memory-design.md) |
 
 ## Scripts
 

@@ -44,8 +44,8 @@ except ImportError:                      # pragma: no cover - older library copy
 DOCS = "https://code.claude.com/docs/en/agent-sdk"
 SRC_HOOKS = f"{DOCS}/hooks#available-hooks"
 SRC_HOOKS_OUTPUT = f"{DOCS}/hooks#outputs"
-SRC_HOOK_TYPES = "claude-agent-sdk 0.2.178 types.py:284 (HookEvent), :728-815 (HookJSONOutput)"
-SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.178 types.py:840 (HookMatcher)"
+SRC_HOOK_TYPES = "claude-agent-sdk 0.2.179 types.py:284 (HookEvent), :728-815 (HookJSONOutput)"
+SRC_HOOK_MATCHER = "claude-agent-sdk 0.2.179 types.py:840 (HookMatcher)"
 SRC_PERMISSIONS = f"{DOCS}/permissions#how-permissions-are-evaluated"
 SRC_PERMISSION_RULES = f"{DOCS}/permissions#allow-and-deny-rules"
 SRC_TOOL_ACCESS = f"{DOCS}/custom-tools#control-tool-access"
@@ -59,10 +59,10 @@ SRC_SETTINGS = f"{DOCS}/claude-code-features#control-filesystem-settings-with-se
 SRC_DEPRECATIONS = "https://platform.claude.com/docs/en/about-claude/model-deprecations"
 SRC_PERMISSION_MODES = "https://code.claude.com/docs/en/permission-modes"
 SRC_NETWORK_PATHS = "https://code.claude.com/docs/en/permissions#network-paths"
-SRC_PERMISSION_MODE_FIELD = "claude-agent-sdk 0.2.178 types.py:2393 (permission_mode)"
+SRC_PERMISSION_MODE_FIELD = "claude-agent-sdk 0.2.179 types.py:2393 (permission_mode)"
 SRC_CHANGELOG = "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"
 SRC_ON_FAILURE = f"{DOCS}/hooks#block-the-action-when-a-callback-fails"
-SRC_ON_FAILURE_FIELD = "claude-agent-sdk 0.2.178 types.py:864 (HookMatcher.on_failure)"
+SRC_ON_FAILURE_FIELD = "claude-agent-sdk 0.2.179 types.py:864 (HookMatcher.on_failure)"
 #: Hooks that `onFailure: "block"` cannot rescue, so the advice is wrong there.
 ON_FAILURE_EXEMPT_EVENTS = ("Stop", "SubagentStop", "TaskCompleted", "TeammateIdle")
 #: `HookMatcher.on_failure` first shipped in this SDK release (CLI 2.1.317 honours it).
@@ -218,7 +218,7 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             message='"Skill" in allowed_tools is deprecated',
             fix="use the `skills` option instead: it configures everything, including "
                 "allowing the Skill tool. Pass exact skill names.",
-            source="claude-agent-sdk 0.2.178 types.py:2359; " + SRC_OPTIONS,
+            source="claude-agent-sdk 0.2.179 types.py:2359; " + SRC_OPTIONS,
         ))
 
     mode = primary.get("permission_mode")
@@ -261,7 +261,7 @@ def permission_findings(facts: ProjectFacts, *, strict: bool = False) -> list[Fi
             id="OPT060", severity="error", area="options", path=path, locator=line,
             message=f'permission_mode="{mode_value}" is not one of the six the SDK accepts',
             fix="one of: " + ", ".join(PERMISSION_MODES),
-            source="claude-agent-sdk 0.2.178 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
+            source="claude-agent-sdk 0.2.179 types.py:25 (PermissionMode); " + SRC_PERMISSIONS,
         ))
     return findings
 
@@ -394,7 +394,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None,
                     message=f"hook callback {name}() is a plain `def`; the SDK awaits it",
                     fix="make it `async def cb(input_data, tool_use_id, context)`. A "
                         "synchronous callback raises as soon as the event fires.",
-                    source="claude-agent-sdk 0.2.178 types.py:828 (HookCallback)",
+                    source="claude-agent-sdk 0.2.179 types.py:828 (HookCallback)",
                 ))
             if callback.param_count != 3 and not any(p.startswith("*") for p in callback.params):
                 findings.append(Finding(
@@ -403,7 +403,7 @@ def hook_findings(facts: ProjectFacts, claude: ClaudeFiles | None = None,
                     message=f"hook callback {name}() takes {callback.param_count} "
                             "parameter(s); the SDK always passes three",
                     fix="the signature is (input_data, tool_use_id, context).",
-                    source="claude-agent-sdk 0.2.178 types.py:828 (HookCallback)",
+                    source="claude-agent-sdk 0.2.179 types.py:828 (HookCallback)",
                 ))
             needs_specific = registration.event not in HOOK_EVENTS_WITHOUT_SPECIFIC_OUTPUT
             if (needs_specific and callback.returns_nonempty_dict

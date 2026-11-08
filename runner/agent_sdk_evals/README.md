@@ -47,7 +47,10 @@ number of sessions is not `cases x tier.runs`.
 - **Isolation is forced.** Every run gets `setting_sources=[]` and
   `strict_mcp_config=True` unless a case overrides them. Without those, the
   machine's own settings and CLAUDE.md load into every run: measured 17x the
-  cost for the same prompt, and results that do not reproduce elsewhere.
+  cost for the same prompt, and results that do not reproduce elsewhere. From
+  0.2.4 every run's `env` also carries `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, which
+  no case overrides: Claude Code's auto memory loads in SDK sessions whatever
+  `setting_sources` says, and runs must not read or leave memory notes.
 - **The model never defaults.** A case override, then `eval_config.json`'s
   `model` (which reads `${CLAUDE_MODEL:-…}`), then the agent's own options — and
   if all three are empty the runner refuses rather than inheriting the CLI's

@@ -100,7 +100,7 @@ refuse the agent's tool call and turn a runner defect into an agent failure the
 case never asked for (and an SDK before 0.2.177 would reject the matcher). A
 crash still shows up: the CLI sends an informational system message with
 `data.tag: hook_callback_failed`, which the trace records as a `system` event
-(measured on 2.1.318). The `deny` fault is a returned decision, not a failure,
+(measured on 2.1.318 and 2.1.319). The `deny` fault is a returned decision, not a failure,
 so it blocks either way. Your agent's own guard hooks are the opposite case:
 give them `on_failure="block"` (`HOK011`).
 
@@ -175,5 +175,5 @@ MCP-only and **not** deprecated; `defer` and `stop_reason: "tool_deferred"`);
 resume), `https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails`
 (`on_failure`). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs. Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code
-2.1.318 docs.
+2.1.310 docs.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

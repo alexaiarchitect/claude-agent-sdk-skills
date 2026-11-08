@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import FAILED, NOT_EVALUATED, PASSED
+from . import FAILED, NOT_EVALUATED, PASSED, RUN_ENV_DEFAULTS
 from .capture import Capture, looks_like_usage_limit, rate_limit_payload, result_outcome
 from .loader import Case, Config, resolve_permission_mode
 
@@ -158,6 +158,14 @@ def child_env(case: Case, config: Config) -> dict[str, str]:
     return env
 
 
+def run_options_env(options: Any) -> dict[str, str]:
+    """The `ClaudeAgentOptions.env` a run starts with: the agent's own entries,
+    kept, plus `RUN_ENV_DEFAULTS`, which no agent or case value overrides."""
+    env = {str(k): str(v) for k, v in (getattr(options, "env", None) or {}).items()}
+    env.update(RUN_ENV_DEFAULTS)
+    return env
+
+
 async def drive(client: Any, capture: Capture, prompts: list[str]) -> None:
     """Scripted turns on one client: query, drain to the result, repeat."""
     for prompt in prompts:
@@ -216,8 +224,11 @@ async def run_once(
     # Every run gets its own working directory, and the session is pointed at it:
     # the scaffold seeds it, the agent writes into it, and `file_exists` graders
     # read it. Without this the agent would write into the project itself and one
-    # run could see another's leftovers.
-    options = dataclasses.replace(options, cwd=str(cwd))
+    # run could see another's leftovers. `RUN_ENV_DEFAULTS` is added to the
+    # agent's own `env` and wins over it: Claude Code's auto memory would
+    # otherwise carry notes from one run into the next whatever `setting_sources`
+    # says.
+    options = dataclasses.replace(options, cwd=str(cwd), env=run_options_env(options))
     user = None
     prompts = case.turns or ([case.prompt] if case.prompt else [])
     if persona is not None:

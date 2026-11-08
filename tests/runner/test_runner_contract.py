@@ -48,7 +48,7 @@ def test_the_runner_version_matches_the_library():
 
 
 def test_the_docs_read_at_version_matches_the_library():
-    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.318"
+    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.319"
 
 
 def test_the_option_list_matches_the_stub():
@@ -140,7 +140,7 @@ def test_the_result_file_carries_every_required_key(mini_evals: Path):
         config={"tier": "nightly", "model": "claude-sonnet-5-5",
                 "judge": {"model": "claude-sonnet-5-5", "samples": 3},
                 "isolation": {"setting_sources": [], "strict_mcp_config": True},
-                "cost_basis": "subscription", "sdk_version": "0.2.178", "cli_version": "2.1.318"},
+                "cost_basis": "subscription", "sdk_version": "0.2.179", "cli_version": "2.1.319"},
         runs=[RunRecord(run=1, trace="c.1.trace.jsonl", status="PASSED",
                         graders=[{"name": "g", "type": "regex", "status": "PASSED", "score": 1.0}],
                         result={"subtype": "success", "terminal_reason": "completed",
@@ -170,7 +170,7 @@ def test_the_aggregate_carries_every_required_key():
     from agent_sdk_evals.results import Aggregate, CaseResult, RunRecord
 
     aggregate = Aggregate(
-        tier="nightly", sdk_version="0.2.178", cli_version="2.1.318",
+        tier="nightly", sdk_version="0.2.179", cli_version="2.1.319",
         credential={"kind": "login", "cost_basis": "subscription", "plan": "max",
                     "auth_method": "claude.ai", "api_provider": "firstParty"},
         rate_limit={"status": "allowed_warning", "windows": {"seven_day": {"utilization": 0.83}}},

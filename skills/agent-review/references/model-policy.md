@@ -17,7 +17,7 @@ of eight grades. The grade decides the finding, not the string.
 | `unknown` | anything else: a string that is not a Claude id at all — a typo, or another provider's name | none, but the review says it could not grade it |
 
 The lists live in `lib/agent_sdk_skills/__init__.py` and are re-pinned at each
-upstream sync from the deprecations page. **As of 2026-11-05** (no id, price or
+upstream sync from the deprecations page. **As of 2026-11-08** (no id, price or
 date changed since 2026-10-11). "Default effort" below is the Claude API's
 default from the models overview; Claude Code's own default differs for the 5.5
 family (next section):
@@ -29,7 +29,7 @@ family (next section):
 | `claude-fable-5-1` | current. $10 / $50, 1M, `high` |
 | `claude-haiku-5-5` | current, and the **cheap judge option**. From $0.10 / from $0.50, 1M by default on every plan (no `[1m]` suffix), default effort `medium`, adaptive reasoning that cannot be turned off. The `haiku` alias resolves to it on the Anthropic API from Claude Code **2.1.293** (Bedrock, Vertex, Foundry and Claude Platform on AWS still get Haiku 4.5). "From" is literal: **it costs more per token once a prompt passes 100K tokens** |
 | `claude-sonnet-4-5-20250929` | **deprecated 2026-09-30, retires 2026-11-30**, replacement `claude-sonnet-5-5` → `deprecated` |
-| `claude-haiku-4-5-20251001` | retirement "not sooner than" 2026-10-15 → `retiring`. The date passed 20 days ago with no announcement: the deprecations page still lists it **Active** with that date, so it stays `retiring` rather than `retired` until the page says otherwise |
+| `claude-haiku-4-5-20251001` | retirement "not sooner than" 2026-10-15 → `retiring`. The date passed 24 days ago with no announcement: the deprecations page still lists it **Active** with that date, so it stays `retiring` rather than `retired` until the page says otherwise |
 | `claude-opus-4-5-20251101` | retirement not sooner than 2026-11-24 → `retiring` |
 | every `claude-3-*`, `claude-opus-4-*` (4.0/4.1), `claude-sonnet-4-20250514` | `retired` |
 
@@ -54,13 +54,22 @@ the session's model; on another model that level does not apply (docs
 default (2.1.317). Set `effort` on an `AgentDefinition` whose `model` differs.
 
 **Fast mode on Opus 4.8 is deprecated** (Claude Code `CHANGELOG.md` 2.1.316, not
-yet on the models pages): deprecated as of 2026-10-30 and removed on
+yet on the models pages; the settings reference read 2026-11-08 says only Opus 5.5, Opus 5 and
+Opus 4.8 support fast mode): deprecated as of 2026-10-30 and removed on
 **2026-11-30**; after that a fast-mode request on Opus 4.8 returns an error and
 does **not** fall back to standard Opus 4.8. Migrate to Opus 5.5 to keep the
 speedup. An agent that pins Opus 4.8 with fast mode on (`fast_mode_state` in the
 init message, `options-reference.md`) breaks on that date rather than slowing down.
 Plan lists in the docs now include the **Ultra** plan (Pro, Max, Ultra, Team,
 Enterprise); nothing in this policy differs by plan.
+
+**Sonnet 5.5 or Opus 5.5.** Anthropic's Sonnet 5.5 guide (2026-09-28, written for the Messages API)
+puts Sonnet 5.5 on well-scoped work "when the task has a clear spec and a way to check the result",
+and Opus 5.5 on long-horizon work that needs careful judgment; effort levels are recalibrated per
+model, so re-run an effort sweep rather than carry a level over. Its Opus 5.5 companion (2026-09-22,
+Claude apps and Claude Code) adds: give the whole task with a finish line, drop "think carefully"
+lines in favour of `effort`, and check a subagent's evidence before accepting its report. In the SDK
+these map to `model`, `effort` and the prompt; none of it changes the grades above.
 
 Haiku 5.5 is named as the cheap judge, not made the default: `DEFAULT_MODEL` and
 `DEFAULT_JUDGE_MODEL` both stay `claude-sonnet-5-5`, so a suite's scores stay
@@ -129,7 +138,7 @@ graders:
   never `next(iter(...))`, and a per-model budget assertion has to allow the
   background model;
 - each row also carries `costBasis` (`list` | `managed` | `unknown`, Claude Code
-  2.1.246+) and `thinkingTokens`, neither of which is on the 0.2.178
+  2.1.246+) and `thinkingTokens`, neither of which is on the 0.2.179
   `ModelUsage` TypedDict — read both with `.get()`.
 
 ## Subagent models
@@ -162,7 +171,7 @@ The models overview adds a capability to read before turning thinking off:
 each model's `capabilities` includes `thinking.types.between_tools` (whether it
 accepts `thinking: {type: "between_tools"}`); for Sonnet 5.5 the Models API
 reports it `true` and `thinking.types.disabled.supported` `false`. The SDK's
-`ThinkingConfig` has no `between_tools` variant at 0.2.178.
+`ThinkingConfig` has no `between_tools` variant at 0.2.179.
 
 ---
 
@@ -182,7 +191,12 @@ Code's per-model defaults, `[1m]` variants), <https://code.claude.com/docs/en/en
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.311 `[1m]`
 suffix, 2.1.312 refusal fallback, 2.1.314 "Invalid effort level" retry, 2.1.316
 Opus 4.8 fast-mode deprecation, 2.1.317 subagent effort on another model);
-`claude-agent-sdk` 0.2.178 `types.py:2438` (`model`), `:2444`
+<https://code.claude.com/docs/en/settings-reference> (fast-mode models);
+<https://claude.dev/blog/building-with-claude-sonnet-5-5/> ("Building with Claude Sonnet 5.5",
+2026-09-28, Sonnet versus Opus, per-model effort sweep);
+<https://claude.dev/blog/getting-the-most-out-of-opus-5-5/> ("Getting the most out of Opus 5.5 in
+Claude and Claude Code", 2026-09-22, a finish line, effort over "think" lines, checking subagent
+evidence); `claude-agent-sdk` 0.2.179 `types.py:2438` (`model`), `:2444`
 (`fallback_model`), `:2741` (`effort`), `:1680` (`ModelUsage`), `:2183-2196`
 (`ThinkingConfig`). The cost table
 was measured by this plugin on 2026-09-30 against SDK 0.2.162 (bundled CLI
@@ -192,5 +206,6 @@ set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165
 0.2.168 (bundled CLI 2.1.301) and on 2026-10-24 on SDK 0.2.174 (bundled CLI
 2.1.310). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs; line numbers re-pinned to 0.2.178 on 2026-11-04. Re-read 2026-11-05 against
-claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs (model ids, prices and dates unchanged).
+2.1.310 docs; line numbers re-pinned to 0.2.178 on 2026-11-04 (unchanged in 0.2.179). Model ids,
+prices and dates unchanged on 2026-11-08.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

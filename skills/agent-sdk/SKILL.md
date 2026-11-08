@@ -72,7 +72,7 @@ are at `${CLAUDE_SKILL_DIR}/../<skill>/scripts/`.
 | a review of agent code: entry point, options, model ids, secrets, legacy names | `/agent-sdk:agent-review` |
 | a fix for looping, stalling, wrong tools, flaky runs; a session file explained | `/agent-sdk:agent-debug` |
 | hooks, permissions, MCP servers, subagents, `setting_sources` designed or checked | `/agent-sdk:agent-harness` |
-| a design review: tool design, context use, whether a subagent should exist, long-running patterns | `/agent-sdk:agent-design` |
+| a design review: tool design, context use, whether a subagent should exist, long-running patterns, memory design across sessions ("how should my agent remember across sessions") | `/agent-sdk:agent-design` |
 | to host it: credentials, isolation, limits, telemetry, a Dockerfile | `/agent-sdk:agent-deploy` |
 | eval cases written, a trace turned into a trajectory grader, cases managed | `/agent-sdk:eval-create` |
 | to choose graders and budgets, write rubrics, set the judge and tiers | `/agent-sdk:eval-criteria` |
@@ -131,7 +131,7 @@ results, CI. Read down the columns and the next piece of work names itself.
 
 - **Never guess the entry point, the SDK version or the credential.** Run the
   discovery script. It reports which versions this plugin was checked against —
-  `claude-agent-sdk` 0.2.178 with bundled Claude Code 2.1.318 — and raises
+  `claude-agent-sdk` 0.2.179 with bundled Claude Code 2.1.319 — and raises
   `ENV003` at info level when the installed SDK is newer; that is a note, never
   a blocker.
 - **Say what a run spends before running it.** Sessions and judge calls, in

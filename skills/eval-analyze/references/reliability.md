@@ -69,6 +69,17 @@ change an improvement or a regression:
   With 10 runs a single flip is 10 points, so small suites need more runs, not
   finer reading.
 
+**Hold `effort` fixed.** `effort` (`low` to `max`) is a variable, not a
+setting to leave to chance. *Using Claude Code: Spending your effort*
+(2026-09-25, article #38, about Claude Code's `/effort`) found that higher
+effort mostly buys more verification and edge-case testing — it helped
+edge-case-heavy tasks and did not fix a wrong approach — and that on a loosely
+specified task it changed the scope of the work. Two result sets run at
+different effort levels are two experiments. Set `effort` explicitly in the
+agent's options (and in `overrides` when a case needs its own), and record it
+with the resource configuration above; the result file's `config` does not
+carry it.
+
 ## Keeping a change: train and held-out both improve
 
 Hillclimbing on an eval (edit, re-run, keep or revert) overfits unless the method
@@ -103,4 +114,8 @@ times and days, the 3-point threshold);
 <https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval
 design and hillclimbing with Claude", 2026-09-28, one attributable surface per change, keep a change only when train and held-out both improve, noise below the smallest worthwhile gain; written for the `claude-api`
 skill's `hillclimb` command, cited for its method).
-Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+<https://claude.dev/blog/spending-your-effort/> ("Using Claude Code: Spending
+your effort", 2026-09-25, effort as how much verification and edge-case testing
+Claude does, scope changes on loose specs; Claude Code's `/effort`, mapped to the
+SDK's `effort`).
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

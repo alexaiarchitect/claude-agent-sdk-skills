@@ -10,7 +10,8 @@ Two measured constraints shape this module.
   fault hook is the harness's bug, and with `"block"` it would block the agent's
   tool call, turning a runner defect into an agent failure the case never asked
   for. The CLI still reports such a crash as an informational `SystemMessage`
-  (`data["tag"] == "hook_callback_failed"`, measured on 2.1.318, 2026-11-04).
+  (`data["tag"] == "hook_callback_failed"`, measured on 2.1.318, 2026-11-04;
+  the same text on 2.1.319, 2026-11-08).
 * **Matchers on the same event fire concurrently**, not in sequence, so no fault
   may depend on another fault having run first.
 

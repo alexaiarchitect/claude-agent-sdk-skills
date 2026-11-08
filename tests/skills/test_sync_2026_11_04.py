@@ -43,6 +43,7 @@ NEW_NOTE = "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.
 #: A later sync may replace the note above with its own; either shows a re-read.
 LATER_REREAD_NOTES = (
     "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
+    "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
 )
 
 
@@ -72,16 +73,25 @@ def _load(relative: str, name: str):
 
 # -- 1. pins and version ----------------------------------------------------------
 
+def _version(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in text.split("."))
+
+
 def test_the_pins_moved_to_0_2_178_and_2_1_318():
+    # 0.2.178 / 2.1.318 at this sync; the pins only move forward (0.2.179 / 2.1.319
+    # from 2026-11-08, checked in `test_sync_2026_11_08.py`).
     import agent_sdk_skills as plugin
-    assert (plugin.SDK_TARGET, plugin.CLI_BUNDLED_WITH_TARGET) == ("0.2.178", "2.1.318")
-    assert plugin.DOCS_READ_AT_CLI == "2.1.318"
+    assert _version(plugin.SDK_TARGET) >= (0, 2, 178)
+    assert _version(plugin.CLI_BUNDLED_WITH_TARGET) >= (2, 1, 318)
+    assert _version(plugin.DOCS_READ_AT_CLI) >= (2, 1, 318)
     assert plugin.SDK_MIN_SUPPORTED == "0.2.140", "the minimum does not move with the pin"
 
 
 def test_the_runner_reads_the_docs_at_the_same_version():
     # Read as text: `agent_sdk_evals` is importable only under `tests/runner/`.
-    assert 'DOCS_READ_AT_CLI = "2.1.318"' in read("runner/agent_sdk_evals/__init__.py")
+    # 2.1.318 at this sync; the runner follows the library's constant from 2026-11-08.
+    import agent_sdk_skills as plugin
+    assert f'DOCS_READ_AT_CLI = "{plugin.DOCS_READ_AT_CLI}"' in read("runner/agent_sdk_evals/__init__.py")
 
 
 def test_the_release_is_0_2_2_everywhere_lane_a_owns():
@@ -128,9 +138,12 @@ def test_the_runner_stale_rubric_names_the_current_runner_version():  # awaits l
 
 
 def test_the_sdk_venv_and_the_live_command_name_the_pin():
+    # casdk-venv-0.2.178 at this sync; the venv follows the pin (0.2.179 from 2026-11-08,
+    # with 0.2.178 kept as the fallback).
+    from agent_sdk_skills import SDK_TARGET
     conftest = read("tests/conftest.py")
-    assert 'SDK_VENV_NAME = "casdk-venv-0.2.178"' in conftest
-    assert "casdk-venv-0.2.178/bin/python" in read("tests/runner/test_live.py")
+    assert f'SDK_VENV_NAME = "casdk-venv-{SDK_TARGET}"' in conftest
+    assert f"casdk-venv-{SDK_TARGET}/bin/python" in read("tests/runner/test_live.py")
 
 
 # -- 2. types.py citations ----------------------------------------------------------
@@ -305,7 +318,7 @@ def test_the_wheel_is_the_pin(surface):
 def test_every_known_line_reads_as_expected_on_the_wheel(surface, number):
     lines = Path(surface["types_path"]).read_text(encoding="utf-8").splitlines()
     first, *last = (int(n) for n in number.split("-"))
-    assert len(lines) == 2914, "0.2.178's types.py has 2914 lines"
+    assert len(lines) == 2914, "0.2.178's types.py has 2914 lines (0.2.179's is byte-identical)"
     assert lines[first - 1].strip().startswith(CITED[number][0]), (number, lines[first - 1])
     if last:
         assert first < last[0] <= len(lines)
@@ -413,10 +426,10 @@ PRESENT = (  # awaits lanes B/C
     ("skills/eval-run/references/running-in-ci.md", ("2.1.317",)),
     ("skills/eval-simulation/references/fault-injection.md", ("on_failure",)),
     ("skills/agent-sdk/references/environment.md", ("0.2.178", "2.1.318")),
-    ("skills/agent-sdk/SKILL.md", ("0.2.178",)),
+    ("skills/agent-sdk/SKILL.md", ("0.2.179",)),  # follows the pin
     # the article count and the cookbooks head move each sync: 25 and 785d7a0 here;
     # 29 and ce8b262 from 2026-11-05, checked in `test_sync_2026_11_05.py`
-    ("README.md", ("documentation read at claude code 2.1.318",)),
+    ("README.md", ("documentation read at claude code 2.1.319",)),
     ("THIRD_PARTY_NOTICES.md",
      ("3be907edb9c86269d30d1427a77937dd788d6419", "26382c08758260c9f5deb2019d8fe851f89fa9ae")),
 )
@@ -504,7 +517,7 @@ LANE_PRESENT = (
       "a hook changed this call's input after auto mode reviewed it",
       # "the hooks page read 2026-11-04 still says" until the 2026-11-05 re-read
       'still says "if more than 12 of them are prompt or agent hooks, 12 of those run at once"',
-      "the pinned 0.2.178 (bundled cli 2.1.318) has all of this")),
+      "the pinned 0.2.179 (bundled cli 2.1.319) has all of this")),
     ("skills/agent-harness/references/permission-model.md",
      ("can stop the turn after ten responses in a row with no verdict",
       "on `permissionrequest` that block counts only if the failure lands before `can_use_tool` answers")),
@@ -518,7 +531,7 @@ LANE_PRESENT = (
     ("skills/agent-harness/references/mcp-patterns.md",
      ("forward `defer_loading` tool fields and `tool_reference` blocks",
       "connects once without the token", "`claude_project_dir` substituted",
-      "returns an error carrying its input schema (2.1.318)", "field in 0.2.178")),
+      "returns an error carrying its input schema (2.1.318)", "field in 0.2.179")),
     ("skills/agent-review/references/review-checklist.md",
      ("| `hok011` | warn |",
       "not reported when the project pins claude-agent-sdk below 0.2.177",
@@ -559,14 +572,17 @@ LANE_PRESENT = (
     ("plugin-evals/harness-hooks/graders/criteria.md",
      ("`agent.py line 44`, `agent.py line 50` and `agent.py hooks[sessionstart] line 109`",)),
     # lane C
+    # The scripts' "claude-agent-sdk 0.2.178" label follows the pin (0.2.179 from
+    # 2026-11-08, same line numbers; `test_sync_0_2_174.py` checks the label), so
+    # the needles name the line and symbol only.
     ("skills/agent-review/scripts/_checks.py",
-     ('id="hok011"', "0.2.178 types.py:864 (hookmatcher.on_failure)",
+     ('id="hok011"', " types.py:864 (hookmatcher.on_failure)",
       "hooks#block-the-action-when-a-callback-fails", 'on_failure_since_sdk = "0.2.177"',
-      "0.2.178 types.py:2393 (permission_mode)", "0.2.178 types.py:2359")),
+      " types.py:2393 (permission_mode)", " types.py:2359")),
     ("skills/agent-review/scripts/lint_agent.py",
-     ("0.2.178 types.py:2719", "0.2.178 types.py:2517", "0.2.177+")),
+     (" types.py:2719", " types.py:2517", "0.2.177+")),
     ("skills/agent-harness/scripts/lint_harness.py",
-     ("0.2.178 types.py:2567 (include_hook_events)",)),
+     (" types.py:2567 (include_hook_events)",)),
     ("skills/agent-harness/scripts/gen_hook.py",
      ('on_failure="block"', "# a guard fails closed: a callback that crashes refuses the call",
       '"behavior": "deny"')),

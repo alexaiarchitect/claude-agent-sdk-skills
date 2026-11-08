@@ -175,7 +175,7 @@ def test_a_summary_reports_what_happened(happy):
     assert summary["has_result"] is True
     assert summary["result"]["terminal_reason"] == "completed"
     assert summary["result"]["cost_basis"] == "subscription"
-    assert summary["init"]["cli_version"] == "2.1.318"
+    assert summary["init"]["cli_version"] == "2.1.319"
     assert summary["init"]["api_key_source"] == "none"
     assert summary["rate_limit"]["status"] == "allowed_warning"
 
@@ -360,7 +360,7 @@ def test_the_encoding_agrees_with_the_sdks_own_answer(sdk_python):
     """A reimplemented encoding nobody checks is a way to read the wrong directory.
 
     The interpreter comes from the `sdk_python` fixture, which resolves the
-    0.2.178 venv first and the older paths as fallbacks.
+    0.2.179 venv first and the older paths as fallbacks.
     """
     cases = ["/a/b c", "/tmp/my_app.v2", "/", "/Users/x/Café", "/" + "x" * 300]
     probe = (
@@ -462,15 +462,20 @@ def test_a_2_1_310_trace_summarizes_thirteen_capabilities(traces):
     assert summary["result"]["outcome"] == "success"
 
 
-# -- CLI 2.1.316 init (measured 2026-11-02) --------------------------------
+# -- CLI 2.1.316 init (measured 2026-11-02) and 2.1.319 (2026-11-08) -------
 
-def test_a_2_1_316_trace_summarizes_fourteen_capabilities(traces):
-    events = load_trace(traces / "init_2_1_316.trace.jsonl")
+@pytest.mark.parametrize("cli,count,new_capability", [
+    ("2.1.316", 14, "ask_user_question_unanswered_v1"),
+    ("2.1.319", 15, "mcp_call_check_permissions_v1"),
+], ids=("2.1.316", "2.1.319"))
+def test_a_2_1_316_or_later_trace_summarizes_its_capabilities(traces, cli, count, new_capability):
+    """14 capabilities on 2.1.316 (and 2.1.318), 15 on 2.1.319: recorded, never required."""
+    events = load_trace(traces / f"init_{cli.replace('.', '_')}.trace.jsonl")
     summary = to_summary(events)
-    assert summary["init"]["cli_version"] == "2.1.316"
+    assert summary["init"]["cli_version"] == cli
     assert summary["init"]["permission_mode"] == "default"
     capabilities = summary["init"]["capabilities"]
-    assert len(capabilities) == 14 and "ask_user_question_unanswered_v1" in capabilities
+    assert len(capabilities) == count and new_capability in capabilities
     assert "ultrathink_available" not in summary["init"], "an undeclared init key, not summarized"
     assert summary["result"]["outcome"] == "success"
 

@@ -11,7 +11,7 @@ own discovery, so any of them can also be invoked directly.
 | `/agent-sdk:agent-review` | review agent code: entry point, options, model policy, secrets, legacy SDK names | agent source (statically, never imported) | nothing, unless you approve fixes | free |
 | `/agent-sdk:agent-debug` | triage a looping, stalling or flaky agent from a trace or a Claude Code session file | `*.trace.jsonl`, `~/.claude/projects/*/*.jsonl`, results | an imported trace, optionally | free (a fresh run is `run`) |
 | `/agent-sdk:agent-harness` | design and lint hooks, permissions, MCP servers, subagents, `setting_sources` | agent source, `.claude/`, `.mcp.json` | hook or agent files on approval | free |
-| `/agent-sdk:agent-design` | review the design against Anthropic's published agent guidance: tool design, context use, whether a subagent should exist or be folded, long-running harness patterns (`DSG0xx` findings) | agent source and `.claude/` | nothing | free |
+| `/agent-sdk:agent-design` | review the design against Anthropic's published agent guidance: tool design, context use, whether a subagent should exist or be folded, long-running harness patterns, memory design across sessions (memory notes, a small top file, consolidation, inherited auto memory on or off; `references/memory-design.md`) (`DSG0xx` findings) | agent source and `.claude/` | nothing | free |
 | `/agent-sdk:agent-deploy` | check hosting readiness: credentials, isolation, limits, telemetry | agent source, settings | Dockerfile or settings on approval | free |
 
 ## Evaluation side
@@ -106,5 +106,5 @@ default and the 2.1.289/2.1.293 fixes),
 precedence), <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>
 (2.1.299: API-error scoring, `--disallow-tools`). Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. Re-read 2026-11-05 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs; the fourteenth skill,
-`agent-design`, added in plugin 0.2.0.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. The fourteenth skill, `agent-design`, added in plugin 0.2.0; its `memory-design.md` reference in plugin 0.2.4.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.

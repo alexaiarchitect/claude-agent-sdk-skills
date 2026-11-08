@@ -140,5 +140,5 @@ Code quality reports", 2026-04-23, three harness changes that looked like model
 drift, per-model evals on every system-prompt change, testing the exact public
 build); the `-p` startup exit code per the Claude Code `CHANGELOG.md` (2.1.314)
 and measured by this plugin on 2026-11-02 (2.1.310 and 2.1.316); the 2.1.317 and
-2.1.318 entries per the same changelog. Re-read 2026-11-04 against claude-agent-sdk
-0.2.178 / Claude Code 2.1.318 docs.
+2.1.318 entries per the same changelog.
+Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
