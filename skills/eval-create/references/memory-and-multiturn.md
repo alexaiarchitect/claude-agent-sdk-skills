@@ -37,6 +37,11 @@ model call per user turn on top of the agent's own. `turns` and
 
 ## What to assert
 
+Anthropic grades its own multi-turn safety evals conversation by conversation: **one bad
+turn fails the whole conversation** (2026-11-13, article #44; no Agent SDK mention). A
+`trajectory` or `regex` grader over the trace gives a multi-turn case the same rule.
+
+
 | Claim | Grader | Note |
 |---|---|---|
 | turn two acted on turn one | `tool_order` with the two different tools | cheapest evidence that context survived |
@@ -126,4 +131,6 @@ transcripts; experiments on Claude Managed Agents, cited for the method);
 https://code.claude.com/docs/en/memory (read 2026-11-08, the auto-memory
 directory and what loads); https://code.claude.com/docs/en/agent-sdk/claude-code-features
 (read 2026-11-08, auto memory loads regardless of `setting_sources`).
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+https://www.anthropic.com/research/building-strong-safety-evaluations ("Building strong safety
+evaluations", 2026-11-13, one bad turn fails the conversation; no Agent SDK mention).
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

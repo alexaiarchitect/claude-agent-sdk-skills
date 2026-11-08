@@ -97,6 +97,20 @@ teaches the team to ignore red. If the sequence is what matters, the case wants
 judgement about the conversation rather than the final message: the grader is
 handed the user's turns as evidence, exactly as the violation rubrics are.
 
+## Writing the simulated user from a specification
+
+Anthropic's multi-turn safety evals (2026-11-13, article #44; no Agent SDK mention) build
+each scenario from a **specification**: the simulated user's objective and tactics, plus
+dimensions such as persona, situation and tone with several options each; the **first
+user turn is fixed** so every run starts from the same prompt; a separate model writes
+the later user turns from the spec; each scenario runs several times sampling a different
+combination, and dimensions are varied independently so their effects can be told apart;
+a grader scores the whole transcript against the rubric. Build scenarios from observed
+behaviour (real transcripts, incident reports) rather than invention, and match the eval's
+tools and system prompt to the deployment. A persona file here is that specification: put
+the fixed opening in the case prompt, the sampled options in the persona, and keep one
+rubric per risk.
+
 ## When a simulated case is the wrong tool
 
 - The behaviour is deterministic and one prompt reaches it — use a normal case.
@@ -136,3 +150,7 @@ price and context window),
 cap). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296
 docs; re-read 2026-11-02 against claude-agent-sdk 0.2.176 / Claude Code 2.1.316
 docs.
+https://www.anthropic.com/research/building-strong-safety-evaluations ("Building strong safety
+evaluations", 2026-11-13, the simulated-user specification, fixed first turn, sampled dimensions; no
+Agent SDK mention).
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

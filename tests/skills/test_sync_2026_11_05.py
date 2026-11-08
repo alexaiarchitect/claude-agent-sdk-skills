@@ -42,6 +42,7 @@ NEW_NOTE = "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.
 #: A later sync may replace the note above with its own; either shows a re-read.
 LATER_REREAD_NOTES = (
     "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
+    "re-read 2026-11-14 against claude-agent-sdk 0.2.182 / claude code 2.1.325 docs",
 )
 
 
@@ -286,7 +287,7 @@ PRESENT = (  # awaits lane B
     ("skills/agent-harness/references/hooks-catalog.md", ("--bare",)),
     ("skills/agent-deploy/references/secure-deployment.md", ("--network none",)),
     # model-policy's "as of 2026-11-05" moves each sync (reworded on 2026-11-08)
-    ("README.md", ("41 published anthropic articles", "read at claude code 2.1.319 (2026-11-08)")),
+    ("README.md", ("44 published anthropic articles", "read at claude code 2.1.325 (2026-11-14)")),
     ("THIRD_PARTY_NOTICES.md",
      ("ce8b2629efe8b24048b127b4c79af1e9cbab93d4", "2c65d16c6de16f8f24117d539a712ea706b5dee7",
       "claude.dev")),

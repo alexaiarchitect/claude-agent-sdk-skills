@@ -34,7 +34,15 @@ pass@1 first and treat a high pass@k as a statement about retries, not quality.
 | pre-release | 10–20 | 95% from 90% |
 | qualification | 50–100 | something that spends money or touches a person |
 
-Fewer than 3 runs cannot measure reliability at all. On a subscription each
+Fewer than 3 runs cannot measure reliability at all. Anthropic's safety-evaluation
+guidance (2026-11-13, article #44; about safety evals, no Agent SDK mention) sets floors
+of **100 items for a complex multi-turn eval and 1,000 for a single-turn one**, asks for
+several runs per item with the spread reported, and detects small differences with
+**paired comparisons** (both models on the same items, a confidence interval on the
+per-item differences). **Preregister**: write down the metrics, comparisons, slices and
+the threshold that counts as a change before you see results, and say when you deviate.
+Report uncertainty with every estimate, and never compare scores from different graders.
+On a subscription each
 run draws on plan usage limits; the arithmetic in `/agent-sdk:eval-run`'s
 cost-estimation reference applies, and a `rejected` rate limit mid-series
 leaves never-evaluated runs, which count as runs and not as passes.
@@ -78,7 +86,9 @@ specified task it changed the scope of the work. Two result sets run at
 different effort levels are two experiments. Set `effort` explicitly in the
 agent's options (and in `overrides` when a case needs its own), and record it
 with the resource configuration above; the result file's `config` does not
-carry it.
+carry it. Defaults differ by surface and model: Claude Code runs Fable 5.2, Opus 5.5,
+Sonnet 5.5 and Haiku 5.5 at `medium` when nothing sets effort, while the API default for
+Fable 5.2 and Sonnet 5.5 is `high` (docs read 2026-11-14) — one more reason to set it.
 
 ## Keeping a change: train and held-out both improve
 
@@ -114,8 +124,11 @@ times and days, the 3-point threshold);
 <https://claude.dev/blog/automating-eval-design-and-hillclimbing/> ("Automating eval
 design and hillclimbing with Claude", 2026-09-28, one attributable surface per change, keep a change only when train and held-out both improve, noise below the smallest worthwhile gain; written for the `claude-api`
 skill's `hillclimb` command, cited for its method).
+<https://www.anthropic.com/research/building-strong-safety-evaluations> ("Building strong
+safety evaluations", 2026-11-13, preregistration, sample-size floors, paired comparisons,
+report uncertainty, don't compare graders; no Agent SDK mention);
 <https://claude.dev/blog/spending-your-effort/> ("Using Claude Code: Spending
 your effort", 2026-09-25, effort as how much verification and edge-case testing
 Claude does, scope changes on loose specs; Claude Code's `/effort`, mapped to the
 SDK's `effort`).
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

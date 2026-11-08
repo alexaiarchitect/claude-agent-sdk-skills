@@ -58,6 +58,7 @@ REREAD_NOTE = (
 LATER_REREAD_NOTES = (
     "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
     "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
+    "re-read 2026-11-14 against claude-agent-sdk 0.2.182 / claude code 2.1.325 docs",
 )
 
 
@@ -99,8 +100,8 @@ def test_opt013_fires_when_permission_mode_is_never_passed():
     assert "dontAsk" in finding["fix"] and "default" in finding["fix"], \
         "the fix offers both explicit modes"
     # `types.py:2380` from 0.2.165 to 0.2.176; `:2393` from 0.2.178 (0.2.177 added
-    # 13 lines above it, renumbered 2026-11-04).
-    assert "types.py:2393" in finding["source"], "cite the field it read"
+    # 13 lines above it, renumbered 2026-11-04); `:2395` from 0.2.182 (client_app, 2026-11-14).
+    assert "types.py:2395" in finding["source"], "cite the field it read"
     assert "permission-modes" in finding["source"], "and the page for the auto default"
 
 

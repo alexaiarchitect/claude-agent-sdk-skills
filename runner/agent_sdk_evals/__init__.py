@@ -48,15 +48,17 @@ MODEL_ENV_VAR = "CLAUDE_MODEL"
 #: (a test keeps it equal to the plugin library's copy; re-read 2026-11-04).
 #: docs re-read 2026-11-05 (lastmod 2026-11-04), no CLI release.
 #: docs re-read 2026-11-08 (lastmod 2026-11-06/07), CLI 2.1.319.
-DOCS_READ_AT_CLI = "2.1.319"
+#: docs re-read 2026-11-14 (lastmod 2026-11-12/13/14), CLI 2.1.325.
+DOCS_READ_AT_CLI = "2.1.325"
 
 #: The plugin's model policy, copied here so a run can grade a model id without
 #: the plugin's library (a test asserts the four copies are equal). `CURRENT` are
 #: generally available; `DEPRECATED` map id -> a committed retirement date;
 #: `RETIRING` are past or within 60 days of a "not sooner than" date; `RETIRED`
-#: are gone. Read 2026-10-11 from platform.claude.com/docs/en/models/overview.
+#: are gone. Read 2026-10-11 from platform.claude.com/docs/en/models/overview;
+#: re-read 2026-11-14 (Fable 5.2 added; Fable 5.1 legacy but still available).
 CURRENT_MODELS = (
-    "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1", "claude-haiku-5-5",
+    "claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-2", "claude-fable-5-1", "claude-haiku-5-5",
 )
 DEPRECATED_MODELS = {
     "claude-sonnet-4-5-20250929": "2026-11-30",   # deprecated 2026-09-30
@@ -72,7 +74,7 @@ RETIRED_MODELS = (
     "claude-3-sonnet-20240229", "claude-mythos-preview",
 )
 
-#: `ClaudeAgentOptions` field names in declaration order (49 fields). Used to
+#: `ClaudeAgentOptions` field names in declaration order (50 fields). Used to
 #: answer "is this even an option?" before a single token is spent (EVC003).
 OPTION_NAMES = (
     "tools", "allowed_tools", "system_prompt", "mcp_servers", "strict_mcp_config",
@@ -84,7 +86,7 @@ OPTION_NAMES = (
     "verbatim_prompts", "fork_session", "resume_session_at", "resume_drops_turn", "agents",
     "setting_sources", "skills", "sandbox", "plugins", "max_thinking_tokens", "thinking",
     "effort", "output_format", "enable_file_checkpointing", "session_store",
-    "session_store_flush", "load_timeout_ms", "task_budget",
+    "session_store_flush", "load_timeout_ms", "task_budget", "client_app",
 )
 
 #: Options the runner owns: callables, objects, or things the runner sets itself.
@@ -107,7 +109,7 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: `permission_mode="dontAsk"` (`loader.PERMISSION_MODE_DEFAULT`). With the mode
 #: unset the CLI picks it, and which one depends on its version and environment.
 #: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
-#: read at 2.1.319): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: read at 2.1.319, unchanged at 2.1.325): "In Claude Code v2.1.302 or later, `claude -p` and Agent
 #: SDK runs with no permission mode set start in Manual mode" (`default`;
 #: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
 #: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
@@ -160,13 +162,13 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.319): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.319, unchanged at 2.1.325): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
 #: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
 #: and any other value, which is an error reported in place of a model response.
 #: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
 #: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
-#: through from the CLI unchanged (0.2.179 `_internal/message_parser.py`).
+#: through from the CLI unchanged (0.2.182 `_internal/message_parser.py`, unchanged since 0.2.178).
 RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")
 

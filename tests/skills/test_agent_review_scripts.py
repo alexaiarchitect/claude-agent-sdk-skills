@@ -171,7 +171,7 @@ def test_a_guard_without_on_failure_block_is_a_warning(lint):
                    "can_use_tool", "CLIConnectionError", "did not register your hooks"):
         assert needle in finding["fix"], needle
     assert "hooks#block-the-action-when-a-callback-fails" in finding["source"]
-    assert any(f"{v} types.py:864" in finding["source"] for v in ("0.2.178", "0.2.179"))
+    assert any(f"{v} types.py:866" in finding["source"] for v in ("0.2.178", "0.2.179", "0.2.182"))
 
 
 @pytest.mark.parametrize("keyword,fires", [
@@ -229,8 +229,8 @@ def test_hook_sources_cite_the_0_2_178_line_numbers(run_script, lint, tmp_agent)
                        for f in json.loads(lint(name).stdout)["findings"])
     assert "0.2.174 types.py" not in sources
     # 0.2.179's types.py is byte-identical to 0.2.178's, so either prefix is right.
-    assert any(f"{v} types.py:828 (HookCallback)" in sources for v in ("0.2.178", "0.2.179"))
-    assert any(f"{v} types.py:2719" in sources for v in ("0.2.178", "0.2.179"))  # max_thinking_tokens (AGT031)
+    assert any(f"{v} types.py:830 (HookCallback)" in sources for v in ("0.2.178", "0.2.179", "0.2.182"))
+    assert any(f"{v} types.py:2724" in sources for v in ("0.2.178", "0.2.179", "0.2.182"))  # max_thinking_tokens (AGT031)
 
 
 def test_a_missing_stdio_command_can_be_skipped_for_another_machine(lint):

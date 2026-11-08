@@ -69,11 +69,12 @@ def _paragraphs(text: str):
 # -- 1. pins and version ----------------------------------------------------------
 
 def test_the_pins_moved_to_0_2_179_and_2_1_319():
+    # 0.2.179 / 2.1.319 at this sync; the pins only move forward (0.2.182 / 2.1.325 from 2026-11-14).
     import agent_sdk_skills as plugin
-    assert (plugin.SDK_TARGET, plugin.CLI_BUNDLED_WITH_TARGET) == ("0.2.179", "2.1.319")
-    assert plugin.DOCS_READ_AT_CLI == "2.1.319"
+    assert (plugin.SDK_TARGET, plugin.CLI_BUNDLED_WITH_TARGET) == ("0.2.182", "2.1.325")
+    assert plugin.DOCS_READ_AT_CLI == "2.1.325"
     assert plugin.SDK_MIN_SUPPORTED == "0.2.140", "the minimum does not move with the pin"
-    assert 'DOCS_READ_AT_CLI = "2.1.319"' in read("runner/agent_sdk_evals/__init__.py")
+    assert 'DOCS_READ_AT_CLI = "2.1.325"' in read("runner/agent_sdk_evals/__init__.py")
 
 
 def test_the_docs_re_read_is_dated_next_to_the_constant():
@@ -90,11 +91,12 @@ def test_the_library_says_types_py_did_not_change():
 
 def test_the_release_is_0_2_4_everywhere_lane_a_owns():
     import agent_sdk_skills as plugin
-    assert plugin.__version__ == plugin.RUNNER_VERSION == "0.2.4"
-    assert read("runner/agent_sdk_evals/VERSION").strip() == "0.2.4"
-    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == "0.2.4"
-    assert 'version = "0.2.4"' in read("pyproject.toml")
-    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == "0.2.4"
+    # 0.2.4 at this sync; the release follows the current constants (0.2.5 from 2026-11-14).
+    assert plugin.__version__ == plugin.RUNNER_VERSION == "0.2.5"
+    assert read("runner/agent_sdk_evals/VERSION").strip() == "0.2.5"
+    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == "0.2.5"
+    assert 'version = "0.2.5"' in read("pyproject.toml")
+    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == "0.2.5"
 
 
 def test_the_fixtures_carry_0_2_4_and_the_new_pins():
@@ -102,37 +104,37 @@ def test_the_fixtures_carry_0_2_4_and_the_new_pins():
     for aggregate in (PLUGIN_ROOT / "tests" / "fixtures" / "results").glob("*/aggregate.json"):
         payload = json.loads(aggregate.read_text(encoding="utf-8"))
         assert (payload["runner_version"], payload["sdk_version"], payload["cli_version"]) \
-            == ("0.2.4", "0.2.179", "2.1.319"), aggregate
+            == ("0.2.5", "0.2.182", "2.1.325"), aggregate
     for config in (PLUGIN_ROOT / "tests").rglob("eval_config.json"):
         if "stale_runner" in config.parts:
             continue                       # stale on purpose (0.0.1)
-        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == "0.2.4", config
-    assert "claude-agent-sdk==0.2.179" in read("tests/fixtures/agents/ci_ready/requirements.txt")
+        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == "0.2.5", config
+    assert "claude-agent-sdk==0.2.182" in read("tests/fixtures/agents/ci_ready/requirements.txt")
 
 
 def test_the_stubs_report_the_new_pins():
     stub = read("tests/fixtures/stubs/claude_agent_sdk/__init__.py")
-    assert '__version__ = "0.2.179"' in stub and '__cli_version__ = "2.1.319"' in stub
-    assert '__cli_version__ = "2.1.319"' in read("tests/fixtures/stubs/claude_agent_sdk/_cli_version.py")
+    assert '__version__ = "0.2.182"' in stub and '__cli_version__ = "2.1.325"' in stub
+    assert '__cli_version__ = "2.1.325"' in read("tests/fixtures/stubs/claude_agent_sdk/_cli_version.py")
     fake = read("tests/fixtures/bin/fake_sdk.py")
-    assert '"FAKE_SDK_VERSION", "0.2.179"' in fake and '"FAKE_SDK_CLI_VERSION", "2.1.319"' in fake
+    assert '"FAKE_SDK_VERSION", "0.2.182"' in fake and '"FAKE_SDK_CLI_VERSION", "2.1.325"' in fake
 
 
 def test_the_sdk_venv_and_the_live_command_name_the_pin():
     conftest = read("tests/conftest.py")
-    assert 'SDK_VENV_NAME = "casdk-venv-0.2.179"' in conftest
-    assert 'SDK_VENV_FALLBACK = "casdk-venv-0.2.178"' in conftest, "the previous pin stays a fallback"
-    assert "casdk-venv-0.2.179/bin/python" in read("tests/runner/test_live.py")
+    assert 'SDK_VENV_NAME = "casdk-venv-0.2.182"' in conftest
+    assert 'SDK_VENV_FALLBACK = "casdk-venv-0.2.180"' in conftest, "the previous pin stays a fallback"
+    assert "casdk-venv-0.2.182/bin/python" in read("tests/runner/test_live.py")
 
 
 def test_the_surface_test_measured_the_new_pin():
     text = read("tests/lib/test_sdk_surface_live.py")
-    assert 'MEASURED_SDK = "0.2.179"' in text and 'MEASURED_CLI = "2.1.319"' in text
+    assert 'MEASURED_SDK = "0.2.182"' in text and 'MEASURED_CLI = "2.1.325"' in text
     assert "Re-run 2026-11-08 against 0.2.179" in text
 
 
 def test_the_runner_stale_rubric_names_0_2_4():  # awaits lane B
-    assert "0.2.4" in read("plugin-evals/runner-stale/graders/criteria.md")
+    assert "0.2.5" in read("plugin-evals/runner-stale/graders/criteria.md")
 
 
 # -- 2. the changelog -----------------------------------------------------------------
@@ -201,7 +203,7 @@ def test_the_2_1_319_init_has_fifteen_capabilities():
 
 def test_the_fixture_is_registered_and_the_capture_comment_counts_it():
     readme = flat(read("tests/fixtures/README.md"))
-    assert "`traces/init_2_1_319.*`" in readme and "11, 13, 14 and 15 `capabilities`" in readme
+    assert "`traces/init_2_1_319.*`" in readme and "11, 13, 14, 15 and 19 `capabilities`" in readme
     assert "**`traces/init_2_1_319.script.jsonl`**" in readme
     assert "15 on 2.1.319" in flat(read("runner/agent_sdk_evals/capture.py"))
     assert "init_2_1_319" in read("tests/runner/test_runner_capture.py")
@@ -383,8 +385,8 @@ LANE_PRESENT: tuple[tuple[str, tuple[str, ...]], ...] = (  # awaits lane B
       "## mods: hooks shipped inside a plugin", "it's a safety net, not a permission system")),
     ("skills/agent-harness/references/permission-model.md",
      ("\"`write(path)`, `glob(path)`, and `grep(path)` rules don't match\"",
-      "`permissions.denyinsteadofprompting` (claude code 2.1.319, **changelog-only**: the settings page read "
-      "2026-11-08 does not list it)")),
+      # the settings page documented the key on 2026-11-10; the needle follows the current wording
+      "`permissions.denyinsteadofprompting` (claude code 2.1.319+; on the settings page since 2026-11-10")),
     ("skills/agent-harness/references/context-and-settings.md",
      ("the python sdk doesn't expose an equivalent method; send `/reload-plugins` as a prompt in the session instead",
       "write the description for when to trigger the skill, and grow a gotchas section from observed failures")),

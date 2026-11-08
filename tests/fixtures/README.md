@@ -46,7 +46,7 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `sessions/one_turn.jsonl` | A real `claude -p` session file, scrubbed. The shape `load_session` must survive, and it has no cost line. |
 | `traces/max_turns_one.trace.jsonl` | One tool call under `max_turns=1`: `subtype: "error_max_turns"`, `stop_reason: "tool_use"`, `is_error: true`, `num_turns: 2`, no final text. Reports must name the "+1" sizing rule. |
 | `traces/refusal_success.trace.jsonl` | A refusal: `subtype: "success"` with `is_error: true` and `stop_reason: "refusal"`, whose text names a quota. Reports must call it a refusal, never an API error or a usage-limit hit. |
-| `traces/init_2_1_301.*`, `traces/init_2_1_310.*`, `traces/init_2_1_316.*`, `traces/init_2_1_319.*` | A measured `init` per bundled CLI (11, 13, 14 and 15 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). |
+| `traces/init_2_1_301.*`, `traces/init_2_1_310.*`, `traces/init_2_1_316.*`, `traces/init_2_1_319.*`, `traces/init_2_1_325.*` | A measured `init` per bundled CLI (11, 13, 14, 15 and 19 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). The 2.1.325 run ended in an authentication failure, so it also holds the revoked-key result shape. |
 | `sessions/escaped_chars.jsonl` | Two hand-written lines whose assistant text holds `\u0007`, `\u200b`, `\u007f` and `\u0085` escapes, the way Claude Code 2.1.311+ writes DEL, C1 and format characters. `load_session` must decode and keep them. |
 | `sessions/sdk_parallel_tools.jsonl` | One response that ran three tools in parallel: the transcript forks, and `load_session` must still emit every call, then every result, then the continuation. |
 | `sessions/sdk_with_tool.jsonl` | A real `entrypoint: "sdk-py"` session with three tool calls, scrubbed. It carries the `cost-state` and `system`/`stop_hook_summary` lines, which is what makes an imported cost testable. |
@@ -153,6 +153,26 @@ $0.0007). Three messages, as on 2.1.316: the `init` (`permissionMode: "default"`
 and the result. The trace is what the 0.2.4 `Capture` writes from that script,
 and a test regenerates it. Scrubbed as for 2.1.316; the trace clock is one tick
 per second.
+
+**`traces/init_2_1_325.script.jsonl`** and **`traces/init_2_1_325.trace.jsonl`**
+come from one live `query()` on 2026-11-14 (SDK 0.2.182, bundled CLI 2.1.325,
+`claude-haiku-5-5`, `permission_mode` unset, `setting_sources=[]`,
+`strict_mcp_config=True`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, an API key that
+had been revoked; `.dev/measured/2026-11-14/live/init-2.1.325.jsonl`, $0). Three
+messages: the `init` (`permissionMode: "default"`, **19 `capabilities`** — the 15
+of 2.1.319/2.1.321 plus `reload_plugins_refuse_if_busy_v1`, `ui_pane_widget_v1`,
+`voice_call_talk_line_v1` and `withdrawn_files_note_v2`, recorded, never
+required; init key set, 24 tools and four built-in `plugins[]` entries as on
+2.1.319; no `memory_paths` because auto memory was off), a synthetic
+`AssistantMessage` (`model: "<synthetic>"`, `error: "authentication_failed"`,
+text "Invalid API key · Fix external API key") and a `ResultMessage` with
+`subtype: "success"`, `is_error: true`, `api_error_status: 401`,
+`terminal_reason: "api_error"`, `stop_reason: "stop_sequence"`,
+`total_cost_usd: 0` and an empty `model_usage`. The trace is what the 0.2.5
+`Capture` writes from that script, and a test regenerates it. Scrubbed as for
+2.1.319 (cwd `/tmp/eval/run-1`, session id `…555555555325`, uuids `…325`-`327`,
+message id `msg_scrubbed_0325`, socket `/tmp/cc-socks/0.sock`); the trace clock
+is one tick per second.
 
 **`traces/refusal_success.trace.jsonl`** is the `happy` trace cut down to
 `init`, the user turn, the reply and the result, with the result rewritten to the

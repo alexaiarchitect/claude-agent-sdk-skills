@@ -35,6 +35,7 @@ LATER_REREAD_NOTES = (
     "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
     "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
     "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
+    "re-read 2026-11-14 against claude-agent-sdk 0.2.182 / claude code 2.1.325 docs",
 )
 
 
@@ -310,7 +311,7 @@ LANE_B_PRESENT = (
  ("skills/agent-review/references/review-checklist.md", ("/agent-sdk:agent-design", "dsg0xx", "plus one for the final text-only response")),
  ("skills/agent-review/references/model-policy.md", ("[1m]", "2.1.311", "claude_code_disable_refusal_fallback", "opus 5.5, sonnet 5.5 and haiku 5.5")),
  ("skills/agent-review/references/load-check.md", ("2.1.312",)),
- ("skills/agent-deploy/references/observability-otel.md", ("sent 2.1.307–2.1.311, no longer sent from 2.1.312", "the monitoring page read 2026-10-29 still documents it", '"config"', '"user_abort"', "the level in force", "mcp_server.name", "prometheus")),
+ ("skills/agent-deploy/references/observability-otel.md", ("sent 2.1.307–2.1.311, never from 2.1.312", "the monitoring page now says so", '"config"', '"user_abort"', "the level in force", "mcp_server.name", "prometheus")),
  ("skills/agent-deploy/references/hosting-options.md", ("execute(name, input)", "rainbow deployments", "claude_code_model_catalog=off", "claude_code_simple_system_prompt=0", "lazily", "https://www.anthropic.com/research/managed-agents")),
  ("skills/agent-deploy/references/secure-deployment.md", ("requires both filesystem and network isolation", "84 %", "only a trailing `/**`", "claude_code_disable_bg_exit_handoff", "https://www.anthropic.com/research/how-we-contain-claude", "https://www.anthropic.com/research/claude-code-sandboxing")),
  ("skills/agent-deploy/references/cost-controls.md", ("plus one for the final text-only response", "5-hour limit", "large prompt-cache misses", "claude_code_effort_level", "200k")),

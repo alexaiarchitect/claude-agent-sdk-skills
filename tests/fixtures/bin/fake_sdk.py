@@ -17,8 +17,8 @@ What it answers:
 * ``-m agent_sdk_evals version|whoami|list-tools|run|replay`` — mimics the
   runner: prints one JSON line last and writes result files, controlled by:
 
-    FAKE_SDK_VERSION          reported SDK version (default 0.2.179)
-    FAKE_SDK_CLI_VERSION      reported bundled CLI version (default 2.1.319)
+    FAKE_SDK_VERSION          reported SDK version (default 0.2.182)
+    FAKE_SDK_CLI_VERSION      reported bundled CLI version (default 2.1.325)
     FAKE_SDK_RUNNER_VERSION   reported runner version (default: the plugin's)
     FAKE_SDK_PASSED/FAILED/NOT_EVALUATED   per-case statuses for `run`, in order
     FAKE_SDK_COST             est. USD per run (default 0.0123)
@@ -41,8 +41,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 STUBS = HERE.parent / "stubs"
-VERSION = os.environ.get("FAKE_SDK_VERSION", "0.2.179")
-CLI_VERSION = os.environ.get("FAKE_SDK_CLI_VERSION", "2.1.319")
+VERSION = os.environ.get("FAKE_SDK_VERSION", "0.2.182")
+CLI_VERSION = os.environ.get("FAKE_SDK_CLI_VERSION", "2.1.325")
 RESET_EPOCH = 1790784000
 
 
@@ -54,7 +54,7 @@ def _runner_version() -> str:
     try:
         return version_file.read_text(encoding="utf-8").strip()
     except OSError:
-        return "0.2.4"
+        return "0.2.5"
 
 
 def _probe(code: str, args: list[str]) -> int:

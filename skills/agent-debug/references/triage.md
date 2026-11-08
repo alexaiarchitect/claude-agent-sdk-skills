@@ -64,3 +64,4 @@ Sources: this plugin's `lib/agent_sdk_skills/trajectory.py` (signatures) and
 per `https://code.claude.com/docs/en/agent-sdk/agent-loop`; the three hand-read
 shapes per `failure-shapes.md`. Re-read 2026-11-04 against claude-agent-sdk
 0.2.178 / Claude Code 2.1.318 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

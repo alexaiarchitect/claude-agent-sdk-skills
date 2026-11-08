@@ -86,7 +86,7 @@ express. **Programmatic Tool Calling** has Claude call tools from a script so on
 enters context. The article predates the SDK's tool search, which is **on by default** for remote and
 in-process SDK MCP tools (`ENABLE_TOOL_SEARCH`; `auto` defers once deferrable definitions reach 10 % of
 the context window; up to five tools loaded per search): an SDK agent does not set `defer_loading`
-itself. `input_examples` and Programmatic Tool Calling have no `ClaudeAgentOptions` field in 0.2.179;
+itself. `input_examples` and Programmatic Tool Calling have no `ClaudeAgentOptions` field in 0.2.182;
 the code-execution pattern above, or a custom tool that aggregates server-side, is the SDK analogue. For
 a design review of a tool set, `/agent-sdk:agent-design`.
 
@@ -146,7 +146,7 @@ gets `CLAUDE_PROJECT_DIR` substituted, beside `CLAUDE_PLUGIN_ROOT` and `CLAUDE_P
 Fixes that an SDK agent can feel (Claude Code 2.1.305–2.1.318):
 
 - a server passed with the SDK's `setMcpServers` (TypeScript; the Python client has no such call at
-  0.2.179) is no longer replaced by a same-named server from the user's settings (2.1.305);
+  0.2.182) is no longer replaced by a same-named server from the user's settings (2.1.305);
 - an HTTP MCP tool call is no longer sent twice when the connection closes mid-call: only read-only
   or idempotent tools are retried (2.1.307), so mark a tool's annotations honestly; and a turn no
   longer starts without an SDK MCP server's latest tools while a background task runs (2.1.307);
@@ -178,9 +178,11 @@ has `CLAUDE_AUTO_BACKGROUND_TASKS=1`, `CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND` 
 `CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS` is not `0`, with input kept open. Claude Code 2.1.319 moves such
 a task to the background at once and tells Claude the result when it finishes;
 `CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND=1` makes it wait inside the tool call, and
-`CLAUDE_CODE_DISABLE_MCP_TASKS=1` turns tasks off (changelog-only). The TypeScript SDK's 0.3.319
-changelog reports such a task with `task_type: "mcp_task"`; the Python page still lists only
-`local_bash`, `local_agent` and `remote_agent`, so do not expect that value in Python. Since 2.1.317
+`CLAUDE_CODE_DISABLE_MCP_TASKS=1` turns tasks off (changelog-only). Such a task starts a
+`TaskStarted` event with **`task_type: "mcp_task"`**, now on the Python page too (2026-11-12; the
+2026-11-08 TypeScript-only note is withdrawn). From 2.1.324 a person can answer a task's elicitation
+later (`Esc`, then `/tasks`); a headless run has nobody to answer, so keep elicitation out of such
+servers. A PreToolUse `mcp_tool` hook whose server answer exceeds 16 MiB is refused (2.1.321). Since 2.1.317
 a task answer may omit `createdAt`, `lastUpdatedAt` or `ttlMs` and send `pollIntervalMs: null`
 (before, the call failed with `Unsupported result type`). A `claude -p` run does not wait for MCP
 work in the background when it ends: a remote MCP task goes on (resume the session to follow it),
@@ -219,8 +221,8 @@ tools for AI agents", 2025-09-11, search over list, consolidation, namespacing, 
 truncation, actionable errors, parameter names);
 <https://www.anthropic.com/research/code-execution-with-mcp> ("Code execution with MCP for efficient
 agents", 2025-11-04, the code-API trade-off and its 150,000→2,000-token example); `claude-agent-sdk`
-0.2.179 `__init__.py:267` (`SdkMcpTool`), `:277` (`tool`), `:477-515` (content-item handling), `:517`
-(`create_sdk_mcp_server`), `types.py:1229` (`ToolResultBlock`), `:2378` (`mcp_servers`), `:2386`
+0.2.182 `__init__.py:267` (`SdkMcpTool`), `:277` (`tool`), `:477-515` (content-item handling), `:517`
+(`create_sdk_mcp_server`), `types.py:1231` (`ToolResultBlock`), `:2380` (`mcp_servers`), `:2388`
 (`strict_mcp_config`), `client.py:471` (`get_mcp_status`), `:540` (`get_server_info`); this plugin's
 `.dev/CONTRACTS.md` §2 for the mock format.
 <https://code.claude.com/docs/en/plugins/manifest-reference#mcpservers> (`requestTimeout`,
@@ -231,7 +233,7 @@ normalisation, plugin form), <https://code.claude.com/docs/en/env-vars>
 `MCP_PROTOCOL_NEGOTIATION`), <https://code.claude.com/docs/en/mcp> (MCP task conditions and answer
 fields, the 7-day negotiation skip, read 2026-11-08), <https://code.claude.com/docs/en/errors> (the
 config-lock error), <https://code.claude.com/docs/en/agent-sdk/python> (`task_type` values), the
-TypeScript SDK `CHANGELOG.md` 0.3.319 (`mcp_task`),
+<https://code.claude.com/docs/en/agent-sdk/python> (`task_type` values incl. `mcp_task`, read 2026-11-14),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.299 rule scoping, 2.1.305,
 2.1.307, 2.1.309 and 2.1.310 MCP entries, 2.1.311 late-connecting servers, 2.1.316 `headersHelper`,
 2.1.318 input schema on early calls, 2.1.319 MCP tasks in the background and
@@ -243,5 +245,5 @@ default, `ENABLE_TOOL_SEARCH`, the 10 % threshold);
 is None`, ambient-connector and `tools=["Read"]` observations were measured by this plugin on
 2026-09-30. Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (`__init__.py` unchanged through
-0.2.179).
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+0.2.182).
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

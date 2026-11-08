@@ -191,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
                            fix="use `thinking={\"type\": \"adaptive\"}` (or "
                                "`{\"type\": \"enabled\", \"budget_tokens\": N}`). On newer "
                                "models the old field is read as on/off only.",
-                           source="claude-agent-sdk 0.2.179 types.py:2719")
+                           source="claude-agent-sdk 0.2.182 types.py:2724")
             else:
                 report.add("AGT031", "warn", "options",
                            "`debug_stderr` is deprecated and is no longer read by the "
@@ -199,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
                            path=module.path,
                            fix="pass the `stderr` callback instead: "
                                "`stderr=lambda line: log.debug(line)`.",
-                           source="claude-agent-sdk 0.2.179 types.py:2517")
+                           source="claude-agent-sdk 0.2.182 types.py:2521")
 
     # -- 3. model policy --------------------------------------------------
     option_models = [
@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
             report.add("AGT012" if severity == "error" else "AGT011", severity, "model",
                        sentence, path=ref.path, locator=f"line {ref.lineno}",
                        fix="pick a current id (claude-sonnet-5-5, claude-opus-5-5, "
-                           "claude-haiku-5-5, claude-fable-5-1), or use an alias and let "
+                           "claude-haiku-5-5, claude-fable-5-2), or use an alias and let "
                            "the CLI resolve it. A request to a retired model fails "
                            "outright; a deprecated one keeps working only until the date "
                            "in the message.",
@@ -231,9 +231,10 @@ def main(argv: list[str] | None = None) -> int:
                    "no model is set, so the session starts on Claude Code's default",
                    path=primary.path, locator=f"line {primary.lineno}",
                    fix="pin it: model=os.getenv(\"CLAUDE_MODEL\", \"claude-sonnet-5-5\"). "
-                       "Measured on this machine, the CLI default (claude-fable-5-1) cost "
-                       "about four times what Sonnet cost for the same trivial prompt, and "
-                       "results stop being comparable when the model can change under you.",
+                       "The default is the account's or saved model, not a fixed id: measured "
+                       "on this machine it was claude-opus-5-5 with an API key (2x Sonnet's cost "
+                       "for the same trivial prompt) and claude-fable-5-1 on subscription auth "
+                       "(4x), and results stop being comparable when the model can change under you.",
                    source=SRC_MODEL_CONFIG)
 
     # -- 4. credentials ---------------------------------------------------
@@ -365,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
                        f'effort="{effort_value}" is not one of the five levels',
                        path=primary.path, locator=f"line {primary.lineno}",
                        fix="one of: " + ", ".join(EFFORT_LEVELS),
-                       source="claude-agent-sdk 0.2.179 types.py:37 (EffortLevel)")
+                       source="claude-agent-sdk 0.2.182 types.py:37 (EffortLevel)")
     report.extend(subagent_findings(facts, claude))
 
     # -- what was found ---------------------------------------------------

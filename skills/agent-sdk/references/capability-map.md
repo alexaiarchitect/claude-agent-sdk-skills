@@ -106,5 +106,6 @@ default and the 2.1.289/2.1.293 fixes),
 precedence), <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>
 (2.1.299: API-error scoring, `--disallow-tools`). Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
-claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. The fourteenth skill, `agent-design`, added in plugin 0.2.0; its `memory-design.md` reference in plugin 0.2.4.
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs. The fourteenth skill, `agent-design`, added in plugin 0.2.0; its `memory-design.md` reference in plugin 0.2.4; plugin 0.2.5 adds Claude Fable 5.2 to the model policy and the `client_app` option to the option table.
 Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

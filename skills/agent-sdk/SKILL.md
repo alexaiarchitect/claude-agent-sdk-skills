@@ -114,7 +114,8 @@ results, CI. Read down the columns and the next piece of work names itself.
   suite exits 1) and `--disallow-tools`.
 - **Mods** (2.1.292+) are a third plugin class, written in TypeScript, with
   their own doc set and `claude plugin test`. Nothing here covers them except as
-  the seventh step of the permission model.
+  the seventh step of the permission model; from 2.1.321 a mod's own tool calls
+  raise no permission prompt (deny rules still apply).
 
 ## What to tell the user when they ask what this can do
 
@@ -131,7 +132,7 @@ results, CI. Read down the columns and the next piece of work names itself.
 
 - **Never guess the entry point, the SDK version or the credential.** Run the
   discovery script. It reports which versions this plugin was checked against —
-  `claude-agent-sdk` 0.2.179 with bundled Claude Code 2.1.319 — and raises
+  `claude-agent-sdk` 0.2.182 with bundled Claude Code 2.1.325 — and raises
   `ENV003` at info level when the installed SDK is newer; that is a note, never
   a blocker.
 - **Say what a run spends before running it.** Sessions and judge calls, in

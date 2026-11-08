@@ -212,7 +212,7 @@ def test_an_empty_dict_return_is_not_mistaken_for_a_malformed_one(facts):
     assert not callback.returns_nonempty_dict
 
 
-# -- HookMatcher.on_failure (claude-agent-sdk 0.2.177+, `types.py:864`) ------
+# -- HookMatcher.on_failure (claude-agent-sdk 0.2.177+, `types.py:866`) ------
 
 ON_FAILURE_MODULE = '''
     from claude_agent_sdk import ClaudeAgentOptions, HookMatcher

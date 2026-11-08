@@ -138,4 +138,4 @@ Code 2.1.296 docs. The 2.1.302 unset-mode rule is stated at
 Claude Code 2.1.310 docs. The sign-in expiry signals per the Claude Code
 `CHANGELOG.md` 2.1.318; `https://code.claude.com/docs/en/settings-reference`
 (variables Claude Code ignores in `env`).
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

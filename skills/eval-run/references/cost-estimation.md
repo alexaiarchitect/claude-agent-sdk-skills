@@ -31,9 +31,11 @@ seventeen times that with isolation off, because the developer's user settings,
 runner forces `setting_sources=[]` and `strict_mcp_config=True` for that
 reason; a case that turns them off should say why.
 
-The CLI's default model on this account is a Fable model and measured four
-times Sonnet's cost for the same prompt. The runner refuses to start without an
-explicit model.
+The CLI's default model is whatever the account or its saved settings choose — Opus
+5.5 on every plan unless a model is saved. Measured with an API key on Claude Code
+2.1.322 (2026-11-10) it was `claude-opus-5-5` at twice Sonnet's cost for the same
+prompt; on subscription auth in 2026-10-11 it was a Fable model at four times. The
+runner refuses to start without an explicit model.
 
 ## Subscription versus API key
 
@@ -117,4 +119,5 @@ threshold). <https://www.anthropic.com/research/formal-verification> ("LLMs are
 making formal software verification feasible at a much larger scale",
 2026-10-22, three independent attempts at a 5M-token budget per task as the
 worked example); `task_budget` per the claude-agent-sdk 0.2.178 `types.py`
-docstring (`types.py:2799`). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+docstring (`types.py:2804` in 0.2.182). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

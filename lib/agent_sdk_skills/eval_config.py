@@ -4,9 +4,11 @@ The config is small on purpose. It answers five questions, and nothing else:
 
 1. **Which agent** — `agent: "module:function"`, the entry point the runner imports.
 2. **Which model** — `model`, normally `"${CLAUDE_MODEL:-claude-sonnet-5-5}"` so a
-   run never inherits the CLI's default. That matters more than it looks: the
-   bare `claude -p` default was measured at `claude-fable-5-1` and cost **$0.34**
-   for a prompt Sonnet answered for $0.09.
+   run never inherits the CLI's default. The default is whatever the account or
+   its saved settings choose (Opus 5.5 on every plan and on the API unless a model
+   is saved): measured with an API key on Claude Code 2.1.322, a bare `claude -p`
+   ran `claude-opus-5-5` and cost **2x** what Sonnet cost for the same prompt; on
+   2026-10-11, on subscription auth, it ran `claude-fable-5-1` at **4x**.
 3. **Which checks, how many times** — `tiers`, each naming grader tiers
    (`free`, `judge`), a `runs` count and a `threshold`. A per-PR tier that
    includes `judge` turns every pull request into a token spend.
@@ -201,7 +203,8 @@ def expand_model(value: str | None, env: dict[str, str] | None = None) -> str | 
     Only the two forms the scaffolds write are supported: `${NAME:-default}` and
     a bare `${NAME}` / `$NAME`. An unset variable with no default expands to the
     empty string, which is what `CFG060` reports — a run with no model inherits
-    the CLI's default, and the CLI's default was measured at 4x Sonnet's cost.
+    the CLI's default, which was measured at 2x Sonnet's cost (Opus 5.5, API key,
+    2026-11-10) and at 4x on subscription auth (Fable 5.1, 2026-10-11).
     """
     if value is None:
         return None
@@ -351,8 +354,9 @@ def _validate_models(config: LoadedConfig, *, add, env: dict[str, str] | None) -
     if raw is None:
         add("CFG060", "warn", "no `model`",
             fix=f'set "model": "${{{MODEL_ENV_VAR}:-{DEFAULT_MODEL}}}". With no model the run '
-                "inherits the CLI's default, which was measured at claude-fable-5-1 and cost "
-                "4x Sonnet for the same trivial prompt.",
+                "inherits the CLI's default: the account's or saved model (Opus 5.5 unless a "
+                "model is saved), measured at 2x Sonnet's cost for the same trivial prompt "
+                "with an API key and 4x on subscription auth (Fable 5.1).",
             source=_SRC_MODELS, locator="model")
         return []
     if not isinstance(raw, str):

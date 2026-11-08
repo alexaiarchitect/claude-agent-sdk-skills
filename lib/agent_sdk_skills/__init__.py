@@ -11,35 +11,46 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.2.4"
+RUNNER_VERSION = "0.2.5"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the
 #: mcp 2.x transport arrived in 0.2.140). The SDK bundles its own CLI, so the
 #: CLI version is reported separately (`cli_version`), never derived.
-#: 0.2.177 (2026-11-03) added `HookMatcher.on_failure` (`types.py:864`), the
+#: 0.2.177 (2026-11-03) added `HookMatcher.on_failure` (`types.py:866`), the
 #: first SDK API change since 0.2.166; 0.2.178 (2026-11-04) changed only the
 #: version files and the bundled binary. `types.py` gained 13 lines against
 #: 0.2.176 (lines up to 854 unchanged, 855-2320 moved by 11, 2321 on by 13), so
 #: every `types.py:<line>` citation was renumbered (re-checked 2026-11-04).
 #: 0.2.179 (2026-11-06) is a CLI-only release: it changed the version files and
 #: the bundled binary (2.1.319), `types.py` is byte-identical to 0.2.178, so
-#: every citation holds (checked 2026-11-08).
-SDK_TARGET = "0.2.179"
+#: every citation holds (checked 2026-11-08). 0.2.180 (2026-11-09) is CLI-only
+#: again (bundled 2.1.321). 0.2.181 (2026-11-12, CLI 2.1.323) and 0.2.182
+#: (2026-11-13, CLI 2.1.325) add the `client_app` option (`types.py:2813`, the
+#: 50th field), make settings that cannot be loaded or merged with `sandbox`
+#: raise `CLIConnectionError`, and read the CLI version from its `init` message.
+#: `types.py` gained 21 lines against 0.2.180 (lines up to 191 unchanged,
+#: 196-2478 moved by 2, 2505-2673 by 4, 2675-2807 by 5, 2808 on by 21), so every
+#: `types.py:<line>` citation was renumbered again (checked 2026-11-14). None of
+#: 0.2.179-0.2.182 has a CHANGELOG entry; cite the GitHub release pages.
+SDK_TARGET = "0.2.182"
 SDK_MIN_SUPPORTED = "0.2.140"
-CLI_BUNDLED_WITH_TARGET = "2.1.319"
+CLI_BUNDLED_WITH_TARGET = "2.1.325"
 #: The Claude Code version whose documentation the references were read against
 #: (docs and changelog re-read 2026-11-04).
 #: docs re-read 2026-11-05 (lastmod 2026-11-04), no CLI release.
 #: docs re-read 2026-11-08 (lastmod 2026-11-06/07), CLI 2.1.319.
-DOCS_READ_AT_CLI = "2.1.319"
+#: docs re-read 2026-11-14 (lastmod 2026-11-12/13/14), CLI 2.1.325.
+DOCS_READ_AT_CLI = "2.1.325"
 
 #: Model policy. Ids from platform.claude.com/docs/en/models/overview and
-#: .../about-claude/model-deprecations (read 2026-10-11). Four grades, in order
+#: .../about-claude/model-deprecations (read 2026-10-11, re-read 2026-11-14:
+#: Fable 5.2 launched 2026-11-09; Fable 5.1 is listed as legacy but still
+#: available with no deprecation date, so it stays current). Four grades, in order
 #: of how urgently a reader has to act: `CURRENT_MODELS` are generally
 #: available; `DEPRECATED_MODELS` have an announced retirement *date*, not just
 #: a floor, so they map id -> that date; `RETIRING_MODELS` are past or within 60
@@ -49,8 +60,9 @@ DEFAULT_JUDGE_MODEL = "claude-sonnet-5-5"
 MODEL_ENV_VAR = "CLAUDE_MODEL"
 CURRENT_MODELS = (
     "claude-sonnet-5-5",            # $2/$10 per Mtok, 1M context; API default effort high, Claude Code default medium (2.1.312 docs)
-    "claude-opus-5-5",              # $4/$20
-    "claude-fable-5-1",             # $10/$50
+    "claude-opus-5-5",              # $4/$20; Claude Code's default model on every plan and on the API (model-config, 2026-11-14)
+    "claude-fable-5-2",             # $8/$40, cache read $0.20, 1M, 128k; API default effort high, Claude Code medium; the `fable` alias from CLI 2.1.321
+    "claude-fable-5-1",             # $10/$50; legacy since 2026-11-09 (still available, retirement not sooner than 2027-09-01)
     "claude-haiku-5-5",             # $0.10/$0.50; the `haiku` alias from CLI 2.1.293
 )
 #: Deprecated ids: the retirement date is committed, not a floor. Keep the date
@@ -71,8 +83,8 @@ RETIRED_MODELS = (
 #: Aliases the CLI resolves at run time; they never go stale but do move.
 ALIAS_MODELS = ("sonnet", "opus", "haiku", "fable", "best", "default", "opusplan")
 
-#: `ClaudeAgentOptions` field names in declaration order (`types.py:2339` of
-#: claude-agent-sdk 0.2.179, 49 fields). "Is this even an option?" (EVC003).
+#: `ClaudeAgentOptions` field names in declaration order (`types.py:2341` of
+#: claude-agent-sdk 0.2.182, 50 fields). "Is this even an option?" (EVC003).
 OPTION_NAMES = (
     "tools", "allowed_tools", "system_prompt", "mcp_servers", "strict_mcp_config",
     "permission_mode", "continue_conversation", "resume", "session_id", "max_turns",
@@ -83,7 +95,7 @@ OPTION_NAMES = (
     "verbatim_prompts", "fork_session", "resume_session_at", "resume_drops_turn", "agents",
     "setting_sources", "skills", "sandbox", "plugins", "max_thinking_tokens", "thinking",
     "effort", "output_format", "enable_file_checkpointing", "session_store",
-    "session_store_flush", "load_timeout_ms", "task_budget",
+    "session_store_flush", "load_timeout_ms", "task_budget", "client_app",
 )
 
 #: Options a case may set in `overrides`: JSON-expressible and not owned by the
@@ -105,7 +117,7 @@ DEPRECATED_OPTIONS = ("max_thinking_tokens", "debug_stderr")
 #: because it only applies when the agent leaves the field `None`:
 #: `permission_mode="dontAsk"`. With the mode unset the CLI picks it.
 #: Documented (`permission-modes#which-mode-a-non-interactive-run-starts-in`,
-#: read at 2.1.319): "In Claude Code v2.1.302 or later, `claude -p` and Agent
+#: read at 2.1.319, unchanged at 2.1.325): "In Claude Code v2.1.302 or later, `claude -p` and Agent
 #: SDK runs with no permission mode set start in Manual mode" (`default`;
 #: measured on 2.1.310), and "Before v2.1.302, these runs could start in auto
 #: mode if they didn't fetch feature flags". Measured on CLI 2.1.285-2.1.301: a
@@ -149,12 +161,12 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.319): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.319, unchanged at 2.1.325): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
 #: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
 #: and any other value, which is an error reported in place of a model response.
 #: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
 #: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
-#: through from the CLI unchanged (0.2.179 `_internal/message_parser.py`).
+#: through from the CLI unchanged (0.2.182 `_internal/message_parser.py`, unchanged since 0.2.178).
 RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")

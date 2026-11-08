@@ -141,4 +141,4 @@ drift, per-model evals on every system-prompt change, testing the exact public
 build); the `-p` startup exit code per the Claude Code `CHANGELOG.md` (2.1.314)
 and measured by this plugin on 2026-11-02 (2.1.310 and 2.1.316); the 2.1.317 and
 2.1.318 entries per the same changelog.
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

@@ -72,7 +72,7 @@ from . import rubrics
 from .report import Finding
 
 _SRC_CASE = "this plugin's case format (CONTRACTS §1)"
-_SRC_OPTIONS = "claude_agent_sdk types.py:2339 ClaudeAgentOptions (0.2.179) (49 fields)"
+_SRC_OPTIONS = "claude_agent_sdk types.py:2341 ClaudeAgentOptions (0.2.182) (50 fields)"
 _SRC_ISOLATION = "measured: VERIFIED-FACTS §8.4 (17x cost with ambient settings loaded)"
 _SRC_MCP_NAMES = "code.claude.com/en/docs/claude-code/mcp (tools are mcp__<server>__<tool>)"
 

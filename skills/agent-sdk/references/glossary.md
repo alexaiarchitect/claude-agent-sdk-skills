@@ -158,6 +158,17 @@ meaning is given first.
 - **Effort** — `ClaudeAgentOptions.effort` (`low` … `max`): how much the model spends
   on verification and edge cases; the SDK side of Claude Code's `/effort`. Hold it
   fixed across compared eval runs.
+- **Legacy model** — a model the models overview lists under "older models" while it
+  stays available with no deprecation date (Fable 5.1 since 2026-11-09). This plugin
+  keeps it `current`; only a committed retirement date makes a model `deprecated`.
+- **Approval surface** — whatever can answer a permission prompt: a person, `can_use_tool`,
+  `--permission-prompt-tool` or a `PermissionRequest` hook. `permissions.denyInsteadOfPrompting`
+  denies a call when a session has none ("no approval surface in this session").
+- **Prefix check** — the Messages API rule that a request carrying a Fable 5.2 thinking block
+  must leave everything before it unchanged, or get a 400. Claude Code, Managed Agents and the
+  Agent SDK build requests that pass it; only code that assembles requests itself must care.
+- **App label (`client_app`)** — the 50th `ClaudeAgentOptions` field (0.2.181+): a header-safe
+  `name/version` the subprocess sends on API requests via `CLAUDE_AGENT_SDK_CLIENT_APP`.
 
 ---
 
@@ -210,3 +221,4 @@ memory", 2026-11-06, memory note, consolidation, salience; Managed Agents experi
 and <https://claude.dev/blog/spending-your-effort/> ("Using Claude Code: Spending your effort",
 2026-09-25, effort); `effort` per `https://code.claude.com/docs/en/agent-sdk/python`.
 Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

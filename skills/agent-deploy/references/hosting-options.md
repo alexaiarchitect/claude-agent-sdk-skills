@@ -71,7 +71,8 @@ and the SDK mechanics that implement them are in the docs.
   mounted memory directory, compared with Claude Code's auto memory; the article never mentions the
   SDK). The method transfers — notes written as predictions of what a later session needs, a small
   top layer loaded at start, an offline pass that checks notes against transcripts — but the mounted
-  directory is a Managed Agents feature. An SDK session inherits Claude Code's auto memory
+  directory is a Managed Agents feature (Managed Agents can now run self-hosted, 2026-11-12, and its
+  **Dreams** consolidation is a research preview that supports Fable 5.2). An SDK session inherits Claude Code's auto memory
   (`~/.claude/projects/<project>/memory/`) unless `env` sets `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, so
   a multi-tenant host turns it off and gives a memory folder it designs its own volume
   (`../../agent-design/references/memory-design.md`).
@@ -138,7 +139,7 @@ settings from a signed file on downloads.claude.ai; `CLAUDE_CODE_MODEL_CATALOG=o
 which an image without that egress needs. From 2.1.312 a model name Claude Code does not recognise
 there (a custom deployment name, an inference-profile ARN) gets the shorter system prompt even when
 it fronts Sonnet or Haiku; `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0` keeps the full prompt. They were
-newer than the 2.1.310 bundled with 0.2.174; the 2.1.319 bundled with the pinned 0.2.179 carries
+newer than the 2.1.310 bundled with 0.2.174; the 2.1.325 bundled with the pinned 0.2.182 carries
 them.
 
 **When agents are the main clients of your repository.** Anthropic's source-control team reports
@@ -199,9 +200,9 @@ the bundled binary),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
 limit), <https://code.claude.com/docs/en/permission-modes>,
 <https://platform.claude.com/docs/en/about-claude/models/overview> (cache-read
-percentages); `claude-agent-sdk` 0.2.179
-`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2464`
-(`cwd`), `:2772` (`session_store`), `:2424` (`max_budget_usd`), `:2393`
+percentages); `claude-agent-sdk` 0.2.182
+`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2466`
+(`cwd`), `:2777` (`session_store`), `:2426` (`max_budget_usd`), `:2395`
 (`permission_mode`); <https://code.claude.com/docs/en/env-vars>
 (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300 gzip
@@ -232,4 +233,5 @@ guide to cloud sessions", 2026-10-06, a disposable VM per task, network levels, 
 hostname-logging egress proxy). The $0.20/Mtok cache-read price of the bundled CLI 2.1.294
 was measured by this plugin on 2026-10-11, the $0.10/Mtok of 2.1.301 on
 2026-10-17 and of 2.1.310 on 2026-10-24.
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+<https://platform.claude.com/docs/en/release-notes/overview> (2026-11-12: self-hosted Managed Agents,
+Dreams on Fable 5.2). Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

@@ -545,9 +545,9 @@ def test_version_reports_all_three_versions():
     payload, code = cli_module.execute_version(argparse.Namespace(command="version", json=True))
     assert code == EXIT_OK
     assert set(payload) == {"runner_version", "sdk_version", "cli_version", "python"}
-    assert payload["runner_version"] == "0.2.4"
+    assert payload["runner_version"] == "0.2.5"
     assert payload["sdk_version"] == sdk.__version__
-    assert payload["cli_version"] == "2.1.319", "the CLI version is read, never derived"
+    assert payload["cli_version"] == "2.1.325", "the CLI version is read, never derived"
 
 
 def test_list_tools_reads_the_options_without_starting_a_session(project, monkeypatch):

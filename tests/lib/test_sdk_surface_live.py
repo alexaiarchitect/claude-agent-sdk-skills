@@ -25,7 +25,7 @@ byte-identical to 0.2.174's, every answer unchanged. `main` (`e0da9b9`) adds
 `hook_on_failure_supported`, so it was asserted absent on the pin. Re-run
 2026-11-04 against 0.2.178 (bundled CLI 2.1.318) in
 `../tmp/venvs/casdk-venv-0.2.178`: 0.2.177 shipped `HookMatcher.on_failure`
-(`types.py:864`), so `types.py` gained 13 lines (up to 854 unchanged, 855-2320
+(`types.py:866`), so `types.py` gained 13 lines (up to 854 unchanged, 855-2320
 +11, 2321 on +13) and :data:`TYPES_PY_LINES` moved with it; 2.1.318 honours the
 field (measured live), and the field test below now expects it. Options 49,
 modes 6, events 10, union members 21, exports 159 and the 19 `ResultMessage`
@@ -33,7 +33,11 @@ fields are unchanged. Re-run 2026-11-08 against 0.2.179 (bundled CLI 2.1.319) in
 `../tmp/venvs/casdk-venv-0.2.179`: a CLI-only release (version files and the
 bundled binary), `types.py` byte-identical to 0.2.178's (2,914 lines), every
 answer unchanged; the 2.1.319 `init` carries 15 capabilities, a CLI fact the
-wheel does not state. (History: the 2026-10-17 run against 0.2.168 / CLI
+wheel does not state. Re-run 2026-11-14 against 0.2.182 (bundled CLI 2.1.325) in
+`../tmp/venvs/casdk-venv-0.2.182`: `client_app` is the 50th option (`types.py:2813`),
+`types.py` is 2,935 lines and every cited line moved (map in `TYPES_PY_LINES`);
+modes, events, union members, exports and `ResultMessage` fields unchanged; the
+2.1.325 `init` carries 19 capabilities. (History: the 2026-10-17 run against 0.2.168 / CLI
 2.1.301 and the 2026-10-11 run against 0.2.165 / CLI 2.1.294 matched the checks
 that existed then.)
 """
@@ -59,10 +63,13 @@ from agent_sdk_skills import (
 
 #: The release and bundled CLI this sync measured. Literal on purpose: a pin
 #: moved without re-reading the wheel fails here, not just in the equality below.
-MEASURED_SDK = "0.2.179"
-MEASURED_CLI = "2.1.319"
+MEASURED_SDK = "0.2.182"
+MEASURED_CLI = "2.1.325"
 
-#: Where each symbol the plugin cites by line number sits in the 0.2.178 (= 0.2.179)
+#: Where each symbol the plugin cites by line number sits in the 0.2.182 `types.py`
+#: (2935 lines; 0.2.182 added `client_app` and 21 lines against 0.2.178-0.2.180's
+#: 2914: lines up to 191 stay, 196-2478 +2, 2505-2673 +4, 2675-2807 +5, 2808 on +21,
+#: re-measured 2026-11-14). Before that, the 0.2.178 (= 0.2.179 = 0.2.180)
 #: `types.py` (2914 lines). 0.2.177 inserted `HookMatcher.on_failure` and its
 #: comment at 855-865 and two lines at 2332-2333, so against 0.2.174/0.2.176 (2901
 #: lines, byte-identical to each other) lines up to 854 stay, 855-2320 moved by 11
@@ -71,32 +78,33 @@ MEASURED_CLI = "2.1.319"
 #: before a reference cites a wrong line.
 TYPES_PY_LINES = {
     "PermissionMode": (25, "PermissionMode = Literal["),
-    "HookEvent": (284, "HookEvent = ("),
-    "HookSpecificOutput": (728, "HookSpecificOutput = ("),
-    "HookCallback": (828, "HookCallback = Callable["),
-    "HookMatcher": (840, "class HookMatcher:"),
-    "on_failure": (864, "on_failure: Literal[\"continue\", \"block\"] | None = None"),
-    "SandboxIgnoreViolations": (1137, "SandboxIgnoreViolations: TypeAlias = dict[str, list[str]]"),
-    "SandboxSettings": (1152, "class SandboxSettings("),
-    "SystemInitData": (1472, "class SystemInitData("),
-    "ModelUsage": (1680, "class ModelUsage("),
-    "ResultMessage": (1706, "class ResultMessage:"),
-    "RateLimitType": (1758, "RateLimitType = Literal["),
-    "RateLimitInfo": (1764, "class RateLimitInfo:"),
-    "ClaudeAgentOptions": (2339, "class ClaudeAgentOptions:"),
-    "permission_mode": (2393, "permission_mode:"),
-    "include_hook_events": (2567, "include_hook_events:"),
-    "forward_subagent_text": (2576, "forward_subagent_text:"),
-    "agents": (2660, "agents:"),
-    "setting_sources": (2666, "setting_sources:"),
-    "skills": (2678, "skills:"),
-    "max_thinking_tokens": (2719, "max_thinking_tokens:"),
-    "effort": (2741, "effort:"),
-    "session_store": (2772, "session_store:"),
-    "task_budget": (2799, "task_budget:"),
+    "HookEvent": (286, "HookEvent = ("),
+    "HookSpecificOutput": (730, "HookSpecificOutput = ("),
+    "HookCallback": (830, "HookCallback = Callable["),
+    "HookMatcher": (842, "class HookMatcher:"),
+    "on_failure": (866, "on_failure: Literal[\"continue\", \"block\"] | None = None"),
+    "SandboxIgnoreViolations": (1139, "SandboxIgnoreViolations: TypeAlias = dict[str, list[str]]"),
+    "SandboxSettings": (1154, "class SandboxSettings("),
+    "SystemInitData": (1474, "class SystemInitData("),
+    "ModelUsage": (1682, "class ModelUsage("),
+    "ResultMessage": (1708, "class ResultMessage:"),
+    "RateLimitType": (1760, "RateLimitType = Literal["),
+    "RateLimitInfo": (1766, "class RateLimitInfo:"),
+    "ClaudeAgentOptions": (2341, "class ClaudeAgentOptions:"),
+    "permission_mode": (2395, "permission_mode:"),
+    "include_hook_events": (2571, "include_hook_events:"),
+    "forward_subagent_text": (2580, "forward_subagent_text:"),
+    "agents": (2664, "agents:"),
+    "setting_sources": (2670, "setting_sources:"),
+    "skills": (2683, "skills:"),
+    "max_thinking_tokens": (2724, "max_thinking_tokens:"),
+    "effort": (2746, "effort:"),
+    "session_store": (2777, "session_store:"),
+    "task_budget": (2804, "task_budget:"),
+    "client_app": (2813, "client_app: str | None = None"),
 }
 
-#: The 19 `ResultMessage` fields, in declaration order (`types.py:1706` of 0.2.178).
+#: The 19 `ResultMessage` fields, in declaration order (`types.py:1708` of 0.2.182).
 RESULT_MESSAGE_FIELDS = (
     "subtype", "duration_ms", "duration_api_ms", "is_error", "num_turns", "session_id",
     "stop_reason", "total_cost_usd", "usage", "result", "structured_output", "model_usage",
@@ -183,7 +191,7 @@ def test_the_installed_wheel_is_the_release_the_plugin_was_checked_against(surfa
 
 def test_the_option_names_and_their_order_match_the_installed_dataclass(surface):
     live = surface["option_names"]
-    assert len(live) == 49, f"the SDK now has {len(live)} options, the plugin pins 49"
+    assert len(live) == 50, f"the SDK now has {len(live)} options, the plugin pins 50"
     assert list(OPTION_NAMES) == live, (
         "OPTION_NAMES is order-sensitive: it is what EVC003 reports and what the "
         "references cite by line number"
@@ -232,7 +240,8 @@ def test_ignore_violations_maps_a_command_pattern_to_violation_substrings(surfac
 
 
 def test_system_init_data_declares_capabilities_and_fast_mode(surface):
-    """Declared, not counted: 15 capability strings on CLI 2.1.319 (14 on 2.1.316
+    """Declared, not counted: 19 capability strings on CLI 2.1.325 (15 on 2.1.319
+    and 2.1.321, 14 on 2.1.316
     and 2.1.318, 13 on 2.1.310, 11 on 2.1.301) is a CLI fact measured live, not something the wheel says.
     Neither are the `ultrathink_available` (2.1.316) and `ultrathink_typed_raises`
     (2.1.318) keys: they are not `SystemInitData` fields."""
@@ -243,9 +252,9 @@ def test_system_init_data_declares_capabilities_and_fast_mode(surface):
 
 #: `HookMatcher` fields on the pinned release. `on_failure` was on `main` only
 #: on 2026-11-02 (`d38e51e`; the 2.1.316 CLI refused it at connect) and shipped in
-#: 0.2.177 (`Literal["continue", "block"] | None = None`, `types.py:864`); the
+#: 0.2.177 (`Literal["continue", "block"] | None = None`, `types.py:866`); the
 #: bundled 2.1.318 honours it (measured 2026-11-04). The test was flipped then;
-#: 2.1.319 (0.2.179) the same (2026-11-08).
+#: 2.1.319 (0.2.179) the same (2026-11-08); 2.1.325 (0.2.182) the same (2026-11-14).
 HOOK_MATCHER_FIELDS = ("matcher", "hooks", "timeout", "on_failure")
 
 
@@ -267,18 +276,20 @@ def test_every_cited_types_py_line_is_where_the_plugin_says(surface, symbol):
     )
 
 
-def test_claude_agent_options_ends_at_task_budget(surface):
-    """The references cite the dataclass as `types.py:2339-2799` (`:2326-2786` before
-    0.2.177): no field follows."""
+def test_claude_agent_options_ends_at_client_app(surface):
+    """The references cite the dataclass as `types.py:2341-2813` (`:2339-2799` on
+    0.2.178-0.2.180, `:2326-2786` before 0.2.177): `client_app` (0.2.181) is the last
+    field, right after `task_budget` (`:2804`)."""
     lines = Path(surface["types_path"]).read_text(encoding="utf-8").splitlines()
-    assert lines[2798].strip().startswith("task_budget:")
+    assert lines[2803].strip().startswith("task_budget:")
+    assert lines[2812].strip().startswith("client_app:")
     after = []
-    for line in lines[2799:]:
+    for line in lines[2813:]:
         if line and not line[0].isspace():
             break                          # the next top-level statement ends the class
         if re.match(r"^    [a-z_]+: ", line):
             after.append(line.strip())
-    assert after == [], f"fields after task_budget: {after[:3]}"
+    assert after == [], f"fields after client_app: {after[:3]}"
 
 
 def test_the_stub_exports_what_0_2_166_added():

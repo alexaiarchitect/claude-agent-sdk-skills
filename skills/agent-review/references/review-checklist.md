@@ -144,12 +144,12 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
 `.../agent-sdk/claude-code-features`, `.../agent-sdk/modifying-system-prompts`,
 `.../agent-sdk/structured-outputs`, `.../agent-sdk/agent-loop`,
 `.../agent-sdk/migration-guide`, `.../agent-sdk/python`;
-`claude-agent-sdk` 0.2.179 `types.py:25` (`PermissionMode`), `:37`
-(`EffortLevel`), `:284` (`HookEvent`), `:728-815` (`HookJSONOutput`), `:828`
-(`HookCallback`), `:840` (`HookMatcher`), `:864` (`on_failure`, the field `HOK011`
-reads), `:2359` (the `Skill` deprecation), `:2393` (`permission_mode`, the field
-`OPT013` reads), `:2517` (`debug_stderr`), `:2719` (`max_thinking_tokens`),
-`:2339-2799` (the 49 fields); `__init__.py:267` (`SdkMcpTool`);
+`claude-agent-sdk` 0.2.182 `types.py:25` (`PermissionMode`), `:37`
+(`EffortLevel`), `:286` (`HookEvent`), `:730-817` (`HookJSONOutput`), `:830`
+(`HookCallback`), `:842` (`HookMatcher`), `:866` (`on_failure`, the field `HOK011`
+reads), `:2361` (the `Skill` deprecation), `:2395` (`permission_mode`, the field
+`OPT013` reads), `:2521` (`debug_stderr`), `:2724` (`max_thinking_tokens`),
+`:2341-2813` (the 50 fields); `__init__.py:267` (`SdkMcpTool`);
 <https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails>
 (`HOK011`);
 <https://platform.claude.com/docs/en/about-claude/model-deprecations>;
@@ -175,5 +175,6 @@ against hypothetical concerns; humans review intent);
 code review", 2026-10-15, verifier agents that vote before a finding is posted, an
 incident-derived eval and known-clean inputs). Line numbers above
 re-pinned to 0.2.178 on 2026-11-04 (`types.py` gained 13 lines for `on_failure`: +11 from line 855,
-+13 from 2321); 0.2.179's `types.py` is byte-identical, so they hold.
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
++13 from 2321); 0.2.179's `types.py` is byte-identical, so they held; 0.2.182 added `client_app` and 21
+lines, so they were renumbered again on 2026-11-14.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

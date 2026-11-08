@@ -31,6 +31,7 @@ LATER_REREAD_NOTES = (
     "re-read 2026-11-04 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
     "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
     "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
+    "re-read 2026-11-14 against claude-agent-sdk 0.2.182 / claude code 2.1.325 docs",
 )
 
 
@@ -56,12 +57,35 @@ def shift_0_2_177(line: int) -> int:
 
 #: Every renumbering since this sync, applied in order to a 0.2.174 citation to
 #: get the one the file must carry now. A later sync that moves lines appends here.
-LATER_SHIFTS = (shift_0_2_177,)
+def shift_0_2_182(line: int) -> int:
+    """0.2.181/0.2.182 against 0.2.178-0.2.180 (measured 2026-11-14): lines up to 191
+    stay, 196-2478 move by 2, 2505-2673 by 4, 2675-2807 by 5, 2808 on by 21."""
+    if line <= 191:
+        return line
+    if line <= 2478:
+        return line + 2
+    if line <= 2503:
+        return line + 3
+    if line <= 2673:
+        return line + 4
+    if line <= 2807:
+        return line + 5
+    return line + 21
+
+
+LATER_SHIFTS = (shift_0_2_177, shift_0_2_182)
+
+
+#: A range that ended at the last `ClaudeAgentOptions` field keeps ending there:
+#: 0.2.174's `task_budget` (2786) is followed by `client_app` (2813) from 0.2.181.
+CLASS_END = {2786: 2813}
 
 
 def current(citation: str) -> str:
     def _shift(match: re.Match) -> str:
         line = int(match.group(0))
+        if line in CLASS_END:
+            return str(CLASS_END[line])
         for shift in LATER_SHIFTS:
             line = shift(line)
         return str(line)
@@ -94,14 +118,15 @@ def test_each_moved_citation_carries_its_0_2_174_line(relative, citation, times)
 
 
 def test_the_later_shift_moves_what_the_measurement_says():
-    assert current("types.py:2326-2786") == "types.py:2339-2799"
-    assert current(":2563-2573") == ":2576-2586"
-    assert current(":840") == ":840" and current(":1126") == ":1137"
+    assert current("types.py:2326-2786") == "types.py:2341-2813"
+    assert current(":2563-2573") == ":2580-2590"
+    assert current(":840") == ":842" and current(":1126") == ":1139"
 
 
 #: The 0.2.168 numbers that moved; written so they cannot match the new ones
 #: (`:2326-2785` vs `:2326-2786`, `:2562-2572` vs `:2563-2573`).
-STALE = ("types.py:2646", "types.py:2652", "types.py:2664", "types.py:2705",
+# `types.py:2664` (0.2.168's `agents`) is left out: it is 0.2.182's `agents` line.
+STALE = ("types.py:2646", "types.py:2652", "types.py:2705",
          ":2705`", ":2727`", ":2758`", ":2562-2572", ":2326-2785")
 
 

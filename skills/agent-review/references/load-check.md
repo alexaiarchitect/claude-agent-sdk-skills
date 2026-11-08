@@ -74,7 +74,8 @@ is **2.1.312** (and `claude-agent-sdk` `main` already pins 2.1.312, with no
 release yet). On 2026-11-02 they agree once more (0.2.176 bundles 2.1.316, PATH
 `claude` 2.1.316), and on 2026-11-04 again: the **0.2.178** wheel bundles **2.1.318**
 and PATH `claude` (Homebrew) is 2.1.318, the same binary byte for byte; on 2026-11-08 the **0.2.179**
-wheel bundles **2.1.319** and PATH `claude` (now the native install) is 2.1.319, the same binary. `cli_path` is the only way to
+wheel bundles **2.1.319** and PATH `claude` (now the native install) is 2.1.319, the same binary; on
+2026-11-14 the **0.2.182** wheel bundles **2.1.325** and PATH `claude` is 2.1.325. `cli_path` is the only way to
 force the PATH binary, and the report prints the bundled version so a
 difference is visible. The gap is not cosmetic: on 2026-10-17 a doc fact gated on
 2.1.299 — `claude plugin eval --disallow-tools`, API-error runs scored 0, the MCP
@@ -108,16 +109,16 @@ Sources:
 <https://code.claude.com/docs/en/agent-sdk/migration-guide>,
 <https://code.claude.com/docs/en/agent-sdk/troubleshooting>,
 <https://code.claude.com/docs/en/agent-sdk/skills>;
-`claude-agent-sdk` 0.2.179 `_internal/transport/subprocess_cli.py:237-264`
-(CLI discovery order), `_errors.py:129` (`MessageParseError`),
-`types.py:2678` (`skills`); this plugin's `lib/agent_sdk_skills/env.py`
+`claude-agent-sdk` 0.2.182 `_internal/transport/subprocess_cli.py` (CLI discovery order; the
+`claude --version` probe was removed in 0.2.182 — the CLI version now comes from the `init` message), `_errors.py:129` (`MessageParseError`),
+`types.py:2683` (`skills`); this plugin's `lib/agent_sdk_skills/env.py`
 (`resolve_runner`) and `lib/agent_sdk_skills/sdk_subprocess.py` (`run_probe`).
 The two-CLI-versions-on-one-host observation was measured by this plugin on
 2026-09-30, on 2026-10-11 (0.2.165 bundles 2.1.294; PATH `claude` 2.1.285) and
 on 2026-10-17 (0.2.168 bundles 2.1.301; PATH `claude` 2.1.292); on 2026-10-24
 both were 2.1.310; on 2026-10-29 0.2.174 bundles 2.1.310 and PATH `claude` is
 2.1.312; on 2026-11-02 both were 2.1.316 (0.2.176); on 2026-11-04 both were 2.1.318
-(0.2.178); on 2026-11-08 both were 2.1.319 (0.2.179). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
+(0.2.178); on 2026-11-08 both were 2.1.319 (0.2.179); on 2026-11-14 both were 2.1.325 (0.2.182). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude
 Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude
 Code 2.1.310 docs.
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

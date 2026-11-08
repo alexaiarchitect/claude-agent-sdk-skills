@@ -48,11 +48,11 @@ def test_the_runner_version_matches_the_library():
 
 
 def test_the_docs_read_at_version_matches_the_library():
-    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.319"
+    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.325"
 
 
 def test_the_option_list_matches_the_stub():
-    """The pinned list is 49 names in declaration order, and the stub agrees.
+    """The pinned list is 50 names in declaration order, and the stub agrees.
 
     `claude_agent_sdk` here is the stub in `tests/fixtures/stubs/`, so this
     checks that the stub and the pinned tuple were updated together — not that
@@ -63,7 +63,7 @@ def test_the_option_list_matches_the_stub():
     import claude_agent_sdk as sdk
 
     live = tuple(sdk.ClaudeAgentOptions.__dataclass_fields__)
-    assert len(runner.OPTION_NAMES) == 49
+    assert len(runner.OPTION_NAMES) == 50
     assert runner.OPTION_NAMES == live
 
 
@@ -79,9 +79,9 @@ _CONTRACT_TUPLES = (
 def test_on_failure_is_in_no_contract_constant():
     """`on_failure` is a `HookMatcher` field (on upstream `main` only on 2026-11-02;
     shipped in 0.2.177, pinned 0.2.178 on 2026-11-04), not a `ClaudeAgentOptions`
-    option. The option list stays 49 names; nothing the runner or a case accepts
+    option. The option list is 50 names (`client_app` arrived in 0.2.181); nothing the runner or a case accepts
     names it, and the runner's own matchers leave it unset."""
-    assert len(plugin.OPTION_NAMES) == len(runner.OPTION_NAMES) == 49
+    assert len(plugin.OPTION_NAMES) == len(runner.OPTION_NAMES) == 50
     for name in _CONTRACT_TUPLES:
         values = getattr(runner, name)
         assert "on_failure" not in values and "onFailure" not in values, name

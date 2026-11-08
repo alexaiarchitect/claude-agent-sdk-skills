@@ -50,7 +50,7 @@ versions its allow rules quietly stop settling calls.
 
 Two cost fields worth exporting beside the token counters: every `model_usage`
 row carries `costBasis` (`list` | `managed` | `unknown`, Claude Code 2.1.246+)
-and `thinkingTokens`, neither of which is on the 0.2.179 `ModelUsage` TypedDict
+and `thinkingTokens`, neither of which is on the 0.2.182 `ModelUsage` TypedDict
 — read both with `.get()`. A dashboard that charts cost without the basis
 cannot tell a list-price estimate from a negotiated one, and `model_usage`
 routinely holds more than one model (measured 2026-10-11: the agent's Sonnet 5.5
@@ -80,11 +80,11 @@ SDK and `-p` sessions "includes interrupting the turn while a `canUseTool` or
 `--permission-prompt-tool` permission request is pending" (treated as a
 reject). With `OTEL_LOG_TOOL_DETAILS=1` the event carries the command.
 
-**`claude_code.safety_event`: sent 2.1.307–2.1.311, no longer sent from
-2.1.312.** The 2.1.312 changelog says "Changed Claude Code to stop sending the
-`claude_code.safety_event` OpenTelemetry event"; the monitoring page read
-2026-10-29 still documents it (and still did on 2026-11-04), so the docs lag the
-changelog. Do not build a new alert on it; a collector fed by 2.1.307–2.1.311
+**`claude_code.safety_event` is withdrawn: sent 2.1.307–2.1.311, never from 2.1.312.** The monitoring
+page now says so (2026-11-12: 2.1.312 and later don't send it and no setting turns it on; a 2.1.307–2.1.311
+session stops at its next feature-flag refresh) and points refused-call audits at `tool_decision`
+(`decision: "reject"`, `source: "hook"` for a hook refusal), which says a call was refused but not always
+which check refused it. Do not build a new alert on it; a collector fed by 2.1.307–2.1.311
 sessions may still hold it (it was "Logged when a check refuses a tool call or
 requires a permission prompt", with `category`, `decision` — `"sent_back"` when a
 hook blocked a result — `reason_code` and similar attributes, and no command text). The `claude -p --output-format json`
@@ -109,10 +109,16 @@ resource attributes of its own; and exports behind a proxy that never answers no
 seconds (`OTEL_EXPORTER_OTLP_TIMEOUT`, up to 30 seconds) instead of hanging. The docs call the cost
 metrics approximations and send billing questions to `costs#manage-costs-for-your-organization`.
 
-**2.1.319 (changelog-only):** `claude_code.session.count` no longer counts Agent SDK `prewarm()`
-processes that were never claimed; a pre-started process counts once, when claimed. `prewarm()` is a
-TypeScript SDK API — the Python SDK has none — so a Python fleet's session counts do not move, but a
-dashboard mixing TypeScript hosts on an older CLI may show inflated counts.
+**2.1.319 (changelog-only):** `claude_code.session.count` ("Count of sessions started") no longer counts
+Agent SDK `prewarm()` processes that were never claimed. `prewarm()` is a TypeScript SDK API — the Python
+SDK has none. **Docs read 2026-11-14:** the `OTEL_METRICS_INCLUDE_*` switches now govern metric **and
+event** attributes; `app.entrypoint` (`OTEL_METRICS_INCLUDE_ENTRYPOINT=true`) distinguishes `sdk-py`,
+`sdk-ts`, `sdk-cli`, `cli`, `claude-desktop`, `claude-desktop-3p` and `remote*`, and counting distinct
+`user.account_uuid` per entrypoint on `user_prompt` events is the documented active-user recipe;
+`query_source` adds `plugin_model_complete`/`plugin_model_classify` for a mod's own model calls, which
+`/cost`, `--max-budget-usd` and the cost metrics now count (2.1.321); `OTEL_EXPORTER_OTLP_PROTOCOL`
+defaults to `http/protobuf` for an `http(s)://` endpoint from 2.1.323 (set `grpc` for a 4317 endpoint);
+non-interactive sessions leave two built-in hooks out of `hook_execution_complete`'s `num_hooks` (2.1.321).
 
 A low `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` pushed `tool_use_id`, `tool_source` and
 `tool_parameters` off `tool_decision` before 2.1.302. The auto-mode classifier runs on Claude Sonnet
@@ -209,7 +215,8 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/observability> (signal
 catalog, enabling export, span names, trace linking, tagging, end-user
 attribution, sensitive-data flags),
 <https://code.claude.com/docs/en/monitoring-usage> (metric and event
-reference, traces beta, `claude_code.safety_event` attributes and categories,
+reference, traces beta, `claude_code.safety_event` withdrawn, `app.entrypoint` values, `query_source`,
+`OTEL_EXPORTER_OTLP_PROTOCOL` default, read 2026-11-14;
 `tool_decision` `cancelled`, `config`, `user_abort`, `request_id`,
 `agent_id`/`parent_agent_id`, Prometheus units),
 <https://code.claude.com/docs/en/agent-sdk/hosting#observability>,
@@ -222,18 +229,18 @@ reference, traces beta, `claude_code.safety_event` attributes and categories,
 event fields, `CLAUDE_CODE_AUTO_MODE_MODEL`, the 2.1.302 unset-mode default,
 2.1.307 `safety_event` and gateway headers fix; 2.1.312 `safety_event` withdrawn,
 OTel `effort` value, `mcp_server.name`; 2.1.316 `-p` auto-mode stop reason; 2.1.317
-`anthropic.*` attributes and export timeouts; 2.1.319 `session.count` and unclaimed `prewarm()`);
+`anthropic.*` attributes and export timeouts; 2.1.319 `session.count` and unclaimed `prewarm()`; 2.1.321
+hook-event counts and mod model calls; 2.1.323 OTLP protocol default);
 <https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in>
 (why telemetry-off sessions could start in `auto` before v2.1.302; "Default
 classifier model"), <https://code.claude.com/docs/en/agent-sdk/cost-tracking>;
 <https://claude.com/resources/articles/how-to-manage-costs-and-demonstrate-roi-for-claude-code-on-google-cloud>
 ("Manage costs and demonstrate ROI for Claude Code on Google Cloud", 2026-10-27,
 cost-centre tags in `OTEL_RESOURCE_ATTRIBUTES`, cost by skill, plugin, agent and MCP
-server); `claude-agent-sdk` 0.2.179
-`_internal/transport/subprocess_cli.py:814-860` (env merge and trace-context
-injection), `types.py:1680` (`ModelUsage`). The two-model `model_usage` and
+server); `claude-agent-sdk` 0.2.182 `_internal/transport/subprocess_cli.py` (env merge and
+trace-context injection; the 0.2.179 lines 814-860 moved with the 0.2.182 rewrite), `types.py:1682` (`ModelUsage`). The two-model `model_usage` and
 `costBasis: "list"` were measured by this plugin on 2026-10-11 against SDK
 0.2.165 with bundled CLI 2.1.294; `safety_stops` on 2026-10-24 on CLI 2.1.310.
 Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs;
 re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

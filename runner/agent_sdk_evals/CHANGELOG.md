@@ -3,6 +3,98 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.2.5 — 2026-11-08
+
+Re-pinned to `claude-agent-sdk` 0.2.182 with its bundled CLI 2.1.325 (docs and
+changelog re-read at Claude Code 2.1.325 on 2026-11-14, 52 pages with lastmod
+2026-11-12 to 2026-11-14); minimum supported SDK stays 0.2.140. 0.2.180
+(2026-11-09) was a CLI-only release (bundled 2.1.321); **0.2.181 (2026-11-12,
+CLI 2.1.323) and 0.2.182 (2026-11-13, CLI 2.1.325) change code**: a new
+`client_app` option (the 50th `ClaudeAgentOptions` field, `types.py:2813`), the
+transport now reads the CLI version from the `init` message instead of probing
+`claude --version`, and `settings` that cannot be loaded or merged with `sandbox`
+raise `CLIConnectionError` instead of being skipped. None of 0.2.179-0.2.182 has
+a CHANGELOG entry upstream (see
+https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.182 and
+the v0.2.180...v0.2.182 compare). `types.py` gained 21 lines (lines up to 191
+unchanged, 196-2478 moved by 2, 2505-2673 by 4, 2675-2807 by 5, 2808 on by 21),
+so every `types.py:<line>` citation was renumbered. Modes (6), Python hook
+events (10), `HookSpecificOutput` members (21), exports (159), `ResultMessage`
+fields (19) and `HookMatcher` fields (4) are unchanged. No runner behaviour
+changed; the model policy did. A project copy at 0.2.4 is reported as older
+(`DEP001`).
+
+- **`OPTION_NAMES` has 50 entries**: `client_app` (`str | None`, default `None`)
+  sets `CLAUDE_AGENT_SDK_CLIENT_APP` for the Claude Code subprocess, the app
+  label sent on API requests; it must be valid in an HTTP header. It is
+  overridable from a case (`EVC004` does not list it). The SDK derives a label
+  from the installed distribution only for subscription-signed-in sessions and
+  only once a qualifying Claude Code exists ("No released Claude Code qualifies
+  yet", `types.py:2813`); the runner sets nothing.
+- **Model policy**: `CURRENT_MODELS` adds **`claude-fable-5-2`** (launched
+  2026-11-09: $8/$40 per Mtok, cache reads $0.20, 1M context, 128k output, API
+  default effort `high`, Claude Code default `medium`, needs Claude Code
+  2.1.321+). `claude-fable-5-1` stays current: the models page lists it as
+  legacy but still available with no deprecation date (retirement not sooner
+  than 2027-09-01). `AGT010`/`AGT011` suggestion text names Fable 5.2.
+- **The default-model sentence in `OPT012` and `CFG060` was wrong and is
+  corrected.** The 2026-10-11 measurement that put Claude Code's default at
+  `claude-fable-5-1` ($0.34, 4x Sonnet) ran on subscription auth with a model
+  recorded on that account. The `model-config` page says no Fable model is any
+  plan's default; a run with no `model` starts on the account's default or saved
+  model, Opus 5.5 on every plan and on the API unless a model is saved. Measured
+  with an API key on Claude Code 2.1.322 (2026-11-10): `claude-opus-5-5`,
+  $0.0667 for "Reply with exactly: ready", 2.0x Sonnet 5.5 ($0.0331). The advice
+  is unchanged: pin `model`.
+- **`init` on 2.1.325 carries 19 `capabilities`** (15 on 2.1.319 and 2.1.321):
+  the four new strings are `reload_plugins_refuse_if_busy_v1`, `ui_pane_widget_v1`,
+  `voice_call_talk_line_v1` and `withdrawn_files_note_v2`; the init key set, the
+  24 tools and the four built-in `plugins[]` entries are unchanged. `Capture`
+  records capabilities when present and never requires them, so no code changed.
+  `tests/fixtures/traces/init_2_1_325.{script,trace}.jsonl` hold the measured
+  run, which ended in an authentication failure: the `init`, a synthetic
+  `AssistantMessage` (`model: "<synthetic>"`, `error: "authentication_failed"`)
+  and a `ResultMessage` with `subtype: "success"`, `is_error: true`,
+  `api_error_status: 401`, `terminal_reason: "api_error"` and
+  `total_cost_usd: 0` — the shape a run with a revoked API key produces, which
+  the runner reports as `NOT_EVALUATED` with the result text, never as a FAIL.
+- **What a 0.2.4 copy should know** (Claude Code 2.1.321-2.1.325 and the docs
+  read on 2026-11-14; changelog only unless said so):
+  - `sandbox.autoAllowBashIfSandboxed` now defaults to **`false`** (Claude Code
+    2.1.324; the Python SDK docs say the `False` default needs SDK 0.2.182 or
+    later): a sandboxed Bash command goes through the normal permission flow
+    unless the setting is `true`. A case that relied on the sandbox to
+    auto-approve Bash under `default` mode now prompts; the runner's forced
+    `dontAsk` denies instead. Set the key explicitly.
+  - `claude -p` and the SDK **no longer run Bash unsandboxed** when `--settings`
+    or SDK settings that turn the sandbox on fail validation: start-up stops and
+    names the invalid setting (2.1.325), and the 0.2.182 transport raises
+    `CLIConnectionError` for settings it cannot load. A run with a broken
+    `settings` path now ends `NOT_EVALUATED` at connect instead of running.
+  - `permissions.denyInsteadOfPrompting` (2.1.319+) is documented on the
+    settings page: in `-p` runs it denies calls that would prompt, skips
+    `can_use_tool` and `--permission-prompt-tool`, drops `AskUserQuestion`, and
+    in auto mode ends the turn after 20 refused calls as `error_during_execution`.
+    The runner never sets it; a case that does must expect those denials.
+  - A structured-output result must be checked for `is_error` before
+    `structured_output` is used (`agent-sdk/structured-outputs`, 2026-11-12):
+    the runner's `result` event already records both.
+  - `task_type` `"mcp_task"` is now documented for Python background MCP tool
+    calls (the TS-only note in 0.2.4 is withdrawn); `TaskStarted` events with
+    it are recorded like any other.
+  - OpenTelemetry: `claude_code.safety_event` is withdrawn (2.1.312 and later
+    never send it); refused tool calls are found through `tool_decision`.
+    `OTEL_EXPORTER_OTLP_PROTOCOL` defaults to `http/protobuf` from 2.1.323.
+  - `fable` resolves to Fable 5.2 and `best` to the same model as `opus` from
+    2.1.321; `--permission-mode auto` with auto mode unavailable starts in Manual
+    (2.1.325); unknown model ids are assumed to have a 1M context window
+    (`CLAUDE_CODE_DISABLE_1M_CONTEXT=1` keeps 200K).
+  - `CLAUDE_CODE_DISABLE_AGENT_PROGRESS_SUMMARIES=1` (since 2.1.318) turns off
+    subagent progress summaries and the requests that write them.
+  - The result file's `config` still does not record `effort` (left for a later
+    release).
+- `DOCS_READ_AT_CLI = "2.1.325"`.
+
 ## 0.2.4 — 2026-11-08
 
 Re-pinned to `claude-agent-sdk` 0.2.179 with its bundled CLI 2.1.319 (docs and
@@ -106,7 +198,7 @@ is reported as older (`DEP001`) only so it picks up the new version string.
 Re-checked against `claude-agent-sdk` 0.2.178 with its bundled CLI 2.1.318
 (docs and changelog read at Claude Code 2.1.318); minimum supported SDK stays
 0.2.140. **The first SDK API change since 0.2.166:** 0.2.177 added
-`HookMatcher.on_failure` (`types.py:864`); 0.2.178 changes only
+`HookMatcher.on_failure` (`types.py:866`); 0.2.178 changes only
 `_cli_version.py`, `_version.py` and the bundled binary. `types.py` grew by 13
 lines (up to 854 unchanged, 855-2320 +11, 2321 on +13), so every `types.py:<line>`
 the plugin cites was renumbered and re-checked against the wheel. The 49

@@ -651,3 +651,47 @@ def test_the_result_projection_carries_stop_reason_and_is_error():
     projected = result_projection(cap.results[-1])
     assert projected["stop_reason"] == "refusal" and projected["is_error"] is True
     assert projected["subtype"] == "success"
+
+
+# -- init on 2.1.325 (measured 2026-11-14) -------------------------------------
+
+def _script_2_1_325():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_325.script.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def test_a_2_1_325_init_records_nineteen_capabilities_and_a_revoked_key_result():
+    """2.1.325 adds four capabilities over 2.1.319/2.1.321 (measured 2026-11-14 with
+    an API key that had been revoked, so the run ended in an authentication
+    failure). Recorded, never required; the undeclared `ultrathink_*` keys are
+    tolerated, not copied; `original_cwd` and `additional_directories` are no
+    longer sent and nothing misses them."""
+    cap = Capture(run_id="r", case="c")
+    for entry in _script_2_1_325():
+        cap.add(sdk.build_message(entry))
+    init = events_of(cap, "init")[0]
+    assert init["cli_version"] == "2.1.325"
+    assert init["permission_mode"] == "default", "unset mode still starts in default"
+    assert len(init["capabilities"]) == 19
+    assert {"reload_plugins_refuse_if_busy_v1", "ui_pane_widget_v1", "voice_call_talk_line_v1",
+            "withdrawn_files_note_v2"} <= set(init["capabilities"])
+    assert "ultrathink_available" not in init and "ultrathink_typed_raises" not in init
+    assert [e["type"] for e in cap.events] == ["init", "assistant_text", "result"]
+    result = events_of(cap, "result")[0]
+    assert result["is_error"] is True and result["terminal_reason"] == "api_error"
+    assert result["subtype"] == "success" and result["total_cost_usd"] == 0
+    assert result["api_error_status"] == 401
+    assert events_of(cap, "assistant_text")[0]["model"] == "<synthetic>"
+
+
+def test_the_2_1_325_trace_fixture_is_what_capture_writes_from_its_script():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_325.trace.jsonl"
+    stored = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    cap = Capture(run_id="1", case="echo-ready")
+    for entry in _script_2_1_325():
+        cap.add(sdk.build_message(entry))
+    strip = lambda e: {k: v for k, v in e.items() if k != "t"}  # noqa: E731
+    assert [strip(e) for e in cap.events] == [strip(e) for e in stored]
+    assert "sk-ant" not in path.read_text() and "/Users/" not in path.read_text()

@@ -30,7 +30,9 @@ validate`, which now rejects a custom-named marketplace file), so these notes st
 The `plugin-evals` docs page was read again on 2026-11-05 (no CLI release): nothing changed
 in `plugin eval`, and no case was re-run. On 2026-11-08 the local `claude` is **2.1.319** (native
 install, the same build claude-agent-sdk 0.2.179 bundles); 2.1.319 fixed `plugin eval` warnings that
-suggested `max: 0`; no case here uses `max`; cases not re-run, and the `plugin-evals` page is
+suggested `max: 0`; no case here uses `max`; cases not re-run. On 2026-11-14 the local `claude` is **2.1.325**
+(the build claude-agent-sdk 0.2.182 bundles); 2.1.323 made `claude plugin eval --output-dir ''` exit with an
+error instead of writing into the current folder; cases not re-run, and the `plugin-evals` page is
 unchanged. The changelog also names a `disallowed_tools` case field; it is not in
 the plugin-evals docs yet and no case here uses it until a local run has
 accepted it.

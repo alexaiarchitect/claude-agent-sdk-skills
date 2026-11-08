@@ -81,3 +81,4 @@ docs. The 2.1.302 unset-mode rule is stated at
 (and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
 Claude Code 2.1.310 docs.
 Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

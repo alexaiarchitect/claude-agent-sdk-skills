@@ -61,7 +61,7 @@ Two differences matter:
 bundled with the SDK the runner used; both are reported. Before **2.1.311**,
 `claude -p` and SDK sessions could save transcript messages **out of order** or
 keep messages that were taken back; a session file written by an older CLI
-(the 0.2.174 wheel bundled 2.1.310; the pinned 0.2.179 bundles 2.1.319) can therefore disagree with the live
+(the 0.2.174 wheel bundled 2.1.310; the pinned 0.2.182 bundles 2.1.325) can therefore disagree with the live
 message stream. Prefer the runner's trace, which records the stream as it came,
 and order a session file by its `parentUuid` graph, never by line position.
 
@@ -120,4 +120,4 @@ lost writes, API-error-cut replies, `credential_expires_at`; disk-full error, au
 deferred-tool resume), `https://code.claude.com/docs/en/hooks` ("Resume when a deferred tool is
 unavailable"); both `on_failure` paths and the `-p` JSON keys measured by this plugin on
 2026-11-04 on 0.2.178 / 2.1.318 and again on 2026-11-08 on 0.2.179 / 2.1.319.
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

@@ -3,7 +3,7 @@
 Two measured constraints shape this module.
 
 * **`HookMatcher` has no `probability` field** — only `matcher`, `hooks`,
-  `timeout` and, from SDK 0.2.177, `on_failure` (`types.py:864`). Per-tool
+  `timeout` and, from SDK 0.2.177, `on_failure` (`types.py:866`). Per-tool
   probability therefore lives *inside* the callback, driven by a per-run seeded
   RNG so a flaky-looking failure can be reproduced exactly. The runner's matchers
   leave `on_failure` unset (fail open, the default): a crash in the capture or

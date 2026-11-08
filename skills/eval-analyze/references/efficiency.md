@@ -65,9 +65,18 @@ must answer within N turns, a batch job with a per-item cost. Mark it
 from the observed mean plus headroom. Compare runs of the same case, same
 model, same isolation; anything else compares two different experiments.
 
+To pick a model or an effort level, follow the recipe in Anthropic's model-choice
+guide (2026-11-09, article #42; it names the Agent SDK): run each candidate at two or
+three effort levels, each in its own session so runs share no cache, record the cost of
+each completed task from `usage`, plot score against spend, keep a multi-model setup
+only if it beats every single-model point, and shadow-run the winner on real traffic
+before cutting over. The `cost_usd` and status columns here are that chart's two axes.
+
 ---
 
-Sources: `https://code.claude.com/docs/en/agent-sdk/cost-tracking` (`usage`,
+Sources: <https://claude.dev/blog/which-claude-model-should-you-build-with/> ("Which Claude model
+should you build with? Fable, Opus, Sonnet, or Haiku", 2026-11-09, score against spend per model and
+effort, shadow runs); `https://code.claude.com/docs/en/agent-sdk/cost-tracking` (`usage`,
 `model_usage`, running totals), measurements in `.dev/VERIFIED-FACTS.md`; this
 plugin's `lib/agent_sdk_skills/results.py` (`efficiency_rows`);
 <https://claude.dev/blog/lessons-from-building-claude-code-prompt-caching-is-everything/>
@@ -75,5 +84,4 @@ plugin's `lib/agent_sdk_skills/results.py` (`efficiency_rows`);
 prefix matching, no mid-session tool or model changes, hit rate monitored like
 uptime; Claude Code and Messages API practice, the cache-read share is our
 metric); `https://code.claude.com/docs/en/agent-sdk/modifying-system-prompts`
-(read 2026-11-08, the auto-memory location in the preset). Re-read 2026-11-08
-against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+(read 2026-11-08, the auto-memory location in the preset). Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

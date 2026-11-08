@@ -113,6 +113,23 @@ It was considered and dropped. Nothing in the 49 options or the seven message
 types carries agent state, so there is nothing to read. Assert state through
 its effects instead: `file_exists`, `structured_output`, or `mock_calls`.
 
+## Calibrating an `llm` grader
+
+Anthropic's safety-evaluation guidance (2026-11-13, article #44; written for safety
+evals, no Agent SDK mention) is the checklist for a judge here too. Make criteria
+**atomic and binary** (a set of yes/no questions, not one score) and say what does *not*
+meet each one. Spell out what must not change the verdict (a disclaimer around a wrong
+answer is still wrong). The judge sees the conversation only, never the case's design
+notes; prefer a different model from the one under test, since models favour their own
+output, and check for length and position bias. **Fail loudly**: a judge that cannot
+parse an answer must flag the item, not score it. Before trusting a rubric, **validate
+the grader against human labels** made blind to its verdicts and report chance-corrected
+agreement (Cohen's kappa) against how well the humans agree with each other; re-grade a
+sample with another model or a reworded rubric, and if the conclusions change you have
+measured the grader. In this plugin the rubric lives in the grader file's frontmatter,
+`DEFAULT_JUDGE_MODEL` can be the model under test (name another on the grader), and a
+judge call that fails is `NOT_EVALUATED`, never a pass.
+
 ## What every grader file owes the reader
 
 Frontmatter is the check; the **body is the argument**. Two paragraphs: what
@@ -130,8 +147,11 @@ https://code.claude.com/docs/en/agent-sdk/hooks (`defer` and
 `stop_reason: "tool_deferred"`),
 https://code.claude.com/docs/en/agent-sdk/agent-loop (the `max_turns` "+1" rule),
 https://platform.claude.com/docs/en/about-claude/models/overview (Haiku 5.5's
-price). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
+price); https://www.anthropic.com/research/building-strong-safety-evaluations ("Building
+strong safety evaluations", 2026-11-13, atomic binary criteria, grader bias, fail loudly,
+human-label validation; no Agent SDK mention). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
 SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
 Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.
 Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

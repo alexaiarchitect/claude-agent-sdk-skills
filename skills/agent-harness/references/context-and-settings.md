@@ -85,7 +85,10 @@ that version while passing `[]`.
 
 ## `settings` is a different option
 
-`settings` takes a file path or an inline JSON string (TypeScript also accepts an object). Whatever
+`settings` takes a file path or an inline JSON string (TypeScript also accepts an object). From SDK
+0.2.182 a path is read relative to `cwd`, and settings that cannot be loaded or merged with `sandbox`
+raise `CLIConnectionError` at connect instead of being skipped; Claude Code 2.1.325 likewise stops at
+start-up when settings that turn the sandbox on fail validation (it used to run Bash unsandboxed). Whatever
 you pass **overrides** user, project and local filesystem settings; only managed policy ranks
 higher. It is the way to supply one known configuration rather than to suppress the machine's.
 
@@ -189,7 +192,11 @@ the code and an eval can see them.
 **Plugins and skills.** A plugin passed in `plugins` loads at session start. To apply a change to
 its skills, commands, agents or hooks without a new session, the TypeScript SDK has
 `reloadPlugins()`; "The Python SDK doesn't expose an equivalent method; send `/reload-plugins` as a
-prompt in the session instead" (`agent-sdk/plugins`, read 2026-11-08). Anthropic's notes on how the
+prompt in the session instead" (`agent-sdk/plugins`, read 2026-11-08). A plugin that only a project's
+`.claude/settings.json` enables is **not installed** by that file: each clone runs `claude plugin install
+<name>@<marketplace> --scope project` (or `CLAUDE_CODE_SYNC_PLUGIN_INSTALL=1` for one `-p` run), and a
+plugin enabled in an `--add-dir` directory loads only when that file's setting source is on (`plugins/loading`,
+read 2026-11-14). Anthropic's notes on how the
 Claude Code team uses skills (2026-06-03, Claude Code material) carry over to skills an SDK agent
 loads through `setting_sources` or `plugins` and filters with `skills`: write the description for
 when to trigger the skill, and grow a gotchas section from observed failures.
@@ -225,9 +232,10 @@ engineering for AI agents", 2025-09-29, context as a finite resource, compaction
 then precision, note-taking, just-in-time retrieval);
 <https://claude.dev/blog/lessons-from-building-claude-code-how-we-use-skills/> ("Lessons from
 building Claude Code: How we use skills", 2026-06-03, descriptions written for triggering, gotchas);
-`claude-agent-sdk` 0.2.179 `types.py:2666` (`setting_sources`), `:2473` (`settings`), `:2386`
-(`strict_mcp_config`), `:2464` (`cwd`). The 17x cost figure and the list of what still loaded under
+<https://code.claude.com/docs/en/plugins/loading> ("Enabled in project settings but not installed", read
+2026-11-14); `claude-agent-sdk` 0.2.182 `types.py:2670` (`setting_sources`), `:2475` (`settings`), `:2388`
+(`strict_mcp_config`), `:2466` (`cwd`). The 17x cost figure and the list of what still loaded under
 `setting_sources=[]` were measured by this plugin on 2026-09-30. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs. Re-read 2026-10-24 against claude-agent-sdk
 0.2.174 / Claude Code 2.1.310 docs.
-Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

@@ -10,7 +10,7 @@ Three facts decide whether one works, and none of them raises when broken:
   `SubagentStop`), which uses the top-level `decision`/`reason`, and on
   `PreCompact`, the one event with no `hookSpecificOutput` type at all;
   `Stop` and `SubagentStop` take `additionalContext` there (typed from
-  claude-agent-sdk 0.2.166, `types.py:614`, `:625`);
+  claude-agent-sdk 0.2.166, `types.py:616`, `:627`);
 * `HookMatcher` has no `probability` field, so anything probabilistic (fault
   injection, sampling) belongs *inside* the callback.
 
