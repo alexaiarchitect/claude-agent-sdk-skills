@@ -84,7 +84,40 @@ The result has `is_error` set with `stop_reason: tool_deferred_unavailable`: a
 `PreToolUse` hook deferred a call, and when the session resumed the tool was
 gone (typically its MCP server was not connected). `deferred_tool_use` names the
 call. Not an API error and not the agent's fault. Layer: eval. Resume with the
-tools the deferring session had; the harness lost the tool.
+tools the deferring session had; the harness lost the tool. Since the docs read
+2026-11-17 the Python page agrees with the hooks page: resumed **with a prompt**,
+by default the prompt doesn't reach Claude and the call stays pending (it used
+to be answered without the tool); to go on without the tool, "drop the call".
+
+## result for another prompt (read by hand; the runner notes it)
+
+The result the drain stopped on answers a different message: an injected turn
+(a background-task notification, a scheduled prompt) that took in your prompt
+while it ran, so its `origin` is not yours and `receive_response()` stopped
+early. On claude-agent-sdk 0.2.183+ compare the prompt's `uuid` with the
+result's `user_message_uuid`/`user_message_uuids`; this plugin's runner (0.2.6)
+keeps reading past such results and records a `result for another turn` note.
+Layer: **harness** (how the client reads), not the agent.
+
+## transport stops (read by hand; the exception or log line is the signature)
+
+- `CLIJSONDecodeError … JSON message exceeded maximum buffer size of 1048576
+  bytes`: one message (a whole PDF of ~393 KB or more, a screenshot, a large
+  Edit) passed `max_buffer_size` (characters, despite the text). Claude Code
+  keeps running: `disconnect()`, then a new client with
+  `max_buffer_size=64 * 1024 * 1024` and `continue_conversation=True` or
+  `resume`. Any change the tool already made stays.
+- `Prompt stream failed; closing stdin: <message>` at `ERROR` (Python): your
+  prompt generator raised; the `query()` loop ends **with no exception**, so a
+  short trace with no result is this, not a model stop.
+- `[Image could not be processed: image block has no source object]` in the
+  model's input: an image block without `source`; no error reaches your code.
+- An `error_during_execution` result right after `interrupt()` is the
+  interrupt, not a failure; messages sent before it still reach Claude.
+
+Layer: **harness**. From 2.1.326 `claude -p` shows that it is retrying an
+overloaded request (it was silent), and a crashed Node or Python hook shows its
+stack instead of one line.
 
 ## wrong_path_right_answer (Q3)
 
@@ -174,3 +207,9 @@ misconfigured task pushing the agent toward a third party);
 (the guard-failed-open shape; both paths measured by this plugin on 2026-11-04);
 `https://code.claude.com/docs/en/model-config` (current effort defaults). Re-read
 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+`https://code.claude.com/docs/en/agent-sdk/troubleshooting` ("Large tool calls and
+results", "Streaming input"), `https://code.claude.com/docs/en/agent-sdk/streaming-vs-single-mode`
+(interrupt), the Python page's `tool_deferred_unavailable` bullets and the
+claude-agent-sdk 0.2.183 `ResultMessage` docstrings (`types.py:1760-1786`), all read
+2026-11-17; the 2.1.326 changelog (retry output, hook stack traces).
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

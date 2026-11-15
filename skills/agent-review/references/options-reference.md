@@ -1,7 +1,7 @@
 # `ClaudeAgentOptions`: all 50 fields
 
-Read from the installed dataclass, `claude-agent-sdk` 0.2.182
-(`ClaudeAgentOptions`, `types.py:2341-2813`; 49 fields from 0.2.174 to 0.2.180, 50 fields since 0.2.181 added `client_app`; 0.2.182's `types.py` is 21 lines longer than 0.2.178-0.2.180's, so every line here moved). It is a plain `@dataclass`, so an unknown or misspelled
+Read from the installed dataclass, `claude-agent-sdk` 0.2.183
+(`ClaudeAgentOptions`, `types.py:2392-2864`; 49 fields from 0.2.174 to 0.2.180, 50 fields since 0.2.181 added `client_app`; 0.2.183's `types.py` is 51 lines longer than 0.2.182's (the `user_message_uuid` fields), so every line here moved). It is a plain `@dataclass`, so an unknown or misspelled
 keyword raises `TypeError` at construction, and `dataclasses.replace()` works
 for per-case overrides.
 
@@ -29,8 +29,8 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `skills` | `list[str] \| "all" \| None` | `None` | O | exact names only; rejects wildcards with `ValueError` since 0.2.129. Adds the Skill tool to `allowed_tools` automatically |
 | `mcp_servers` | `dict \| str \| Path` | `{}` | R | the runner substitutes mocks here |
 | `strict_mcp_config` | `bool` | `False` | O | ignore `.mcp.json`, user settings, plugin servers and claude.ai connectors |
-| `permission_prompt_tool_name` | `str \| None` | `None` | R | the MCP tool it names must answer with **one text block** holding `{"behavior": "allow"}` or `{"behavior": "deny", "message": …}` and **no `structuredContent`** (`FastMCP(structured_output=False)`), or Claude Code refuses the waiting call with `Permission prompt tool returned an invalid result` (`errors`, read 2026-11-14) |
-| `can_use_tool` | `CanUseTool \| None` | `None` | R | a callable the SDK calls when the permission flow resolves to a prompt; skipped for a call an `allowed_tools` entry, a settings allow rule or the mode approves (use a `PreToolUse` hook to check those) |
+| `permission_prompt_tool_name` | `str \| None` | `None` | R | the MCP tool it names must answer with **one text block** holding `{"behavior": "allow"}` or `{"behavior": "deny", "message": …}` and **no `structuredContent`** (`FastMCP(structured_output=False)`), or Claude Code refuses the waiting call with `Permission prompt tool returned an invalid result` (`errors`, read 2026-11-14). Nothing answers a prompt without it or `can_use_tool`: from 2.1.326 some Bash and `bypassPermissions` calls ask, and are refused where no one can answer |
+| `can_use_tool` | `CanUseTool \| None` | `None` | R | a callable the SDK calls when the permission flow resolves to a prompt; skipped for a call an `allowed_tools` entry, a settings allow rule or the mode approves (use a `PreToolUse` hook to check those). On **0.2.183 and earlier** a whole-tool rule in `updated_permissions` (`PermissionRuleValue(tool_name="WebSearch")`, no `rule_content`) goes out as `"ruleContent": null`; Claude Code rejects it and then ignores every update in that response (measured 2026-11-17; fixed on SDK `main` `8ed58af`, unreleased). Set `rule_content` to the command or path, or wait for the release |
 
 ## How it behaves
 
@@ -42,7 +42,7 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `hooks` | `dict[HookEvent, list[HookMatcher]] \| None` | `None` | R | callables; the runner adds its capture and fault hooks here. `HookMatcher` fields: `matcher`, `hooks`, `timeout`, and from 0.2.177 `on_failure` (`"continue"`/`"block"`/`None`; `HOK011`, `hooks-catalog.md`) |
 | `output_format` | `dict \| None` | `None` | O | only `{"type":"json_schema","schema":{...}}` is acted on |
 | `verbatim_prompts` | `bool` | `False` | O | needs CLI 2.1.248+ |
-| `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166 (`types.py:1139`), as the Python page now documents: each key matches part of a command or `*`, each value lists text to match in a violation line, and "A matching access is still blocked" — it filters the report only; `allowAllUnixSockets` also covers Linux VM sockets (`AF_VSOCK`); `failIfUnavailable`, `filesystem` (`denyWrite`) and `allowNestedUserNamespaces` (2.1.305) are forwarded though undeclared; `autoAllowBashIfSandboxed` defaults to **`False`** from SDK 0.2.182 / Claude Code 2.1.324 (it was `True`): sandboxed Bash goes through the normal permission flow unless you set it |
+| `sandbox` | `SandboxSettings \| None` | `None` | O | `ignoreViolations` is `dict[str, list[str]]` from 0.2.166 (`types.py:1139`), as the Python page now documents: each key matches part of a command or `*`, each value lists text to match in a violation line, and "A matching access is still blocked" — it filters the report only; `allowAllUnixSockets` also covers Linux VM sockets (`AF_VSOCK`); `failIfUnavailable`, `filesystem` (`denyWrite`) and `allowNestedUserNamespaces` (2.1.305) are forwarded though undeclared; with `failIfUnavailable` set `query()` raises `ResultError` (reason in `errors`) when the sandbox can't start, except in an Anthropic-hosted environment, which starts with a warning and enforces no `filesystem`/`network` rules (docs 2026-11-17); `autoAllowBashIfSandboxed` defaults to **`False`** from SDK 0.2.182 / Claude Code 2.1.324 (it was `True`): sandboxed Bash goes through the normal permission flow unless you set it |
 | `plugins` | `list[SdkPluginConfig]` | `[]` | O | |
 
 ## Ceilings
@@ -53,7 +53,7 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `max_budget_usd` | `float \| None` | `None` | O | client-side estimate; counts subagent spend; ends the query with `error_max_budget_usd`. A **soft** cap: the estimate can pass the value, so leave headroom |
 | `task_budget` | `TaskBudget \| None` | `None` | O | |
 | `load_timeout_ms` | `int` | `60000` | O | |
-| `max_buffer_size` | `int \| None` | `None` | O | |
+| `max_buffer_size` | `int \| None` | `None` | O | longest single message the SDK accepts from the CLI, **in characters** (the docs; the SDK's error text says bytes); `None` = 1,048,576; longer raises `CLIJSONDecodeError … exceeded maximum buffer size`. A Read of a PDF of ~393 KB or a screenshot holds base64 twice and can reach it: set `64 * 1024 * 1024`. After the error `disconnect()` the client (Claude Code keeps running) and start a new one with the larger limit and `continue_conversation=True` or `resume` (docs 2026-11-17) |
 
 ## Where it runs and what it loads
 
@@ -65,7 +65,7 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | `setting_sources` | `list[SettingSource] \| None` | `None` | O | `user` `project` `local`. Unset behaves like the CLI: everything loads. `[]` disables those three |
 | `add_dirs` | `list[str \| Path]` | `[]` | O | |
 | `env` | `dict[str, str]` | `{}` | O | **merged** into the inherited environment in Python (replaced, in TypeScript). Cannot remove an inherited variable. `API_TIMEOUT_MS` here is "how long each request attempt can wait for response headers" (default `600000`, `0` = no limit on 2.1.305+), not a cap on a streaming response |
-| `client_app` | `str \| None` | `None` | O | 0.2.181+: your app's label (`"my-app/1.0.0"`), sent on API requests; sets `CLAUDE_AGENT_SDK_CLIENT_APP` for the subprocess and wins over a value in `env`; must be valid in an HTTP header (a character above U+00FF stops every request); `""` sends none. With neither set, a subscription-signed-in session sends the installed distribution's name once a qualifying Claude Code exists ("No released Claude Code qualifies yet"); API-key, Bedrock, Vertex, Foundry and telemetry-off sessions send nothing (`types.py:2813`) |
+| `client_app` | `str \| None` | `None` | O | 0.2.181+: your app's label (`"my-app/1.0.0"`), sent on API requests; sets `CLAUDE_AGENT_SDK_CLIENT_APP` for the subprocess and wins over a value in `env`; must be valid in an HTTP header (a character above U+00FF stops every request); `""` sends none. With neither set, a subscription-signed-in session sends the installed distribution's name once a qualifying Claude Code exists ("No released Claude Code qualifies yet"); API-key, Bedrock, Vertex, Foundry and telemetry-off sessions send nothing (`types.py:2864`) |
 | `extra_args` | `dict[str, str \| None]` | `{}` | O | raw CLI flags |
 | `user` | `str \| None` | `None` | O | |
 
@@ -74,7 +74,7 @@ runner-owned: a case that sets it breaks isolation or is not serialisable.
 | Field | Type | Default | | Note |
 |---|---|---|---|---|
 | `continue_conversation` | `bool` | `False` | R | |
-| `resume` | `str \| None` | `None` | R | |
+| `resume` | `str \| None` | `None` | R | a session that ended `tool_deferred_unavailable`: resumed with a prompt, the prompt by default doesn't reach Claude and the call stays pending (docs 2026-11-17; before 2.1.319 it was answered without the tool); "drop the call" to go on without it. Pass flags such as `--mcp-config`/`--settings` again (`context-and-settings.md`) |
 | `resume_session_at` | `str \| None` | `None` | R | |
 | `resume_drops_turn` | `str \| None` | `None` | R | |
 | `fork_session` | `bool` | `False` | R | |
@@ -200,7 +200,7 @@ fields. Guard those names on 0.2.140–0.2.165. **`SystemInitData`** types
 `mcp_servers`, `model`, `permissionMode`, `apiKeySource`, `skills`, `plugins`,
 `fast_mode_state?` (`off`/`cooldown`/`on`), `fast_mode_disabled_reason?`
 (`sdk_opt_in_required` measured) and `capabilities?`, among others. Use `capabilities` to **feature-detect instead of
-comparing versions**, ignoring unknown strings: CLI 2.1.325 sends 19 (2.1.319 and 2.1.321 send 15), adding the undocumented
+comparing versions**, ignoring unknown strings: CLI 2.1.326 and 2.1.327 send 20 (`silent_resend_files_v1` added, measured 2026-11-17), 2.1.325 sends 19 (2.1.319 and 2.1.321 send 15), adding the undocumented
 `mcp_call_check_permissions_v1` (recorded, never required) to the 14 that 2.1.316 and 2.1.318 sent (the `interrupt_*_v1` four, `msg_lifecycle_v1`,
 `request_marker_lists_v1`, `ask_user_question_unanswered_v1`,
 `lifecycle_wakeup_source_v1`, `sdk_mcp_tools_list_changed`, `sdk_mcp_manifests`,
@@ -208,15 +208,15 @@ comparing versions**, ignoring unknown strings: CLI 2.1.325 sends 19 (2.1.319 an
 `mcp_call_result_not_for_model_v1`); 2.1.310 sent 13. Read every key with
 `.get()`: CLIs also send undeclared keys (`original_cwd`, `memory_paths`,
 `view_mode`, `ultrathink_available` from 2.1.316, `ultrathink_typed_raises` from
-2.1.318).
+2.1.318, `additional_directories` and, after a uuid-stamped prompt, `user_message_uuids` on 2.1.326).
 
 ---
 
-Sources: `claude-agent-sdk` 0.2.182, installed at
-`site-packages/claude_agent_sdk/types.py:2341-2813` (the 50 fields in
+Sources: `claude-agent-sdk` 0.2.183, installed at
+`site-packages/claude_agent_sdk/types.py:2392-2864` (the 50 fields in
 declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
-`SettingSource`, `:37` `EffortLevel`, `:286` `HookEvent`, `:866` `on_failure`, `:1708`
-`ResultMessage`, `:2185` `ThinkingConfig`;
+`SettingSource`, `:37` `EffortLevel`, `:146` `PermissionUpdate`, `:286` `HookEvent`, `:866` `on_failure`, `:1728`
+`ResultMessage`, `:2236` `ThinkingConfig`;
 <https://code.claude.com/docs/en/agent-sdk/python#claudeagentoptions> (also
 `ResultMessage.is_error`, `ResultError`, `API_TIMEOUT_MS`), `_errors.py:56`
 (`ResultError`), the Claude Code `CHANGELOG.md` (2.1.305, 2.1.307, 2.1.317 Read stub),
@@ -235,16 +235,14 @@ declaration order), `:25` `PermissionMode`, `:30` `SdkBeta`, `:33`
 `sandbox.failIfUnavailable`, `sandbox.ignoreViolations`); the Python page's
 `SandboxIgnoreViolations` and `thinking.display` text read 2026-11-08;
 <https://claude.dev/blog/spending-your-effort/> ("Using Claude Code: Spending your effort",
-2026-09-25, what effort buys); `types.py:1474`
-`SystemInitData`, `:1456` `FastModeState`, `:1460` `FastModeDisabledReason`,
+2026-09-25, what effort buys); `types.py:1494`
+`SystemInitData`, `:1476` `FastModeState`, `:1480` `FastModeDisabledReason`,
 `:1139` `SandboxIgnoreViolations`, `:1154` `SandboxSettings`. The
 `max_turns=1 -> num_turns=2` result was measured by this plugin on 2026-09-30;
 `costBasis`, `thinkingTokens` and the two-model `model_usage` 2026-10-11 (SDK
 0.2.165, CLI 2.1.294); the init keys, capabilities and fast-mode values
 2026-10-17 to 2026-11-02 (CLI 2.1.292–2.1.316) and 2026-11-04 (CLI 2.1.318, with
-the `-p` JSON keys); the CHANGELOG 2.1.318 (`credential_expires_at`). Re-read
-2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read
-2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (line numbers
-re-pinned); `max_turns=1` re-measured 2026-10-29; `[1m]` from the 2.1.311 changelog.
-Line numbers re-pinned to 0.2.178 on 2026-11-04 (unchanged in 0.2.179/0.2.180) and to 0.2.182 on 2026-11-14; 15 capabilities measured on 2.1.319 (2026-11-08) and 2.1.321, 19 on 2.1.325 (2026-11-14); `client_app`, `settings` and the prompt-tool rule from `types.py` 0.2.182 and the docs read 2026-11-14.
+the `-p` JSON keys); the CHANGELOG 2.1.318 (`credential_expires_at`). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs (line numbers re-pinned); `max_turns=1` re-measured 2026-10-29; `[1m]` from the 2.1.311 changelog.
+Line numbers re-pinned to 0.2.178 on 2026-11-04, to 0.2.182 on 2026-11-14 and to 0.2.183 on 2026-11-17; 15 capabilities measured on 2.1.319 (2026-11-08) and 2.1.321, 19 on 2.1.325 (2026-11-14), 20 on 2.1.326/2.1.327 (2026-11-17); `client_app`, `settings` and the prompt-tool rule from `types.py` 0.2.182 and the docs read 2026-11-14; the `ruleContent: null` dicts measured on 0.2.183 and `main` `8ed58af` (2026-11-17); <https://code.claude.com/docs/en/agent-sdk/troubleshooting#large-tool-calls-and-results> (`max_buffer_size`).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

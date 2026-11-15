@@ -7,6 +7,7 @@ that breaks the mapping breaks these tests rather than a user's suite.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import claude_agent_sdk as sdk
 import pytest
@@ -694,4 +695,66 @@ def test_the_2_1_325_trace_fixture_is_what_capture_writes_from_its_script():
         cap.add(sdk.build_message(entry))
     strip = lambda e: {k: v for k, v in e.items() if k != "t"}  # noqa: E731
     assert [strip(e) for e in cap.events] == [strip(e) for e in stored]
+    assert "sk-ant" not in path.read_text() and "/Users/" not in path.read_text()
+
+
+# -- init on 2.1.326 (measured 2026-11-17) -------------------------------------
+
+#: The uuid the measured run sent with its prompt, scrubbed.
+SENT_2_1_326 = "0000000000004000a000000000000326"
+
+
+def _script_2_1_326():
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_326.script.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def _capture_2_1_326() -> Capture:
+    cap = Capture(run_id="1", case="echo-ready")
+    cap.user_turn("Reply with exactly: ready", uuid=SENT_2_1_326)
+    for entry in _script_2_1_326():
+        cap.add(sdk.build_message(entry))
+    return cap
+
+
+def test_a_2_1_326_init_records_twenty_capabilities():
+    """2.1.326 (and 2.1.327) add `silent_resend_files_v1` to 2.1.325's 19 (measured
+    2026-11-17 on an API key). Recorded, never required; the undeclared
+    `original_cwd`, `additional_directories` and `user_message_uuids` init keys are
+    tolerated, not copied."""
+    cap = _capture_2_1_326()
+    init = events_of(cap, "init")[0]
+    assert init["cli_version"] == "2.1.326"
+    assert init["permission_mode"] == "default", "unset mode still starts in default"
+    assert len(init["capabilities"]) == 20
+    assert "silent_resend_files_v1" in init["capabilities"]
+    older = [json.loads(line) for line in (
+        Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_325.script.jsonl"
+    ).read_text().splitlines() if line.strip()][0]["data"]["capabilities"]
+    assert set(init["capabilities"]) - set(older) == {"silent_resend_files_v1"}
+    assert "user_message_uuids" not in init and "original_cwd" not in init
+    assert [e["type"] for e in cap.events] == ["user", "init", "assistant_text", "result"]
+    result = events_of(cap, "result")[0]
+    assert (result["subtype"], result["is_error"], result["result_text"]) == ("success", False, "ready")
+
+
+def test_the_2_1_326_result_names_the_uuid_the_user_event_carries():
+    """Claude Code 2.1.326 echoes a dict prompt's `uuid` verbatim (measured
+    2026-11-17): the trace's `user` event and its result agree, which is what the
+    runner's drain matches on."""
+    cap = _capture_2_1_326()
+    user = events_of(cap, "user")[0]
+    result = events_of(cap, "result")[0]
+    assert user["uuid"] == SENT_2_1_326
+    assert result["user_message_uuid"] == user["uuid"]
+    assert result["user_message_uuids"] == [user["uuid"]]
+    assert events_of(cap, "assistant_text")[0]["user_message_uuid"] == user["uuid"]
+
+
+def test_the_2_1_326_trace_fixture_is_what_capture_writes_from_its_script():
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "traces" / "init_2_1_326.trace.jsonl"
+    stored = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    strip = lambda e: {k: v for k, v in e.items() if k != "t"}  # noqa: E731
+    assert [strip(e) for e in _capture_2_1_326().events] == [strip(e) for e in stored]
     assert "sk-ant" not in path.read_text() and "/Users/" not in path.read_text()

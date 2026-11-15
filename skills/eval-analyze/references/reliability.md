@@ -106,6 +106,25 @@ guards against it. Lance Martin's write-up (2026-09-28; the `claude-api` skill's
   regression, and treat train up with held-out flat as overfitting;
 - a gain within noise is not a gain: do not merge it.
 
+## Scoring a checker: reviewers, bug finders and judges
+
+When the thing under test is itself a checker — a review agent, a bug finder, an
+`llm` grader — the Claude Code team's verification post (2026-11-16, article #45;
+Claude Code practice, no Agent SDK mention) extends the rules above, building on the
+team's code-review eval (2026-10-15, article #27):
+
+- **score against what actually mattered**: changes later reverted and changes
+  maintainers rejected before merge, plus a **size-matched control set** of changes
+  that stayed clean, so a checker that flags everything loses on the controls;
+- **measure recall per stage** (raw findings, after verification, the final review)
+  rather than one end-to-end score, which hides the stage that loses the bugs;
+- **tag severity** (must-fix, should-fix, nit; the team's labels are Important, Nit
+  and Pre-existing) and report recall per severity;
+- keep the **tuning set apart from the fixed test set**, and tune recall until the
+  next change would only fit the tuning set;
+- **prune** checks, verification steps and written rules on a routine, not only
+  when they break.
+
 ## Where the samples come from
 
 `results.samples_by_case` merges the runs inside each result file with the runs
@@ -131,4 +150,9 @@ report uncertainty, don't compare graders; no Agent SDK mention);
 your effort", 2026-09-25, effort as how much verification and edge-case testing
 Claude does, scope changes on loose specs; Claude Code's `/effort`, mapped to the
 SDK's `effort`).
+<https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/> ("How the Claude
+Code team thinks about verification", 2026-11-16, reverts, rejections and size-matched clean
+controls, recall per stage, severity tags, tuning set apart from the test set, pruning rules;
+the Claude Code team's practice, no Agent SDK mention); <https://claude.dev/blog/solving-code-review-at-anthropic/>
+("How the Claude Code team does code review", 2026-10-15, the answer-key eval it builds on).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.

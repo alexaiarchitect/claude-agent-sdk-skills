@@ -66,11 +66,12 @@ def _load(relative: str, name: str):
 # -- 1. pins and version ----------------------------------------------------------
 
 def test_the_pins_moved_to_0_2_182_and_2_1_325():
+    # 0.2.182 / 2.1.325 at this sync; the pins only move forward (0.2.183 / 2.1.326 from 2026-11-17).
     import agent_sdk_skills as plugin
-    assert (plugin.SDK_TARGET, plugin.CLI_BUNDLED_WITH_TARGET) == ("0.2.182", "2.1.325")
-    assert plugin.DOCS_READ_AT_CLI == "2.1.325"
+    assert (plugin.SDK_TARGET, plugin.CLI_BUNDLED_WITH_TARGET) == ("0.2.183", "2.1.326")
+    assert plugin.DOCS_READ_AT_CLI == "2.1.326"
     assert plugin.SDK_MIN_SUPPORTED == "0.2.140", "the minimum does not move with the pin"
-    assert 'DOCS_READ_AT_CLI = "2.1.325"' in read("runner/agent_sdk_evals/__init__.py")
+    assert 'DOCS_READ_AT_CLI = "2.1.326"' in read("runner/agent_sdk_evals/__init__.py")
 
 
 def test_the_docs_re_read_is_dated_next_to_the_constant():
@@ -82,57 +83,70 @@ def test_the_docs_re_read_is_dated_next_to_the_constant():
 def test_the_library_records_the_types_py_shift():
     text = flat(read("lib/agent_sdk_skills/__init__.py"))
     assert "0.2.180 (2026-11-09) is cli-only" in text
-    assert "`client_app` option (`types.py:2813`" in text and "50th field" in text
+    # `types.py:2813` at this sync; the citation follows the wheel (`:2864` on 0.2.183, 2026-11-17).
+    assert "`client_app` option (`types.py:2864` on 0.2.183" in text and "50th field" in text
     assert "2808 on by 21" in text and "checked 2026-11-14" in text
 
 
 def test_the_release_is_0_2_5_everywhere_lane_a_owns():
+    # 0.2.5 at this sync; every carrier follows `__version__` from 0.2.6 (2026-11-17) on.
     import agent_sdk_skills as plugin
-    assert plugin.__version__ == plugin.RUNNER_VERSION == "0.2.5"
-    assert read("runner/agent_sdk_evals/VERSION").strip() == "0.2.5"
-    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == "0.2.5"
-    assert 'version = "0.2.5"' in read("pyproject.toml")
-    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == "0.2.5"
+    version = plugin.__version__
+    assert plugin.RUNNER_VERSION == version and tuple(map(int, version.split("."))) >= (0, 2, 5)
+    assert read("runner/agent_sdk_evals/VERSION").strip() == version
+    assert json.loads(read(".claude-plugin/plugin.json"))["version"] == version
+    assert f'version = "{version}"' in read("pyproject.toml")
+    assert read("tests/fixtures/agents/ci_ready/evals/runner/agent_sdk_evals/VERSION").strip() == version
 
 
 def test_the_fixtures_carry_0_2_5_and_the_new_pins():
     """Synthetic fixtures follow the pin; the measured `init_2_1_3xx` traces are history."""
+    # 0.2.5 / 0.2.182 / 2.1.325 at this sync; the fixtures follow the current constants.
+    from agent_sdk_skills import CLI_BUNDLED_WITH_TARGET, RUNNER_VERSION, SDK_TARGET
     for aggregate in (PLUGIN_ROOT / "tests" / "fixtures" / "results").glob("*/aggregate.json"):
         payload = json.loads(aggregate.read_text(encoding="utf-8"))
         assert (payload["runner_version"], payload["sdk_version"], payload["cli_version"]) \
-            == ("0.2.5", "0.2.182", "2.1.325"), aggregate
+            == (RUNNER_VERSION, SDK_TARGET, CLI_BUNDLED_WITH_TARGET), aggregate
     for config in (PLUGIN_ROOT / "tests").rglob("eval_config.json"):
         if "stale_runner" in config.parts:
             continue                       # stale on purpose (0.0.1)
-        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == "0.2.5", config
-    assert "claude-agent-sdk==0.2.182" in read("tests/fixtures/agents/ci_ready/requirements.txt")
+        assert json.loads(config.read_text(encoding="utf-8"))["runner_version"] == RUNNER_VERSION, config
+    assert f"claude-agent-sdk=={SDK_TARGET}" in read("tests/fixtures/agents/ci_ready/requirements.txt")
 
 
 def test_the_stubs_report_the_new_pins_and_the_new_option():
+    # 0.2.182 / 2.1.325 at this sync; the stubs follow the pin.
+    from agent_sdk_skills import CLI_BUNDLED_WITH_TARGET as cli, SDK_TARGET as sdk
     stub = read("tests/fixtures/stubs/claude_agent_sdk/__init__.py")
-    assert '__version__ = "0.2.182"' in stub and '__cli_version__ = "2.1.325"' in stub
+    assert f'__version__ = "{sdk}"' in stub and f'__cli_version__ = "{cli}"' in stub
     assert "client_app: str | None = None" in stub
-    assert '__cli_version__ = "2.1.325"' in read("tests/fixtures/stubs/claude_agent_sdk/_cli_version.py")
+    assert f'__cli_version__ = "{cli}"' in read("tests/fixtures/stubs/claude_agent_sdk/_cli_version.py")
     fake = read("tests/fixtures/bin/fake_sdk.py")
-    assert '"FAKE_SDK_VERSION", "0.2.182"' in fake and '"FAKE_SDK_CLI_VERSION", "2.1.325"' in fake
+    assert f'"FAKE_SDK_VERSION", "{sdk}"' in fake and f'"FAKE_SDK_CLI_VERSION", "{cli}"' in fake
 
 
 def test_the_sdk_venv_and_the_live_command_name_the_pin():
+    # casdk-venv-0.2.182 (fallback 0.2.180) at this sync; the venv follows the pin.
+    from agent_sdk_skills import SDK_TARGET
     conftest = read("tests/conftest.py")
-    assert 'SDK_VENV_NAME = "casdk-venv-0.2.182"' in conftest
-    assert 'SDK_VENV_FALLBACK = "casdk-venv-0.2.180"' in conftest, "the previous pin stays a fallback"
-    assert "casdk-venv-0.2.182/bin/python" in read("tests/runner/test_live.py")
+    assert f'SDK_VENV_NAME = "casdk-venv-{SDK_TARGET}"' in conftest
+    assert 'SDK_VENV_FALLBACK = "casdk-venv-' in conftest, "the previous pin stays a fallback"
+    assert f"casdk-venv-{SDK_TARGET}/bin/python" in read("tests/runner/test_live.py")
 
 
 def test_the_surface_test_measured_the_new_pin():
     text = read("tests/lib/test_sdk_surface_live.py")
-    assert 'MEASURED_SDK = "0.2.182"' in text and 'MEASURED_CLI = "2.1.325"' in text
+    # 0.2.182 / 2.1.325 and `client_app` at 2813 at this sync; they follow the wheel.
+    from agent_sdk_skills import CLI_BUNDLED_WITH_TARGET, SDK_TARGET
+    assert f'MEASURED_SDK = "{SDK_TARGET}"' in text and f'MEASURED_CLI = "{CLI_BUNDLED_WITH_TARGET}"' in text
     assert "Re-run 2026-11-14 against 0.2.182" in text
-    assert '"client_app": (2813, "client_app: str | None = None")' in text
+    assert re.search(r'"client_app": \(\d+, "client_app: str \| None = None"\)', text)
 
 
-def test_the_runner_stale_rubric_names_0_2_5():
-    assert "0.2.5" in read("plugin-evals/runner-stale/graders/criteria.md")
+def test_the_runner_stale_rubric_names_0_2_5():  # awaits lane B
+    # 0.2.5 at this sync; the rubric names the current runner version from 0.2.6 on.
+    from agent_sdk_skills import RUNNER_VERSION
+    assert RUNNER_VERSION in read("plugin-evals/runner-stale/graders/criteria.md")
 
 
 # -- 2. the option list and the moved lines -------------------------------------------
@@ -162,7 +176,8 @@ def test_no_tracked_file_cites_a_pre_shift_types_py_line():
 
 def test_the_option_table_cites_the_new_class_line_and_client_app():  # lane B
     text = read("skills/agent-review/references/options-reference.md")
-    assert "types.py:2341" in text and "types.py:2813" in text
+    # `types.py:2341`/`:2813` at this sync; `:2392`/`:2864` from 0.2.183 (2026-11-17).
+    assert "types.py:2392" in text and "types.py:2864" in text
     assert "`client_app`" in text
 
 
@@ -247,7 +262,7 @@ def test_the_2_1_325_fixture_holds_the_revoked_key_result_shape():
 
 def test_the_fixture_is_registered_and_the_capture_comment_counts_it():
     readme = flat(read("tests/fixtures/README.md"))
-    assert "`traces/init_2_1_325.*`" in readme and "11, 13, 14, 15 and 19 `capabilities`" in readme
+    assert "`traces/init_2_1_325.*`" in readme and "11, 13, 14, 15, 19 and 20 `capabilities`" in readme
     assert "**`traces/init_2_1_325.script.jsonl`**" in readme
     assert "19 on 2.1.325" in flat(read("runner/agent_sdk_evals/capture.py"))
     assert "init_2_1_325" in read("tests/runner/test_runner_capture.py")

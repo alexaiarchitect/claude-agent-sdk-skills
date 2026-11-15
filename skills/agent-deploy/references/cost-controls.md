@@ -191,6 +191,12 @@ stopped; `allowed_warning` is information. From 2.1.312 Claude Code's own messag
 From **2.1.311** a standard-context session whose request runs over 200K tokens compacts and continues instead of
 stopping, so a run that used to fail cheaply now keeps spending: keep `max_budget_usd`.
 
+**Smaller levers, 2026-11-17.** A `fallback_model` chain in `auto` mode (or plan mode under the classifier) skips models auto
+mode doesn't support, so the cheap fallback you listed may never run; compaction in plan mode now uses the model answering
+(2.1.326), which can cost more with `opusplan`; `CLAUDE_CODE_DISABLE_ULTRATHINK=1` turns the `ultrathink` keyword off; in auto mode classifier calls
+count toward usage on Enterprise and API/cloud accounts. Raising `max_buffer_size` (for PDFs and screenshots) costs client
+memory, not tokens.
+
 For the developer's own sessions on a Pro, Max, Ultra, Team or Enterprise plan, `/usage` lists **Recommendations**
 (each with its share of recent usage, as in `25%  Trim ~/code/api/CLAUDE.md · 49k tokens per request`; `f` applies
 them). It is an interactive view, not something an SDK agent reads, but its rows name the same ambient costs
@@ -207,8 +213,9 @@ and its controls), <https://code.claude.com/docs/en/agent-sdk/agent-loop#turns-a
 <https://code.claude.com/docs/en/agent-sdk/quickstart> (the third-party policy note),
 <https://code.claude.com/docs/en/costs> (`/usage` recommendations, the fix shortcut, cache misses, `modelPricing`),
 <https://code.claude.com/docs/en/costs#manage-costs-for-your-organization> (the billing pointer); `claude-agent-sdk`
-0.2.182 `types.py:2420` (`max_turns`), `:2426` (`max_budget_usd`), `:1708-1747` (`ResultMessage`), `:1682`
-(`ModelUsage`), `:1766` (`RateLimitInfo`; `:1760` is `RateLimitType`);
+0.2.183 `types.py:2471` (`max_turns`), `:2477` (`max_budget_usd`), `:1728-1786` (`ResultMessage`), `:1702`
+(`ModelUsage`), `:1817` (`RateLimitInfo`; `:1811` is `RateLimitType`); the 2026-11-17 `model-config`, `env-vars` and
+`permission-modes` pages and the 2.1.326 changelog (plan-mode compaction);
 <https://platform.claude.com/docs/en/about-claude/models/overview> (the cache-read percentages),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command limit),
 <https://code.claude.com/docs/en/agent-sdk/agent-loop#budget-headroom>,
@@ -236,3 +243,4 @@ was re-measured with an API key on 2026-11-10. The 17x and 4x figures, the cumul
 subscription with no API key set; `costBasis` and the $0.20/Mtok cache-read price of the bundled CLI 2.1.294 were
 measured 2026-10-11 with `ANTHROPIC_API_KEY` set, and the $0.10/Mtok of the bundled CLI 2.1.301 on 2026-10-17 and of
 2.1.310 on 2026-10-24. Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

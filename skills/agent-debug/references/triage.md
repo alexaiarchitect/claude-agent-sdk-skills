@@ -48,6 +48,8 @@ measure of success is pass@1 going up, not one green run.
 | many cases drop at once with no change of yours, and the gap follows the CLI build | harness (CLI or SDK upgrade) | pin the build, set `effort` explicitly; see "harness regression" in `failure-shapes.md` |
 | the agent reached a host, form or credential the case never named | prompt + permissions | state scope and forbidden actions, enforce them in tools or hooks; see "persistence around a restriction" in `failure-shapes.md` |
 | a call the guard hook should have refused ran, after a `hook_callback_failed` system event | harness (hook wiring) | `on_failure="block"` on the guard's `HookMatcher` (0.2.177+); see "guard failed open" in `failure-shapes.md` |
+| the result answers another message, or its `user_message_uuids` lacks the prompt's `uuid` | harness (how the client reads) | keep reading past injected turns' results; match by uuid (0.2.183+); see "result for another prompt" in `failure-shapes.md` |
+| `CLIJSONDecodeError … exceeded maximum buffer size`, `Prompt stream failed; closing stdin`, or an image the model says it could not process | harness (transport) | raise `max_buffer_size`, fix the prompt generator, give each image block a `source`; see "transport stops" in `failure-shapes.md` |
 
 ## Step 4 — close the loop
 
@@ -63,5 +65,7 @@ Sources: this plugin's `lib/agent_sdk_skills/trajectory.py` (signatures) and
 `https://code.claude.com/docs/en/agent-sdk/permissions`; turn and budget caps
 per `https://code.claude.com/docs/en/agent-sdk/agent-loop`; the three hand-read
 shapes per `failure-shapes.md`. Re-read 2026-11-04 against claude-agent-sdk
-0.2.178 / Claude Code 2.1.318 docs.
+0.2.178 / Claude Code 2.1.318 docs. The two transport rows per
+`https://code.claude.com/docs/en/agent-sdk/troubleshooting` (read 2026-11-17).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

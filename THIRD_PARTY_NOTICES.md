@@ -16,8 +16,13 @@ exact tree it came from.
     Licensed under the MIT License
     https://github.com/anthropics/claude-agent-sdk-python
 
-Snapshot: `4720d36` (`main` on 2026-11-14; the pinned release is `v0.2.182` = `32e9611`, 2026-11-13, which
-bundles CLI 2.1.325 and adds the `client_app` option, so `types.py` grew by 21 lines and every citation
+Snapshot: `8ed58af` (`main` on 2026-11-17, unreleased: the `PermissionUpdate.to_dict()` wire fix); the pinned
+release is `v0.2.183` = `3e19ce8`, 2026-11-16, which bundles CLI 2.1.326 and adds `user_message_uuid`/
+`user_message_uuids` to three message types, so `types.py` grew by 51 lines and every citation was renumbered
+again (0.2.183 has no CHANGELOG entry; see
+https://github.com/anthropics/claude-agent-sdk-python/compare/v0.2.182...v0.2.183); previously `4720d36` (`main`
+on 2026-11-14) with the release `v0.2.182` = `32e9611`, 2026-11-13, which
+bundled CLI 2.1.325 and added the `client_app` option, so `types.py` grew by 21 lines and every citation
 was renumbered; `v0.2.180` and `v0.2.181` lie between; none of 0.2.179–0.2.182 has a CHANGELOG entry, see
 https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.182; previously
 `2209f2c134fee914c0f75733b631a5fc238ca846` = `v0.2.179` on 2026-11-08, then `3be907edb9c86269d30d1427a77937dd788d6419` on 2026-11-04, `main` =
@@ -29,8 +34,9 @@ https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.182; pre
 `27858cbba9ecee26a06a90b8d39d3b5596121d11` on 2026-10-29,
 `0e89b298e771259378a6cd3734e00d323dff5703` on 2026-10-24, `f93e29cc` after
 `v0.2.168`, `b6e9d12f` and `bbf09e3c`, which was `v0.2.162`). Behaviour was
-measured against the installed `claude-agent-sdk` **0.2.179 wheel (bundled CLI
-2.1.319)** on 2026-11-08, the 0.2.178 wheel (bundled CLI 2.1.318) on 2026-11-04, the 0.2.176 wheel (bundled CLI 2.1.316) on 2026-11-02,
+measured against the installed `claude-agent-sdk` **0.2.183 wheel (bundled CLI 2.1.326)** on 2026-11-17 (and the
+local CLI 2.1.327), the 0.2.182 wheel (bundled CLI 2.1.325) on 2026-11-14, the 0.2.179 wheel (bundled CLI
+2.1.319) on 2026-11-08, the 0.2.178 wheel (bundled CLI 2.1.318) on 2026-11-04, the 0.2.176 wheel (bundled CLI 2.1.316) on 2026-11-02,
 and the 0.2.174 wheel (bundled CLI 2.1.310) up to 2026-10-29; earlier
 figures in this plugin's references name the wheel they came from (0.2.174 with
 CLI 2.1.310, 0.2.168 with CLI 2.1.301, 0.2.165 with CLI 2.1.294, or 0.2.162 with
@@ -50,8 +56,9 @@ transcript shape of the SDK's `tests/test_sessions.py::_parallel_tool_turn`
     Proprietary license; see LICENSE.md in that repository
     https://github.com/anthropics/claude-code
 
-Snapshot: `f1f87e5` (2026-11-14, Claude Code 2.1.325; nothing under its `mods/` was read or copied;
-previously `0ed94698aa0aeee471465fc9c867c2e8434c4d68` at 2.1.319 on 2026-11-08, then
+Snapshot: `2e33617` (`main` on 2026-11-17; tag `v2.1.326` = `bc1e8a8`, and `main` moved after the tag by one
+commit under `mods/` only, so both carry the same 2.1.326 CHANGELOG; npm 2.1.327 had no tag or CHANGELOG section
+at read time; nothing under its `mods/` was read or copied; previously `f1f87e5` at 2.1.325 on 2026-11-14, then `0ed94698aa0aeee471465fc9c867c2e8434c4d68` at 2.1.319 on 2026-11-08, then
 `26382c08758260c9f5deb2019d8fe851f89fa9ae` at 2.1.318 on 2026-11-04, then `1a0f9a9d18e1272d3fbaa817d192b6b057bba623` at 2.1.316 on
 2026-11-02, `58d6da1e34d6cd1c6379dcbf568bd66f5f9b6102` at 2.1.312 on
 2026-10-29, `318b7e6ac4e726e88a4ad326214866a93c373b1b` at 2.1.310 on
@@ -71,7 +78,7 @@ are redistributed; the repository's own license terms apply to its contents.
     https://github.com/anthropics/claude-cookbooks
 
 Snapshot: `ce8b2629efe8b24048b127b4c79af1e9cbab93d4` (2026-11-04, read 2026-11-05 and unmoved on
-2026-11-08: the
+2026-11-08, 2026-11-14 and 2026-11-17: the
 two new commits add a Managed Agents "dreaming" cookbook under `managed_agents/` and
 fix a registry duplicate, outside the directories this plugin reads; previously
 `785d7a06457b` from 2026-11-02, read 2026-11-04, whose `claude_agent_sdk/` notebooks
@@ -89,8 +96,9 @@ No notebook content is redistributed.
     Copyright (c) Anthropic, PBC
     https://github.com/anthropics/skills
 
-Snapshot: `2c5958ecac7cee2b583967a2c4981d0f4a75c579` (2026-11-08: the new commit moves the
-Office skills to Apache 2.0, license files only; previously
+Snapshot: `e4bb5d9` (2026-11-17: two commits of 2026-11-14/16 touch the office-document skills' scripts only,
+outside the `skill-creator` content used here); previously `2c5958ecac7cee2b583967a2c4981d0f4a75c579` (2026-11-08: the new commit moved the
+Office skills to Apache 2.0, license files only), then
 `ca45fc496a3436251f191354091d557da31c15b5` from 2026-10-29, unmoved on
 2026-11-02, 2026-11-04 and 2026-11-05, whose one new commit touched `mcp-builder` only; before that `dbd4588f`, unmoved from
 2026-10-09 to 2026-10-24, and `8a1541c4`. The `skill-creator` content is
@@ -106,7 +114,7 @@ files apply to that repository's contents; nothing from it is redistributed.
     https://github.com/anthropics/cwc-workshops
 
 Snapshot: `2c65d16c6de16f8f24117d539a712ea706b5dee7` (2026-11-04, read 2026-11-05 and unmoved on
-2026-11-08: the
+2026-11-08, 2026-11-14 and 2026-11-17: the
 new commit adds a `building-blocks/` code-along for the Messages API, outside the part
 this plugin reads; previously `4c34ec4863df` from 2026-10-17, unmoved to 2026-11-04,
 and `068b84bb`). The
@@ -119,7 +127,7 @@ baseline comparison informed the grader catalog. No files are redistributed.
     No repository-level license file at the snapshot
     https://github.com/anthropics/claude-agent-sdk-demos
 
-Snapshot: `826b268506a5f3707623c9e6140b200befcbebae` (unmoved since 2026-03-13; re-checked 2026-11-05 and 2026-11-08). Used as
+Snapshot: `826b268506a5f3707623c9e6140b200befcbebae` (unmoved since 2026-03-13; re-checked 2026-11-05, 2026-11-08 and 2026-11-17). Used as
 example projects for the read-only sweep that checks this plugin's static
 readers on real code. Nothing is redistributed.
 
@@ -146,7 +154,11 @@ them `permissions.denyInsteadOfPrompting` on the settings page, the `sandbox.aut
 default, `mcp_task` on the Python page, the Fable 5.2 rows of `model-config`, and the models overview's
 Fable 5.2 launch; the Fable 5.2 what's-new and prompting-guide pages on `platform.claude.com` and the
 launch page https://www.anthropic.com/claude-fable-and-mythos-5-2 (2026-11-09) were read the same day
-and are cited as documentation, not counted among the articles below);
+and are cited as documentation, not counted among the articles below), and on **2026-11-17** at Claude Code
+**2.1.326** (47 pages changed by content, among them the rewritten streaming-input page "Send messages to a running
+agent", `max_buffer_size` in characters, the hooks page's `continue` and `StopFailure` rows,
+`permissions.denyInsteadOfPrompting` beside `dontAsk`, and the new page for Claude Models on Google Cloud
+(Anthropic managed));
 every reference names the pages it distills and carries the re-read date in its
 `Sources:` footer. The TypeScript SDK repository, whose contents are under
 Anthropic's commercial terms, was consulted for its documentation only and
@@ -157,11 +169,11 @@ nothing from it is included.
 Anthropic's published engineering and product articles supply the design
 rationale in this plugin's references; current mechanics are always cited from
 the documentation above. They come from three hosts: `anthropic.com` (`/research`, `/news`),
-`claude.com`, and, for articles 26–29, 31–43, Anthropic's developer blog at `claude.dev`
+`claude.com`, and, for articles 26–29, 31–43 and 45, Anthropic's developer blog at `claude.dev`
 (`https://claude.dev/blog/<slug>/`, canonical URLs with the trailing slash).
 Articles 1–14 were read on 2026-10-29 and articles
 15–23 on 2026-11-02, and articles 24–25 on 2026-11-04, and articles 26–29 on
-2026-11-05, and articles 30–41 on 2026-11-08, and articles 42–44 on 2026-11-10 and 2026-11-14, each at the canonical URL below
+2026-11-05, and articles 30–41 on 2026-11-08, and articles 42–44 on 2026-11-10 and 2026-11-14, and article 45 on 2026-11-17, each at the canonical URL below
 (the older engineering-blog paths under `anthropic.com` now redirect to
 `anthropic.com/research/<slug>`). The references **paraphrase** them, with at
 most a short attributed quote; no article text is reproduced at length, and the
@@ -213,6 +225,7 @@ articles remain Anthropic's.
 | 42 | "Which Claude model should you build with? Fable, Opus, Sonnet, or Haiku" (Osmani; names the Agent SDK and Managed Agents; model ladder, effort before model, cache and thinking-block rules when switching models; benchmark tables not copied) | https://claude.dev/blog/which-claude-model-should-you-build-with/ | 2026-11-09 | `agent-review/references/model-policy.md`, `agent-harness/references/subagent-design.md`, `agent-deploy/references/cost-controls.md`, `agent-design/references/subagent-decisions.md`, `eval-analyze/references/efficiency.md` |
 | 43 | "Safely scaling multi-agent teams with Claude Fable 5.2" (Zhang, Peng, Najt, Scholl, Martin; Anthropic's 1,000-agent Lean run on its own harness; no Agent SDK mention) | https://claude.dev/blog/safely-scaling-multi-agent-teams-with-fable-5-2/ | 2026-11-09 | `agent-design/references/subagent-decisions.md`, `agent-design/references/long-running-harness.md`, `agent-design/references/agent-loop.md`, `agent-deploy/references/secure-deployment.md` |
 | 44 | "Building strong safety evaluations" (Appel, Frondorf, Hadfield, Hiscott, Jagadish, Longpre, Tucker, Wittmershaus; safety-eval method cited for graders, sampling and reporting; harm taxonomy out of scope; no Agent SDK mention) | https://www.anthropic.com/research/building-strong-safety-evaluations | 2026-11-13 | `eval-criteria/references/grader-catalog.md`, `eval-analyze/references/reliability.md`, `eval-simulation/references/user-simulation.md`, `eval-create/references/memory-and-multiturn.md` |
+| 45 | "How the Claude Code team thinks about verification" (Osmani; the Claude Code team's verification practice: end-to-end, property and differential tests, a `verify` skill, three failed rounds then a human, checks out of reach of the change, observe-mode gates, evaluating the reviewers; paraphrased with short attributed quotes; no Agent SDK mention) | https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/ | 2026-11-16 | `agent-design/references/agent-loop.md`, `eval-criteria/references/grader-catalog.md`, `eval-analyze/references/reliability.md`, `eval-ci/references/tiered-pipeline.md`, `agent-harness/references/hooks-catalog.md`, `agent-sdk/references/glossary.md` |
 
 Two articles cited before this set: "How we contain Claude across products"
 (https://www.anthropic.com/research/how-we-contain-claude, 2026-05-25), cited by

@@ -125,6 +125,9 @@ to the main model). From 2.1.317 auto mode shows a notice when its check has no 
 From 2.1.318 background subagents move a shell command to the background after 3 minutes on all providers. From
 2.1.321 queued subagent reports in auto mode are answered in one model call (headless and SDK sessions too); `-p` can
 exit 0 before a subagent's backgrounded command finishes (`headless`, 2026-11-14: raise `BASH_DEFAULT_TIMEOUT_MS`).
+From 2.1.326 a subagent with `isolation: worktree` refuses git commands that rewrite branches. **Naming a subagent asks,
+it doesn't force:** the docs read 2026-11-17 say "mention it by name" to ask for one and an @-mention "tells Claude to run"
+it — neither wording promises the delegation any more, so an eval that needs a subagent asserts its `parent_tool_use_id`.
 
 Opus 5 delegates more readily than earlier models, so these matter most there. With the `claude_code` system-prompt
 preset, Claude Code adds a line telling Claude not to call the Agent tool unless asked; with a custom prompt or no
@@ -226,8 +229,11 @@ dynamic workflows in Claude Code", 2026-06-02, a per-task harness, three failure
 quarantine, cost); <https://claude.dev/blog/which-claude-model-should-you-build-with/> ("Which Claude model should you
 build with? Fable, Opus, Sonnet, or Haiku", 2026-11-09, Explore on the session's model, `CLAUDE_CODE_SUBAGENT_MODEL`,
 small models for cheap-to-check work); <https://code.claude.com/docs/en/sub-agents> ("Which model a nested subagent
-runs on", the model order, read 2026-11-14); `claude-agent-sdk` 0.2.182 `types.py:2664` (`agents`), `:2580-2590`
-(`parent_tool_use_id` and subagent text), `:1834` (`HookEventMessage`). The `Task` / `Agent` naming difference was
+runs on", the model order, read 2026-11-14; "@-mention" and worktree isolation, read 2026-11-17),
+<https://code.claude.com/docs/en/agent-sdk/subagents#explicit-invocation> (read 2026-11-17), the 2.1.326 changelog
+(worktree git refusals); `claude-agent-sdk` 0.2.183 `types.py:2715` (`agents`), `:2631-2641`
+(`parent_tool_use_id` and subagent text), `:1885` (`HookEventMessage`). The `Task` / `Agent` naming difference was
 measured by this plugin on 2026-09-30 from the CLI's own `init.tools` list;
 <https://claude.dev/blog/solving-code-review-at-anthropic/> ("How the Claude Code team does code review", 2026-10-15,
 a fresh-context reviewer subagent). Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

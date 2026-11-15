@@ -102,14 +102,13 @@ same format. Add a **stale-note** variant (the seeded note contradicts what the
 scaffolded files now say; the agent should trust the files and update the note)
 when the agent's memory holds facts that change.
 
-**Keep the memory folder inside the run's working directory.** The runner forces
-`setting_sources=[]` but does not set `CLAUDE_CODE_DISABLE_AUTO_MEMORY`, and
-Claude Code's auto memory loads in SDK sessions regardless of `setting_sources`.
-Its directory sits under the config directory, outside the run's working
-directory, so a note saved there is invisible to `file_exists`; and since the
-directory is keyed to the project path, a run in a fresh directory most likely
-starts with an empty one (our reading of the memory docs). An agent whose memory
-is app-designed should set the variable in its own `env`.
+**Keep the memory folder inside the run's working directory.** Claude Code's
+auto memory loads in SDK sessions regardless of `setting_sources`, so from
+runner 0.2.4 every run's `env` carries `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, which
+no case overrides. Its directory sits under the config directory, outside the
+run's working directory, so a note saved there would be invisible to
+`file_exists` anyway. An agent whose memory is app-designed should set the
+variable in its own `env` too, so production matches the eval.
 
 ## Isolation still applies
 

@@ -55,7 +55,7 @@ from .graders import BUDGET_CEILINGS, BUDGET_USAGE_KEYS
 from .report import Finding
 from .trace import TraceEvent, result_outcome
 
-_SRC_RESULT = "claude_agent_sdk types.py:1708 ResultMessage (0.2.182) + measured VERIFIED-FACTS §2.2"
+_SRC_RESULT = "claude_agent_sdk types.py:1728 ResultMessage (0.2.183) + measured VERIFIED-FACTS §2.2"
 _SRC_TURNS = ("measured: VERIFIED-FACTS §8.1 — max_turns=1 produced num_turns=2; "
               "code.claude.com/docs/en/agent-sdk/agent-loop (read 2026-10-29, Claude Code 2.1.312)")
 #: The documented "+1" rule for sizing `max_turns` (agent-loop page, read
@@ -618,8 +618,10 @@ def budget_findings(
             message="a deferred tool was unavailable when the session resumed "
                     "(stop_reason=tool_deferred_unavailable; is_error on a success subtype)",
             path=path,
-            fix="resume with the same tools the deferring session had (the deferred call is "
-                "in `deferred_tool_use`); this is a harness problem, not an agent failure.",
+            fix="the deferred call (in `deferred_tool_use`) is still pending, and a prompt sent "
+                "with the resume did not reach Claude: make the tool available and resume again, "
+                "or drop the deferred call (hooks docs) and send the prompt again. This is a "
+                "harness problem, not an agent failure.",
             source=_SRC_STOP,
         ))
     subtype = str(data.get("subtype") or "")

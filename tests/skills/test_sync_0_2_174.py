@@ -32,6 +32,7 @@ LATER_REREAD_NOTES = (
     "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
     "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
     "re-read 2026-11-14 against claude-agent-sdk 0.2.182 / claude code 2.1.325 docs",
+    "re-read 2026-11-17 against claude-agent-sdk 0.2.183 / claude code 2.1.326 docs",
 )
 
 
@@ -73,12 +74,30 @@ def shift_0_2_182(line: int) -> int:
     return line + 21
 
 
-LATER_SHIFTS = (shift_0_2_177, shift_0_2_182)
+def shift_0_2_183(line: int) -> int:
+    """0.2.183 against 0.2.182 (measured 2026-11-17): lines up to 1358 stay,
+    1364-1402 move by 10, 1403-1741 by 20, 1746-1755 by 41, 1756 on by 51 (the
+    lines between are replaced hunks no 0.2.174 citation points into)."""
+    if line <= 1358:
+        return line
+    if 1364 <= line <= 1402:
+        return line + 10
+    if 1403 <= line <= 1741:
+        return line + 20
+    if 1746 <= line <= 1755:
+        return line + 41
+    if line >= 1756:
+        return line + 51
+    raise ValueError(f"types.py:{line} sits in a hunk 0.2.183 replaced")
+
+
+LATER_SHIFTS = (shift_0_2_177, shift_0_2_182, shift_0_2_183)
 
 
 #: A range that ended at the last `ClaudeAgentOptions` field keeps ending there:
-#: 0.2.174's `task_budget` (2786) is followed by `client_app` (2813) from 0.2.181.
-CLASS_END = {2786: 2813}
+#: 0.2.174's `task_budget` (2786) is followed by `client_app` from 0.2.181
+#: (2813 on 0.2.181-0.2.182, 2864 from 0.2.183).
+CLASS_END = {2786: 2864}
 
 
 def current(citation: str) -> str:
@@ -118,8 +137,8 @@ def test_each_moved_citation_carries_its_0_2_174_line(relative, citation, times)
 
 
 def test_the_later_shift_moves_what_the_measurement_says():
-    assert current("types.py:2326-2786") == "types.py:2341-2813"
-    assert current(":2563-2573") == ":2580-2590"
+    assert current("types.py:2326-2786") == "types.py:2392-2864"
+    assert current(":2563-2573") == ":2631-2641"
     assert current(":840") == ":842" and current(":1126") == ":1139"
 
 

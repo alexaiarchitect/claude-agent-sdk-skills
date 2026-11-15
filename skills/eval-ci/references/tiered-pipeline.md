@@ -72,6 +72,23 @@ nobody reads.
 - **Only the nightly tier cancels nothing.** Two scheduled runs do not race, and
   a manual run should not kill the scheduled one whose results someone wants.
 
+## Start a new gate in observe mode
+
+The Claude Code team's verification post (2026-11-16, article #45; Claude Code
+practice, no Agent SDK mention) describes a commit gate with three modes: off,
+observe and enforce. "Observe mode will log what would have been blocked", so
+the false positives get reviewed before anyone is stopped by them. Do the same
+with a new tier or a new case: run it non-blocking first
+(`continue-on-error: true` on the job, or a branch protection rule that does
+not require it yet), read what it would have failed over several runs, fix or
+delete the cases that fail for the wrong reason, then make it required. The
+team also stamps each commit with how it was verified, "none" included, so
+unverified changes can be queried; a line in the pull request naming the tier
+and result directory does the same here. Its commit gate lets the third commit
+through after two blocks in a session, so Claude never wedges: that is a policy
+for an agent committing, not for an eval gate, and a grader or tier must never
+pass on a retry count.
+
 ## A third tier, when it earns itself
 
 Some projects add a `release` tier: the nightly graders with more runs, gated on
@@ -84,4 +101,8 @@ Sources: `.dev/CONTRACTS.md` §3 (tier shapes in `eval_config.json`) and §8
 (exit codes); this plugin's `skills/eval-run/references/cost-estimation.md`
 (the session and judge-call arithmetic, measured);
 `https://code.claude.com/docs/en/agent-sdk/cost-tracking` (what a session's
-cost figure is and is not).
+cost figure is and is not);
+`https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/`
+("How the Claude Code team thinks about verification", 2026-11-16, off, observe
+and enforce gate modes, verification stamps on commits, the two-blocks escape
+hatch; the Claude Code team's practice, no Agent SDK mention).

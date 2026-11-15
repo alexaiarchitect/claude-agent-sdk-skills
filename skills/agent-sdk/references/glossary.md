@@ -169,6 +169,21 @@ meaning is given first.
   Agent SDK build requests that pass it; only code that assembles requests itself must care.
 - **App label (`client_app`)** — the 50th `ClaudeAgentOptions` field (0.2.181+): a header-safe
   `name/version` the subprocess sends on API requests via `CLAUDE_AGENT_SDK_CLIENT_APP`.
+- **Response** vs **turn** — in streaming input, a response is what Claude produces up to the next
+  `ResultMessage`; one response can answer several messages you sent (one sent during tool calls is
+  answered with the earlier one), so a prompt is not always one turn.
+- **Injected turn** — a turn the session starts on its own (a background-task notification, a scheduled
+  prompt, a relayed message); its result's `origin` is not yours, yet it can answer a prompt you sent.
+- **User message uuid** — the `uuid` you put on a user-message dict; claude-agent-sdk 0.2.183+ reports it
+  back as `user_message_uuid`/`user_message_uuids` on the result that took it in (plain strings have none).
+- **Claude Models on Google Cloud (Anthropic managed)** — the Claude API run by Anthropic, reached through a
+  Google Cloud project (`CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD=1`); not Google Cloud's Agent Platform.
+- **Observe mode** — a gate that logs what it would have blocked without blocking; review the false
+  positives, then enforce (`eval-ci/references/tiered-pipeline.md`).
+- **Differential test** — run the old and the new system on the same inputs and compare normalised output;
+  the old system is the oracle (`eval-criteria/references/grader-catalog.md`).
+- **Size-matched control set** — changes of similar size that stayed clean, scored beside the bad ones so a
+  checker that flags everything loses (`eval-analyze/references/reliability.md`).
 
 ---
 
@@ -221,4 +236,10 @@ memory", 2026-11-06, memory note, consolidation, salience; Managed Agents experi
 and <https://claude.dev/blog/spending-your-effort/> ("Using Claude Code: Spending your effort",
 2026-09-25, effort); `effort` per `https://code.claude.com/docs/en/agent-sdk/python`.
 Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
+The 2026-11-17 terms follow `https://code.claude.com/docs/en/agent-sdk/streaming-vs-single-mode` (response,
+messages sent mid-response), the claude-agent-sdk 0.2.183 `MessageOrigin` and `ResultMessage` docstrings (injected
+turn, user message uuid), `https://code.claude.com/docs/en/claude-models-on-google-cloud-anthropic-managed`, and
+<https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/> ("How the Claude Code team thinks about
+verification", 2026-11-16, observe mode, differential tests, size-matched controls; the Claude Code team's practice).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

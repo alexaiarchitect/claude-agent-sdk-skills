@@ -74,9 +74,12 @@ BUILD_OPTIONS = "build_options"
 #: Top-level keys a hook may return on *any* event (`SyncHookJSONOutput` and
 #: `AsyncHookJSONOutput`). A return made only of these is well formed even
 #: without `hookSpecificOutput` — `{"continue_": False, "stopReason": ...}` is
-#: how a hook halts a turn, `PreCompact` has nothing else to use, and blocking a
-#: `Stop`/`SubagentStop` is still the top-level `decision: "block"` (those two
-#: gained a `hookSpecificOutput` with `additionalContext` in SDK 0.2.166).
+#: how a hook stops Claude after it runs, `PreCompact` has nothing else to use,
+#: and blocking a `Stop`/`SubagentStop` is still the top-level `decision: "block"`
+#: (those two gained a `hookSpecificOutput` with `additionalContext` in SDK
+#: 0.2.166). Hooks docs re-read 2026-11-17 (Claude Code 2.1.326): `continue_:
+#: False` does not block a `PreToolUse` call (also return `permissionDecision:
+#: "deny"`), and `suppressOutput` has no effect. Both stay well formed here.
 HOOK_COMMON_KEYS = (
     "continue_", "continue", "suppressOutput", "stopReason", "decision",
     "systemMessage", "reason", "async_", "async", "asyncTimeout",
@@ -84,7 +87,7 @@ HOOK_COMMON_KEYS = (
 )
 
 #: `SandboxSettings` keys the SDK declares (`types.py:1154` of claude-agent-sdk
-#: 0.2.182), and the keys it forwards to the CLI without declaring them
+#: 0.2.183), and the keys it forwards to the CLI without declaring them
 #: (`failIfUnavailable`, `filesystem` with `denyWrite` and friends; Python SDK
 #: docs and `settings-reference`, read 2026-10-17). Both sets are accepted.
 SANDBOX_DECLARED_KEYS = (
@@ -98,7 +101,7 @@ def sandbox_problems(sandbox: Any) -> list[str]:
     """What is wrong with a literal `sandbox` dict, as plain sentences.
 
     `ignoreViolations` is `dict[str, list[str]]` from SDK 0.2.166
-    (`SandboxIgnoreViolations`, `types.py:1139` of 0.2.182): a command-pattern
+    (`SandboxIgnoreViolations`, `types.py:1139` of 0.2.183): a command-pattern
     substring (`"*"` for every command) mapped to substrings of the violation
     text. It changes which violations are *reported*, not what the sandbox
     blocks. The earlier `{file, network}` TypedDict shape is gone. Keys the SDK
@@ -396,7 +399,7 @@ class HookRegistration:
     `None` when the call leaves it unset or passes `None`; `on_failure_dynamic`
     is true when the value is not a literal (a name, a call, a `**kwargs` splat),
     so a check cannot tell. The field arrived in claude-agent-sdk 0.2.177
-    (`types.py:866` of 0.2.182; Claude Code 2.1.317+ honours it): with `"block"`
+    (`types.py:866` of 0.2.183; Claude Code 2.1.317+ honours it): with `"block"`
     a callback that raises, returns `None` or returns a value the CLI rejects
     blocks the action; unset or `"continue"`, the failure counts as no decision.
     """

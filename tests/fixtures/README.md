@@ -46,7 +46,7 @@ adversarial request (cancel someone else's copy) and a genuine regression
 | `sessions/one_turn.jsonl` | A real `claude -p` session file, scrubbed. The shape `load_session` must survive, and it has no cost line. |
 | `traces/max_turns_one.trace.jsonl` | One tool call under `max_turns=1`: `subtype: "error_max_turns"`, `stop_reason: "tool_use"`, `is_error: true`, `num_turns: 2`, no final text. Reports must name the "+1" sizing rule. |
 | `traces/refusal_success.trace.jsonl` | A refusal: `subtype: "success"` with `is_error: true` and `stop_reason: "refusal"`, whose text names a quota. Reports must call it a refusal, never an API error or a usage-limit hit. |
-| `traces/init_2_1_301.*`, `traces/init_2_1_310.*`, `traces/init_2_1_316.*`, `traces/init_2_1_319.*`, `traces/init_2_1_325.*` | A measured `init` per bundled CLI (11, 13, 14, 15 and 19 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). The 2.1.325 run ended in an authentication failure, so it also holds the revoked-key result shape. |
+| `traces/init_2_1_301.*`, `traces/init_2_1_310.*`, `traces/init_2_1_316.*`, `traces/init_2_1_319.*`, `traces/init_2_1_325.*`, `traces/init_2_1_326.*` | A measured `init` per bundled CLI (11, 13, 14, 15, 19 and 20 `capabilities`), as the stub replays it (`.script.jsonl`) and as `Capture` writes it (`.trace.jsonl`). The 2.1.325 run ended in an authentication failure, so it also holds the revoked-key result shape; the 2.1.326 run sent a uuid-stamped prompt, so its trace shows the runner 0.2.6 `uuid` on the `user` event and the echoed `user_message_uuid(s)` on the result. |
 | `sessions/escaped_chars.jsonl` | Two hand-written lines whose assistant text holds `\u0007`, `\u200b`, `\u007f` and `\u0085` escapes, the way Claude Code 2.1.311+ writes DEL, C1 and format characters. `load_session` must decode and keep them. |
 | `sessions/sdk_parallel_tools.jsonl` | One response that ran three tools in parallel: the transcript forks, and `load_session` must still emit every call, then every result, then the continuation. |
 | `sessions/sdk_with_tool.jsonl` | A real `entrypoint: "sdk-py"` session with three tool calls, scrubbed. It carries the `cost-state` and `system`/`stop_hook_summary` lines, which is what makes an imported cost testable. |
@@ -173,6 +173,24 @@ text "Invalid API key · Fix external API key") and a `ResultMessage` with
 2.1.319 (cwd `/tmp/eval/run-1`, session id `…555555555325`, uuids `…325`-`327`,
 message id `msg_scrubbed_0325`, socket `/tmp/cc-socks/0.sock`); the trace clock
 is one tick per second.
+
+**`traces/init_2_1_326.script.jsonl`** and **`traces/init_2_1_326.trace.jsonl`**
+come from one live `query()` on 2026-11-17 (SDK 0.2.183, bundled CLI 2.1.326,
+`claude-haiku-5-5`, `permission_mode` unset, `setting_sources=[]`,
+`strict_mcp_config=True`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, an API key,
+`max_turns=1`, the prompt "Reply with exactly: ready" sent as a user-message dict
+with a `uuid`; `.dev/measured/2026-11-17/uuid-echo-2.1.326.jsonl`, $0.0018).
+Three messages: the `init` (`permissionMode: "default"`, **20 `capabilities`** —
+the 19 of 2.1.325 plus `silent_resend_files_v1`, recorded, never required; the
+undeclared keys `original_cwd`, `additional_directories` and, because the prompt
+carried a uuid, `user_message_uuids` were observed and are not copied), the
+reply "ready" and a `success` result, both carrying `user_message_uuid` and
+`user_message_uuids` equal to the sent uuid (SDK 0.2.183 fields). The trace is
+what the 0.2.6 `Capture` writes from a `user_turn` with that uuid followed by the
+script, and a test regenerates it. Scrubbed as for 2.1.325 (cwd and `original_cwd`
+`/tmp/eval/run-1`, session id `…555555555326`, uuids `…326`-`328`, sent uuid
+`0000000000004000a000000000000326`, message id `msg_scrubbed_0326`, socket
+`/tmp/cc-socks/0.sock`); the trace clock is one tick per second.
 
 **`traces/refusal_success.trace.jsonl`** is the `happy` trace cut down to
 `init`, the user turn, the reply and the result, with the result rewritten to the

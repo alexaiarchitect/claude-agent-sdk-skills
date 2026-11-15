@@ -139,8 +139,18 @@ settings from a signed file on downloads.claude.ai; `CLAUDE_CODE_MODEL_CATALOG=o
 which an image without that egress needs. From 2.1.312 a model name Claude Code does not recognise
 there (a custom deployment name, an inference-profile ARN) gets the shorter system prompt even when
 it fronts Sonnet or Haiku; `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT=0` keeps the full prompt. They were
-newer than the 2.1.310 bundled with 0.2.174; the 2.1.325 bundled with the pinned 0.2.182 carries
-them.
+newer than the 2.1.310 bundled with 0.2.174; the 2.1.326 bundled with the pinned 0.2.183 carries
+them. (The docs now call Vertex AI "Google Cloud's Agent Platform".)
+
+**Claude Models on Google Cloud (Anthropic managed)** — a new provider page, read 2026-11-17 — is the Claude API run by
+Anthropic and reached through your Google Cloud project, distinct from Google Cloud's Agent Platform. It needs Claude Code
+2.1.307+ (any current SDK's bundled CLI), Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS` with the
+`roles/claude.user` role, and in the SDK's `env`: `CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD=1`,
+`ANTHROPIC_GOOGLE_CLOUD_PROJECT`, `ANTHROPIC_GOOGLE_CLOUD_WORKSPACE_ID` (`wrkspc_…`), optionally
+`ANTHROPIC_GOOGLE_CLOUD_LOCATION` (default `global`), `ANTHROPIC_GOOGLE_CLOUD_BASE_URL` for a gateway and
+`CLAUDE_CODE_SKIP_ANTHROPIC_GOOGLE_CLOUD_AUTH=1` when the gateway attaches credentials. Defaults are Opus 5.5, Sonnet 5.5 and
+Haiku 4.5 (pin `model` anyway); fast mode, Remote Control, cloud sessions, claude.ai connectors and server-managed settings
+are unavailable; `allowedProviders` names it `"anthropicGoogleCloud"`.
 
 **When agents are the main clients of your repository.** Anthropic's source-control team reports
 that agents and jobs became nearly all of its monorepo's clients (merges grew more than tenfold in
@@ -200,10 +210,12 @@ the bundled binary),
 <https://code.claude.com/docs/en/agent-sdk/python#bash> (the background-command
 limit), <https://code.claude.com/docs/en/permission-modes>,
 <https://platform.claude.com/docs/en/about-claude/models/overview> (cache-read
-percentages); `claude-agent-sdk` 0.2.182
-`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2466`
-(`cwd`), `:2777` (`session_store`), `:2426` (`max_budget_usd`), `:2395`
-(`permission_mode`); <https://code.claude.com/docs/en/env-vars>
+percentages); `claude-agent-sdk` 0.2.183
+`_internal/transport/subprocess_cli.py:237-264` (CLI discovery), `types.py:2517`
+(`cwd`), `:2828` (`session_store`), `:2477` (`max_budget_usd`), `:2446`
+(`permission_mode`); <https://code.claude.com/docs/en/claude-models-on-google-cloud-anthropic-managed> (read 2026-11-17),
+<https://code.claude.com/docs/en/model-config> (that provider's defaults), the `settings-reference` page
+(`allowedProviders`); <https://code.claude.com/docs/en/env-vars>
 (`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`),
 <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.300 gzip
 and resume fixes, 2.1.302 unset-mode default, 2.1.304 resume and 2.1.310
@@ -235,3 +247,4 @@ was measured by this plugin on 2026-10-11, the $0.10/Mtok of 2.1.301 on
 2026-10-17 and of 2.1.310 on 2026-10-24.
 <https://platform.claude.com/docs/en/release-notes/overview> (2026-11-12: self-hosted Managed Agents,
 Dreams on Fable 5.2). Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

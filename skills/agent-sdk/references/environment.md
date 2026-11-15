@@ -11,7 +11,7 @@ order:
 | API key | `ANTHROPIC_API_KEY` in the subprocess environment | the API, per token | an estimate of the bill |
 | Subscription token | `CLAUDE_CODE_OAUTH_TOKEN`, minted with `claude setup-token` | the plan's usage limits | an API-equivalent estimate |
 | Stored login | `claude login` once; kept in the keychain (or `CLAUDE_CONFIG_DIR`) | the plan's usage limits | an API-equivalent estimate |
-| Cloud provider | `CLAUDE_CODE_USE_BEDROCK=1`, `_VERTEX=1`, `_FOUNDRY=1` or `_ANTHROPIC_AWS=1` plus that cloud's credentials | that provider | that provider's price table |
+| Cloud provider | `CLAUDE_CODE_USE_BEDROCK=1`, `_VERTEX=1` (Google Cloud's Agent Platform), `_FOUNDRY=1`, `_ANTHROPIC_AWS=1` or `_ANTHROPIC_GOOGLE_CLOUD=1` (Claude Models on Google Cloud, Anthropic managed; 2.1.307+) plus that cloud's credentials | that provider | that provider's price table |
 
 Two rules from the docs that surprise people:
 
@@ -114,22 +114,27 @@ python3 ${CLAUDE_SKILL_DIR}/scripts/check_env.py <project-dir>
 reports the credential and its source, the cost basis, the interpreter and SDK
 version, and the model with its policy grade, and exits 1 with the blockers
 listed when a run would fail. It also prints which versions the plugin was
-checked against — `claude-agent-sdk` **0.2.182** with its bundled Claude Code
-**2.1.325** — and raises **`ENV003`** at info level when the installed SDK is
+checked against — `claude-agent-sdk` **0.2.183** with its bundled Claude Code
+**2.1.326** — and raises **`ENV003`** at info level when the installed SDK is
 *newer* than that target. `ENV003` is never an error: a newer SDK is expected to
 work, and the note exists so a surprising behaviour can be attributed to the
 version gap instead of to the agent. The minimum supported SDK stays 0.2.140.
 The documentation behind this plugin's references was read at Claude Code
-**2.1.325** (docs re-read 2026-11-14, pages' lastmod 2026-11-12 to 2026-11-14; before that at 2.1.319 on
+**2.1.326** (docs re-read 2026-11-17, 47 pages changed by content; before that at 2.1.325 on 2026-11-14, at 2.1.319 on
 2026-11-08, at 2.1.318 on
 2026-11-04, read again on 2026-11-05 with docs lastmod 2026-11-04 and no CLI release; at 2.1.316 on
-2026-11-02 and 2.1.312 on 2026-10-29), the same build 0.2.182 bundles (and the natively installed
-`claude` on the build machine). 0.2.177 is the first SDK API change since 0.2.166 (`HookMatcher.on_failure`); 0.2.178–0.2.180 changed only
+2026-11-02 and 2.1.312 on 2026-10-29), the same build 0.2.183 bundles. The natively installed `claude` on the
+build machine is **2.1.327** (npm `next`, published 2026-11-17, no changelog section or git tag at read time). 0.2.177 is the first SDK API change since 0.2.166 (`HookMatcher.on_failure`); 0.2.178–0.2.180 changed only
 the bundled CLI; **0.2.181 and 0.2.182** (2026-11-12/13) add the `client_app` option (the 50th field,
-`types.py:2813`; `agent-review/references/options-reference.md`), read the CLI version from its `init`
+`types.py:2864` in 0.2.183; `agent-review/references/options-reference.md`), read the CLI version from its `init`
 message instead of probing `claude --version`, and make settings that cannot be loaded raise
 `CLIConnectionError`; `types.py` grew by 21 lines, so every line citation moved again. None of
-0.2.179–0.2.182 has a changelog entry (see the GitHub release pages). The **Ultra** plan appears in every docs list of
+0.2.179–0.2.182 has a changelog entry (see the GitHub release pages). **0.2.183** (2026-11-16, bundles 2.1.326, no
+changelog entry either) adds `user_message_uuid` and `user_message_uuids` to `AssistantMessage`, `ResultMessage` (21
+fields) and `StreamEvent`, so a prompt sent as a dict with a `uuid` can be matched to the result that answers it
+(`agent-harness/references/context-and-settings.md`); `types.py` grew by 51 lines. SDK `main` (`8ed58af`, 2026-11-17,
+unreleased) fixes `PermissionUpdate.to_dict()`, which on 0.2.183 and earlier sends a whole-tool rule as
+`"ruleContent": null` (`agent-harness/references/permission-model.md`). The **Ultra** plan appears in every docs list of
 subscription plans (Pro, Max, Ultra, Team, Enterprise).
 
 A `claude -p` (or SDK) child that cannot start fails loudly. The Claude Code
@@ -146,7 +151,10 @@ stderr on both 2.1.310 and 2.1.316, and the SDK raised `ProcessError`
 `mcp_call_check_permissions_v1` (undocumented; recorded, never required), with the same keys; 2.1.321
 sends the same 15; **2.1.325 sends 19 `capabilities`** (adding `reload_plugins_refuse_if_busy_v1`,
 `ui_pane_widget_v1`, `voice_call_talk_line_v1`, `withdrawn_files_note_v2`, all undocumented) and drops
-the `original_cwd` and `additional_directories` keys (measured 2026-11-14); read them all with `.get()`. From 2.1.317 `claude -p`
+the `original_cwd` and `additional_directories` keys (measured 2026-11-14); **2.1.326 and 2.1.327 send 20**
+(adding `silent_resend_files_v1`), list the slash commands `heapdump` and `team-onboarding`, carry `original_cwd` and
+`additional_directories` again (29 keys; 30 with `user_message_uuids` after a uuid-stamped first prompt) and keep the
+26-key `-p` JSON (measured 2026-11-17); read them all with `.get()`. From 2.1.317 `claude -p`
 also exits 1 when a full disk loses its transcript or `~/.claude.json` writes, and
 from 2.1.318 a stored claude.ai sign-in is announced on stderr 10 days before it
 ends (`credential_expires_at` in `-p` JSON; absent with an API key). The `errors`
@@ -169,6 +177,13 @@ tool is gone) and `CLAUDE_CODE_CONFIG_LOCK_WAIT_MS` (docs, 2.1.318; how long `cl
 `remove` wait for the `~/.claude.json` lock). `permissions.denyInsteadOfPrompting` (2.1.319+) is now on
 the settings page: it applies to `-p` runs and skips `can_use_tool` (`agent-harness/references/permission-model.md`).
 `CLAUDE_CODE_DISABLE_FEATURE_FLAGS` is documented too and supersedes `DISABLE_GROWTHBOOK`.
+
+**New on 2026-11-17** (env-vars page and the 2.1.326 changelog): `CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD`,
+`ANTHROPIC_GOOGLE_CLOUD_{PROJECT,WORKSPACE_ID,LOCATION,BASE_URL}` and `CLAUDE_CODE_SKIP_ANTHROPIC_GOOGLE_CLOUD_AUTH`
+(the new provider, `agent-deploy/references/hosting-options.md`), `CLAUDE_CODE_DISABLE_ULTRATHINK=1` (2.1.316+),
+`OTEL_RESOURCE_INCLUDE_HOST` (changelog; `host.name`/`host.id`), and `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`, which now
+also stops the generated-title request in Agent SDK sessions. `CLAUDE_CODE_OAUTH_REFRESH_TOKEN` (exchanged by `claude auth
+login`) works **once**, because the exchange replaces it: a CI job cannot reuse a stored value.
 
 ---
 
@@ -194,5 +209,9 @@ Claude Code 2.1.310 docs. The `-p` startup-failure and Ultra notes per the Claud
 2026-11-08, the 2.1.321 and 2.1.325 inits on 2026-11-10 and 2026-11-14; `https://code.claude.com/docs/en/env-vars`
 (read 2026-11-14) and the 2.1.319–2.1.325 changelogs (the variables above);
 `https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.182` (and the
-v0.2.180...v0.2.182 compare: `client_app`, init-message version, fail-closed settings).
+v0.2.180...v0.2.182 compare: `client_app`, init-message version, fail-closed settings);
+`https://github.com/anthropics/claude-agent-sdk-python/compare/v0.2.182...v0.2.183` (the uuid fields) and `main`
+`8ed58af` (the `PermissionUpdate` fix); the 2.1.326 and 2.1.327 inits and the npm `next` tag read 2026-11-17;
+`https://code.claude.com/docs/en/env-vars` and `.../claude-models-on-google-cloud-anthropic-managed` (read 2026-11-17).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

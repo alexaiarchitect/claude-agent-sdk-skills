@@ -17,7 +17,7 @@ of eight grades. The grade decides the finding, not the string.
 | `unknown` | anything else: a string that is not a Claude id at all — a typo, or another provider's name | none, but the review says it could not grade it |
 
 The lists live in `lib/agent_sdk_skills/__init__.py` and are re-pinned at each
-upstream sync from the deprecations page. **As of 2026-11-14**: Claude Fable 5.2
+upstream sync from the deprecations page. **As of 2026-11-17** (models overview and deprecations unchanged since 2026-11-14): Claude Fable 5.2
 launched on 2026-11-09 and joins the list; Fable 5.1 is now a **legacy** model on the models page
 ("still available", no deprecation, retirement not sooner than 2027-09-01), so it stays `current`;
 nothing else moved since 2026-10-11. "Default effort" below is the Claude API's
@@ -32,9 +32,9 @@ family (next section):
 | `claude-fable-5-1` | current but **legacy** (still available): $10 / $50, 1M, `high`; retirement not sooner than 2027-09-01. A `claude-fable-5-1` saved in user settings moves to the `fable` alias on Pro, Max and Ultra at the first run of 2.1.321+; project, local and managed settings keep it |
 | `claude-haiku-5-5` | current, and the **cheap judge option**. From $0.10 / from $0.50, 1M by default on every plan (no `[1m]` suffix), default effort `medium`, adaptive reasoning that cannot be turned off. The `haiku` alias resolves to it on the Anthropic API from Claude Code **2.1.293** (Bedrock, Vertex, Foundry and Claude Platform on AWS still get Haiku 4.5). "From" is literal: **it costs more per token once a prompt passes 100K tokens** |
 | `claude-sonnet-4-5-20250929` | **deprecated 2026-09-30, retires 2026-11-30**, replacement `claude-sonnet-5-5` → `deprecated` |
-| `claude-haiku-4-5-20251001` | retirement "not sooner than" 2026-10-15 → `retiring`. The date passed 24 days ago with no announcement: the deprecations page still lists it **Active** with that date, so it stays `retiring` rather than `retired` until the page says otherwise |
+| `claude-haiku-4-5-20251001` | retirement "not sooner than" 2026-10-15 → `retiring`. The date passed on 2026-10-15 with no announcement: the deprecations page still lists it **Active** with that date, so it stays `retiring` rather than `retired` until the page says otherwise |
 | `claude-opus-4-5-20251101` | retirement not sooner than 2026-11-24 → `retiring` |
-| every `claude-3-*`, `claude-opus-4-*` (4.0/4.1), `claude-sonnet-4-20250514` | `retired` |
+| every `claude-3-*`, `claude-opus-4-*` (4.0/4.1), `claude-sonnet-4-20250514` | `retired`. Claude Code on the Anthropic API now runs an Opus 4 or 4.1 id on the model `opus` resolves to (`model-config`, 2026-11-17), so such a pin silently changes model rather than failing |
 
 **Effort and names in Claude Code (docs read 2026-10-29, re-read 2026-11-14).** When nothing sets
 effort, Claude Code uses `high` except on Fable 5.2, Opus 5.5, Sonnet 5.5 and Haiku 5.5
@@ -55,6 +55,7 @@ and teammates** with no `effort` of their own run at the session's level only on
 the session's model; on another model that level does not apply (docs
 `model-config`, read 2026-11-04) and they use that model's saved level or its
 default (2.1.317). Set `effort` on an `AgentDefinition` whose `model` differs.
+`CLAUDE_CODE_DISABLE_ULTRATHINK=1` (2.1.316+, documented 2026-11-17) turns the `ultrathink` keyword off.
 
 **Fast mode on Opus 4.8 is deprecated** (Claude Code `CHANGELOG.md` 2.1.316, not
 yet on the models pages; the settings reference read 2026-11-14 says Fable 5.2, Opus 5.5, Opus 5 and
@@ -122,7 +123,9 @@ is still caught.
 Nothing in the Agent SDK defaults the model. With `model` unset, the session
 starts on **Claude Code's default for the account** — Opus 5.5 on every plan and on the API unless a
 model is saved in the account's user settings (`model-config`, read 2026-11-14) — which can change
-under you without any change in your repository.
+under you without any change in your repository. From 2.1.326 the `/model` picker's "Default" row names
+that plan default. A resumed session keeps the model it was saved on unless an alias variable, a
+retired or excluded model or a provider deployment id intervenes (`model-config`, 2026-11-17).
 
 Measured on the build machine, with no `--model` and no `model` option:
 
@@ -141,15 +144,12 @@ may not even be comparable.
 
 ## The model you asked for is not the only model billed
 
-`ResultMessage.model_usage` carries a row per model the session billed, and the
-CLI bills its own background work there. On the 2026-09-30 runs (bundled CLI
-2.1.285) the second row was `claude-haiku-4-5-20251001` — a **retiring** id, and
-not something the agent asked for. Re-measured 2026-10-11 on SDK 0.2.165 with
-bundled CLI **2.1.294**, the second row is `claude-haiku-5-5`: 1192 input and 26
-output tokens, `costUSD` $0.0001322, which is exactly $0.10 and $0.50 per Mtok.
-So 2.1.294 already routes background work to Haiku 5.5, and 2.1.301 and 2.1.310
-do too (measured 2026-10-17 and 2026-10-24: 1179 in / 19 out, again exactly $0.10
-and $0.50 per Mtok). The agent's own Sonnet 5.5 cache reads are priced at the list
+`ResultMessage.model_usage` carries a row per model the session billed, and the CLI bills its own background work there. On
+the 2026-09-30 runs (bundled CLI 2.1.285) the second row was `claude-haiku-4-5-20251001` — a **retiring** id, and not
+something the agent asked for. Re-measured 2026-10-11 on SDK 0.2.165 with bundled CLI **2.1.294**, the second row is
+`claude-haiku-5-5`: 1192 input and 26 output tokens, `costUSD` $0.0001322, which is exactly $0.10 and $0.50 per Mtok. So
+2.1.294 already routes background work to Haiku 5.5, and 2.1.301 and 2.1.310 do too (measured 2026-10-17 and 2026-10-24: 1179
+in / 19 out, again exactly $0.10 and $0.50 per Mtok). The agent's own Sonnet 5.5 cache reads are priced at the list
 **$0.10/Mtok** by the 2.1.301 and 2.1.310 estimates; 2.1.294 charged $0.20 (history, see
 `agent-deploy/references/cost-controls.md`). Consequences for a review and for
 graders:
@@ -182,7 +182,9 @@ two. A pinned dated id in a subagent is the same clock as `AGT011`, reported as
 primary is overloaded. The primary is retried at the start of each user turn, so
 a session returns to it once an outage passes. For evals, a fallback makes a run
 less likely to fail and less likely to be comparable — record which model
-answered, or leave `fallback_model` unset in the eval configuration.
+answered, or leave `fallback_model` unset in the eval configuration. In `auto` mode, and in plan
+mode while the classifier reviews commands, Claude Code skips fallback entries auto mode doesn't
+support (`model-config`, 2026-11-17): keep one supported model in the chain.
 
 ## What the SDK does not have
 
@@ -232,18 +234,16 @@ ladder, effort before model, self-verification first, price the hardest tasks; n
 2026-09-28, Sonnet versus Opus, per-model effort sweep);
 <https://claude.dev/blog/getting-the-most-out-of-opus-5-5/> ("Getting the most out of Opus 5.5 in
 Claude and Claude Code", 2026-09-22, a finish line, effort over "think" lines, checking subagent
-evidence); `claude-agent-sdk` 0.2.182 `types.py:2440` (`model`), `:2446`
-(`fallback_model`), `:2746` (`effort`), `:1682` (`ModelUsage`), `:2185-2198`
-(`ThinkingConfig`). The cost table
-was measured by this plugin on 2026-09-30 against SDK 0.2.162 (bundled CLI
-2.1.285) and system CLI 2.1.274, on a Claude Max subscription with no API key
-set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165
-(bundled CLI 2.1.294) with `ANTHROPIC_API_KEY` set, again on 2026-10-17 on SDK
-0.2.168 (bundled CLI 2.1.301) and on 2026-10-24 on SDK 0.2.174 (bundled CLI
-2.1.310). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code
-2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
-2.1.310 docs; line numbers re-pinned to 0.2.178 on 2026-11-04 (unchanged in 0.2.179) and to 0.2.182
-on 2026-11-14. Model ids, prices and dates unchanged on 2026-11-08; Fable 5.2 added and the
-default-model row re-measured with an API key (2.1.322) on 2026-11-10.
+evidence); `claude-agent-sdk` 0.2.183 `types.py:2491` (`model`), `:2497`
+(`fallback_model`), `:2797` (`effort`), `:1702` (`ModelUsage`), `:2236-2249`
+(`ThinkingConfig`); the Claude Code `CHANGELOG.md` 2.1.326 (`/model` "Default"). The cost table was measured by this plugin
+on 2026-09-30 against SDK 0.2.162 (bundled CLI 2.1.285) and system CLI 2.1.274, on a Claude Max subscription with no API key
+set; the two-model `model_usage` figures were measured 2026-10-11 on SDK 0.2.165 (bundled CLI 2.1.294) with
+`ANTHROPIC_API_KEY` set, again on 2026-10-17 on SDK 0.2.168 (bundled CLI 2.1.301) and on 2026-10-24 on SDK 0.2.174 (bundled
+CLI 2.1.310). Re-read 2026-10-11 against claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs; re-read 2026-10-24 against
+claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs; line numbers re-pinned to 0.2.178 on 2026-11-04, to 0.2.182 on
+2026-11-14 and to 0.2.183 on 2026-11-17.
+Model ids, prices and dates unchanged on 2026-11-08 and 2026-11-17; Fable 5.2 added and the default-model row re-measured with an API key (2.1.322) on 2026-11-10.
 Re-read 2026-11-08 against claude-agent-sdk 0.2.179 / Claude Code 2.1.319 docs.
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

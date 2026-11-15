@@ -3,6 +3,97 @@
 The runner is versioned separately from the plugin that ships it; `VERSION` is
 what a project's copy carries and what the plugin's staleness check compares.
 
+## 0.2.6 — 2026-11-15
+
+Re-pinned to `claude-agent-sdk` 0.2.183 with its bundled CLI 2.1.326 (docs
+re-read at Claude Code 2.1.326 on 2026-11-17: 47 pages changed, one new);
+minimum supported SDK stays 0.2.140. **0.2.183 (2026-11-16) changes code**:
+`user_message_uuid: str | None` and `user_message_uuids: list[str] | None`
+arrive on `AssistantMessage` (11 fields), `ResultMessage` (21 fields, the two
+after `origin`) and `StreamEvent` (6 fields), the message parser passes both
+through, and the `MessageOrigin` docstring is rewritten: `origin` says what
+*started* a turn, not whether a result covers your prompt. There is no CHANGELOG
+entry upstream (see
+https://github.com/anthropics/claude-agent-sdk-python/releases/tag/v0.2.183 and
+the v0.2.182...v0.2.183 compare). `types.py` grew from 2,935 to 2,986 lines
+(up to 1358 unchanged, 1364-1402 +10, 1403-1741 +20, 1746-1755 +41, 1756 on
++51), so every `types.py:<line>` citation was renumbered: `ClaudeAgentOptions`
+is now `types.py:2392`, `client_app` `:2864`, `ResultMessage` `:1728`. Options
+(50, same names and order), modes (6), Python hook events (10),
+`HookSpecificOutput` members (21), exports (159) and `HookMatcher` fields (4)
+are unchanged. A project copy at 0.2.5 is reported as older (`DEP001`).
+
+- **Every prompt goes out with a uuid, and the drain waits for its own
+  result.** The runner used to send each prompt as a plain string and grade the
+  first `ResultMessage` that `receive_response()` returned. That result can
+  belong to an injected turn (a background-task notification, a cron, a
+  channel), and a prompt sent while such a turn runs can be answered inside it.
+  From 0.2.6, `drive()` and `drive_simulated()` both go through
+  `session.send_and_drain()`: each prompt is a user-message dict with a fresh
+  `uuid.uuid4().hex` (never reused: the CLI may skip a uuid it has already
+  seen), and after each drain the last result is accepted when its
+  `user_message_uuid` is that uuid or its `user_message_uuids` lists it, or, on
+  a CLI or SDK that does not echo, when it has no uuid and `origin` is `None` or
+  `{"kind": "human"}`. A result carrying another uuid, or no uuid and another
+  `origin.kind`, is recorded, noted as `runner_note` "result for another turn"
+  and drained past, at most `MAX_FOREIGN_RESULTS = 3` times (then a note, and
+  the run is graded on the last result as before). An error result ends the
+  drain whatever its uuid: it is the turn's outcome. Measured 2026-11-17: Claude
+  Code 2.1.326 (bundled) and 2.1.327 echo the sent uuid verbatim on the first
+  `AssistantMessage` and the result; a plain-string prompt gets `None`. On a CLI
+  that does not echo, behaviour is identical to 0.2.5. The `list-tools --probe`
+  session still sends a plain string.
+- **Trace additions, same schema** (`agent-sdk-skills.trace/1`): the `user`
+  event carries `uuid` (the stamp), and the `result` event and the first
+  `assistant_text` event carry `user_message_uuid` / `user_message_uuids` when
+  the CLI sent them. The keys are absent, not `null`, otherwise, so a trace from
+  an older SDK or CLI keeps its 0.2.5 shape and every reader works unchanged.
+- **`init` on 2.1.326 (and 2.1.327) carries 20 `capabilities`**: 2.1.325's 19
+  plus `silent_resend_files_v1`; slash commands add `heapdump` and
+  `team-onboarding`. Observed init keys not in the 2.1.325 fixture:
+  `original_cwd`, `additional_directories` (possibly the run's shape rather than
+  the version) and, when the first prompt carried a uuid, `user_message_uuids`.
+  `Capture` records capabilities when present and copies none of the undeclared
+  keys, so nothing else changed. `tests/fixtures/traces/init_2_1_326.{script,trace}.jsonl`
+  hold the measured run (a uuid-stamped prompt, the reply and a `success`
+  result with the echoed uuid); the trace is what the 0.2.6 `Capture` writes.
+- **What a 0.2.5 copy should know** (Claude Code 2.1.326 changelog and the docs
+  read on 2026-11-17, paraphrased):
+  - `bypassPermissions` no longer means every call runs: some tool calls in that
+    mode now ask, and where no one can be asked (an unattended run) they are
+    denied. Expect denials in a case that relied on bypass.
+  - With sandbox auto-allow off, the Bash sandbox asks before some lines that
+    set environment variables, and unattended runs can refuse them; Bash
+    permission checks in general ask first in more cases, or refuse where no one
+    can answer.
+  - A managed `autoMode.environment` without `"$defaults"` replaces every
+    built-in entry in Agent SDK apps too, not only in the terminal; include
+    `"$defaults"` in each `autoMode` array to extend rather than replace.
+  - `claude -p` is no longer silent while it retries an API request, and
+    parallel MCP tool calls no longer read one another's results; a trace from
+    2.1.325 or earlier with crossed MCP results was the CLI, not the agent.
+  - Hooks: `continue: false` does not block a `PreToolUse` call (also return
+    `permissionDecision: "deny"`); on `Stop`/`SubagentStop` it ends the turn
+    even with exit code 2; `suppressOutput` has no effect. `StopFailure` no
+    longer lists `overloaded`: an HTTP 529 that ends the turn arrives as
+    `server_error`, and `overloaded` appears only on retry events.
+  - `tool_deferred_unavailable` on resume: with a prompt, by default the prompt
+    does not reach Claude and the deferred call stays pending (it used to be
+    answered without the tool and the call dropped). Make the tool available
+    and resume again, or drop the call as the hooks page describes. `RES013`'s
+    fix text says so.
+  - `max_buffer_size` is documented in characters (default 1,048,576), while
+    the SDK's constant and error message still say bytes; a single CLI message
+    longer than that raises `CLIJSONDecodeError`. The runner sets nothing.
+  - **`PermissionUpdate` with no `rule_content` is dropped on 0.2.183 and
+    earlier.** `to_dict()` sends a whole-tool rule as `"ruleContent": null`,
+    which Claude Code rejects, and it then ignores every other update in the
+    same `can_use_tool` response. The fix (omit `ruleContent`, default
+    `destination` to `"session"`, raise `ValueError` on a malformed update) is
+    on `main` (`8ed58af`, 2026-11-17) and unreleased; until it ships, set
+    `rule_content` on every rule you return in `updated_permissions`.
+- `DOCS_READ_AT_CLI = "2.1.326"`.
+
 ## 0.2.5 — 2026-11-08
 
 Re-pinned to `claude-agent-sdk` 0.2.182 with its bundled CLI 2.1.325 (docs and

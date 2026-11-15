@@ -44,6 +44,16 @@ the step log for the warning but keep your own renewal date. Pass the token in
 the job's environment: from the docs read 2026-11-04 the OAuth variables are
 ignored in a project or local settings file's `env`.
 
+Three points from the docs and changelog read 2026-11-17. `CLAUDE_CODE_OAUTH_REFRESH_TOKEN`
+(with `CLAUDE_CODE_OAUTH_SCOPES`, exchanged by `claude auth login`) **works once**, because
+the exchange replaces it: it is no substitute for a `setup-token` secret. When a stored login
+expires and another saved credential exists (an `ant auth login` profile, say), requests
+switch to it and are **billed to that credential's organization** (`claude.ai login ended ·
+usage now billed to …`) instead of failing — check a CI runner's saved credentials so a
+lapsed login cannot move spend silently; with no other credential the run fails with
+`Login reached its time limit`. And from 2.1.326 `--bare` started with an API key that was
+never approved can't move to the background.
+
 ## The one-person caveat
 
 An OAuth token authenticates *as the person who minted it*. Every eval run in CI
@@ -137,5 +147,8 @@ Code 2.1.296 docs. The 2.1.302 unset-mode rule is stated at
 (and in the CHANGELOG); re-read 2026-10-24 against claude-agent-sdk 0.2.174 /
 Claude Code 2.1.310 docs. The sign-in expiry signals per the Claude Code
 `CHANGELOG.md` 2.1.318; `https://code.claude.com/docs/en/settings-reference`
-(variables Claude Code ignores in `env`).
+(variables Claude Code ignores in `env`); `https://code.claude.com/docs/en/authentication`
+("After the login expires"), `https://code.claude.com/docs/en/env-vars` (the refresh token) and
+`https://code.claude.com/docs/en/errors`, read 2026-11-17; the 2.1.326 changelog (`--bare`).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

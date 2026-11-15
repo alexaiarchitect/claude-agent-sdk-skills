@@ -1,16 +1,38 @@
 """Drive one run: build the options, talk to the agent, capture everything.
 
-The capture loop is the one the SDK's own docs use and the one P-1 measured:
+The capture loop is the one the SDK's own docs use and the one P-1 measured,
+with one addition from runner 0.2.6: every prompt goes out as a user-message
+dict carrying a fresh `uuid`, and the loop drains until the result that answers
+it (:func:`send_and_drain`):
 
     async with ClaudeSDKClient(options) as client:
-        await client.query(prompt)
+        await client.query(one(user_message(prompt, uid)))
         async for message in client.receive_response():
             capture.add(message)
+        # ...again while the last result answered another turn (at most 3 times)
 
-`receive_response()` stops after the `ResultMessage`; `receive_messages()` never
-terminates, so it is not used here. A scripted multi-turn case loops `query()` on
-the *same* client, which is why `total_cost_usd` has to be diffed rather than
-summed — it is a session running total.
+`receive_response()` stops after the *next* `ResultMessage`, which need not be
+the one for this prompt; `receive_messages()` never terminates, so it is not
+used here. claude-agent-sdk 0.2.183 (`types.py:1767-1786`, `ResultMessage`):
+`user_message_uuid` is the "``uuid`` of the user message that started this turn
+(the last one, if several were merged to start it). On an injected turn, the
+last user message taken in while it was running", and it "Covers only messages
+sent as dicts with a top-level ``uuid`` string; prompts passed as a plain string
+have none. Use a new uuid for every message, as the CLI can skip one whose uuid
+it has already seen." It is "Set on error results too"; `user_message_uuids`
+lists every uuid the turn took in (at most 64). `origin` describes only what
+*started* a turn, so a prompt answered inside an injected turn (a task
+notification, say) comes back under that turn's `origin`. Measured 2026-11-17:
+Claude Code 2.1.326 (bundled with 0.2.183) and 2.1.327 echo a dict prompt's
+`uuid` verbatim in `user_message_uuid` and `user_message_uuids` (also on the
+first `AssistantMessage`); a plain-string prompt gets `None` for both. On a CLI
+or SDK that does not echo the uuid the result is accepted when `origin` is
+`None` or `{"kind": "human"}` (the docs' best effort), which is what the runner
+did before, so behaviour there is unchanged.
+
+A scripted multi-turn case loops `query()` on the *same* client, which is why
+`total_cost_usd` has to be diffed rather than summed — it is a session running
+total.
 
 Exception mapping is CONTRACTS section 8. `ResultError` is caught **before**
 `ProcessError` because it subclasses it, and it is the useful one: it carries
@@ -30,6 +52,7 @@ import dataclasses
 import os
 import shutil
 import tempfile
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -166,13 +189,85 @@ def run_options_env(options: Any) -> dict[str, str]:
     return env
 
 
-async def drive(client: Any, capture: Capture, prompts: list[str]) -> None:
-    """Scripted turns on one client: query, drain to the result, repeat."""
-    for prompt in prompts:
-        capture.user_turn(prompt)
-        await client.query(prompt)
+#: How many results for *other* turns one prompt may drain past before the
+#: runner stops waiting for its own (the run is then graded on the last result).
+MAX_FOREIGN_RESULTS = 3
+
+
+def user_message(text: str, uid: str) -> dict[str, Any]:
+    """The user-message dict `ClaudeSDKClient.query()` streams; the client adds
+    `session_id` itself."""
+    return {
+        "type": "user",
+        "message": {"role": "user", "content": text},
+        "parent_tool_use_id": None,
+        "uuid": uid,
+    }
+
+
+async def one(message: dict[str, Any]) -> Any:
+    """A one-item async generator: `query()` takes an async iterable of dicts."""
+    yield message
+
+
+def _answers(result: Any, uid: str) -> bool | None:
+    """True when `result` answers the prompt `uid`, False when it is another
+    turn's, None for an error result (the turn's outcome whatever its uuid)."""
+    if bool(getattr(result, "is_error", False)) or getattr(result, "subtype", "success") != "success":
+        return None
+    echoed = getattr(result, "user_message_uuid", None)
+    listed = getattr(result, "user_message_uuids", None) or []
+    if uid == echoed or uid in listed:
+        return True
+    if echoed is None:
+        origin = getattr(result, "origin", None)
+        return origin is None or (isinstance(origin, dict) and origin.get("kind") == "human")
+    return False
+
+
+async def send_and_drain(client: Any, capture: Capture, text: str) -> None:
+    """Send `text` with a fresh uuid and drain until the result that answers it.
+
+    Accepted: a result whose `user_message_uuid` is the sent uuid or whose
+    `user_message_uuids` lists it, or one with no uuid whose `origin` is `None`
+    or `{"kind": "human"}` (a CLI that does not echo). Drained past, with a
+    `runner_note`: a result carrying another uuid, or no uuid and another
+    `origin.kind` (an injected turn). An error result ends the drain whatever
+    its uuid. After `MAX_FOREIGN_RESULTS` extra drains the runner notes it and
+    stops waiting.
+    """
+    uid = uuid.uuid4().hex
+    capture.user_turn(text, uuid=uid)
+    await client.query(one(user_message(text, uid)))
+    foreign = 0
+    while True:
+        last = None
         async for message in client.receive_response():
             capture.add(message)
+            if hasattr(message, "num_turns") and hasattr(message, "subtype"):
+                last = message
+        if last is None:
+            return                         # the stream ended without a result
+        verdict = _answers(last, uid)
+        if verdict is None or verdict:
+            return
+        fields = {
+            "user_message_uuid": getattr(last, "user_message_uuid", None),
+            "user_message_uuids": getattr(last, "user_message_uuids", None),
+            "origin": getattr(last, "origin", None),
+        }
+        if foreign >= MAX_FOREIGN_RESULTS:
+            capture.note(f"no result for this prompt after {MAX_FOREIGN_RESULTS} results for "
+                         "other turns; grading the last one", sent_uuid=uid, **fields)
+            return
+        capture.note("result for another turn", sent_uuid=uid, **fields)
+        foreign += 1
+
+
+async def drive(client: Any, capture: Capture, prompts: list[str]) -> None:
+    """Scripted turns on one client: send, drain to this prompt's result, repeat."""
+    for prompt in prompts:
+        await send_and_drain(client, capture, prompt)
 
 
 async def drive_simulated(client: Any, capture: Capture, user: Any) -> list[str]:
@@ -182,12 +277,9 @@ async def drive_simulated(client: Any, capture: Capture, user: Any) -> list[str]
         text = await user.next_turn(pairs)
         if text is None:
             break
-        capture.user_turn(text)
         pairs.append(("user", text))
         before = len(capture.assistant_texts)
-        await client.query(text)
-        async for message in client.receive_response():
-            capture.add(message)
+        await send_and_drain(client, capture, text)
         replies = capture.assistant_texts[before:]
         pairs.append(("agent", "\n".join(replies) if replies else "(no reply)"))
     return user.turns

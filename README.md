@@ -1,8 +1,8 @@
 # `agent-sdk` — Claude Code skills for Claude Agent SDK agents and evaluations
 
 Fourteen skills for building, reviewing and evaluating agents written with the
-Claude Agent SDK (Python). Checked against `claude-agent-sdk` 0.2.182 with its
-bundled Claude Code 2.1.325; documentation read at Claude Code 2.1.325 (2026-11-14).
+Claude Agent SDK (Python). Release 0.2.6, checked against `claude-agent-sdk` 0.2.183 with its
+bundled Claude Code 2.1.326; documentation read at Claude Code 2.1.326 (2026-11-17).
 
 The premise: an agent's system prompt is a promise written in prose, and **eval
 cases are the only form of that promise a machine can check**. The SDK ships no
@@ -94,6 +94,12 @@ records that in the trace; `agent-review` reports the omission as `OPT013` (a
 warn), because your agent also runs outside the runner, on whatever CLI it
 finds.
 
+**Every prompt is matched to its result.** From runner 0.2.6 each prompt goes out as a
+user message stamped with a fresh `uuid`, and the runner keeps reading past results that
+belong to turns the session started on its own (a background-task notification, at most
+three), accepting the result whose `user_message_uuid`/`user_message_uuids`
+(claude-agent-sdk 0.2.183+) names the prompt.
+
 **The runner copy can go stale.** It is copied into your project's
 `evals/runner/` with a `VERSION` and a manifest, so CI needs nothing from the
 plugin. Discovery reports `DEP001` when the plugin has moved on, and
@@ -158,7 +164,7 @@ SDK behaviour is cited from `anthropics/claude-agent-sdk-python` (MIT) and the
 documentation at `code.claude.com`; the evaluation practices draw on Anthropic's
 engineering writing and the `skill-creator` grader design. The design guidance
 (`/agent-sdk:agent-design` and the cross-links in the other skills) is grounded
-in 44 published Anthropic articles, paraphrased and cited with their dates — see
+in 45 published Anthropic articles, paraphrased and cited with their dates — see
 [Cited Anthropic articles](THIRD_PARTY_NOTICES.md#cited-anthropic-articles). See
 `THIRD_PARTY_NOTICES.md` for every snapshot consulted. Fixtures use an original
 library-reservations domain; nothing from a non-redistributable source is

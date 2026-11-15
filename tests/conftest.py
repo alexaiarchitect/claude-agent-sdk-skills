@@ -43,9 +43,9 @@ class ScriptRun:
 #: Where the target venv lives: next to the plugin repo, outside it, in
 #: `../tmp/venvs/` (macOS cleared `/tmp` on 2026-10-22 and the surface tests
 #: skipped silently until the 0.2.174 sync noticed).
-SDK_VENV_NAME = "casdk-venv-0.2.182"
+SDK_VENV_NAME = "casdk-venv-0.2.183"
 #: The previous pin's venv, kept as a fallback (0.2.179 changed no `types.py` line).
-SDK_VENV_FALLBACK = "casdk-venv-0.2.180"
+SDK_VENV_FALLBACK = "casdk-venv-0.2.182"
 
 #: Interpreters that may have the real `claude_agent_sdk` installed, most
 #: specific first. `AGENT_SDK_TEST_PYTHON` overrides everything; then the venv

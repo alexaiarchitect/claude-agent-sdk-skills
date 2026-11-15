@@ -71,7 +71,10 @@ and the evidence for it is `stop_reason` on the trace's `result` event (the
 `terminal` grader matches `subtype`/`terminal_reason` only), never a text match.
 If the tool is gone when the session resumes, the result reads
 `stop_reason: "tool_deferred_unavailable"` with `is_error: true` on
-`subtype: "success"` — not an API error; branch on `stop_reason` first.
+`subtype: "success"` — not an API error; branch on `stop_reason` first. A resume that
+sends a prompt does not get it answered by default: the prompt doesn't reach Claude and the
+call stays pending (Python page, read 2026-11-17). Also never fake a block with
+`continue_: False` alone: it ends the turn but doesn't block a `PreToolUse` call.
 
 **Latency.** `latency_ms` sleeps before the action is applied, for any action;
 `action: latency` sleeps and then allows. On `PreToolUse` this delays the call;
@@ -177,3 +180,4 @@ resume), `https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-
 2.1.296 docs; re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code
 2.1.310 docs.
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

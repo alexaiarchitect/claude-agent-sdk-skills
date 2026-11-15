@@ -378,3 +378,175 @@ def test_an_agent_without_env_still_gets_the_switch():
     from agent_sdk_evals.session import run_options_env
 
     assert run_options_env(sdk.ClaudeAgentOptions()) == {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+
+
+# -- uuid-stamped prompts and draining to the matching result (runner 0.2.6) --
+
+from agent_sdk_evals.capture import Capture  # noqa: E402
+from agent_sdk_evals.session import (  # noqa: E402
+    MAX_FOREIGN_RESULTS, drive, drive_simulated, send_and_drain, user_message,
+)
+
+
+def _text(message: str, **extra) -> dict:
+    return {"__class__": "AssistantMessage", "content": [{"text": message}],
+            "model": "claude-sonnet-5-5", "session_id": "s-1", **extra}
+
+
+def _result(text: str = "ready", **extra) -> dict:
+    payload = {"__class__": "ResultMessage", "subtype": "success", "duration_ms": 900,
+               "duration_api_ms": 1200, "is_error": False, "num_turns": 1, "session_id": "s-1",
+               "stop_reason": "end_turn", "total_cost_usd": 0.01, "result": text,
+               "terminal_reason": "completed"}
+    payload.update(extra)
+    return payload
+
+
+def _drive(prompts: list[str]) -> Capture:
+    capture = Capture(run_id="r", case="c")
+
+    async def go():
+        async with sdk.ClaudeSDKClient() as client:
+            await drive(client, capture, prompts)
+
+    asyncio.run(go())
+    return capture
+
+
+def _notes(capture: Capture) -> list[dict]:
+    return [e["data"] for e in capture.events
+            if e["type"] == "system" and e.get("subtype") == "runner_note"]
+
+
+def test_user_message_is_the_dict_query_streams():
+    assert user_message("hi", "abc") == {
+        "type": "user", "message": {"role": "user", "content": "hi"},
+        "parent_tool_use_id": None, "uuid": "abc"}
+
+
+def test_a_result_echoing_the_sent_uuid_is_accepted_and_the_user_event_carries_it():
+    sdk.set_script([_text("ready", user_message_uuid="$sent", user_message_uuids=["$sent"]),
+                    _result(user_message_uuid="$sent", user_message_uuids=["$sent"])])
+    capture = _drive(["Reply with exactly: ready"])
+    (call,) = sdk.calls()
+    assert call["prompt"] == "Reply with exactly: ready"
+    assert len(call["uuid"]) == 32 and call["message"]["uuid"] == call["uuid"]
+    assert call["message"]["session_id"] == "default", "the client adds session_id"
+    (user,) = [e for e in capture.events if e["type"] == "user"]
+    assert user["uuid"] == call["uuid"]
+    assert capture.result["user_message_uuid"] == call["uuid"]
+    assert capture.result["user_message_uuids"] == [call["uuid"]]
+    text_event = [e for e in capture.events if e["type"] == "assistant_text"][0]
+    assert text_event["user_message_uuid"] == call["uuid"]
+    assert _notes(capture) == []
+
+
+def test_an_injected_turns_result_is_drained_past_to_the_matching_one():
+    sdk.set_script([
+        _text("background task finished"),
+        _result("task done", origin={"kind": "task-notification"}, total_cost_usd=0.01),
+        _text("ready", user_message_uuid="$sent"),
+        _result("ready", user_message_uuid="$sent", user_message_uuids=["$sent"],
+                total_cost_usd=0.02),
+    ])
+    capture = _drive(["hi"])
+    assert [r["result_text"] for r in capture.results] == ["task done", "ready"]
+    notes = _notes(capture)
+    assert [n["message"] for n in notes] == ["result for another turn"]
+    assert notes[0]["origin"] == {"kind": "task-notification"}
+    assert notes[0]["user_message_uuid"] is None
+    assert capture.result["result_text"] == "ready"
+    assert capture.result["user_message_uuid"] == sdk.calls()[0]["uuid"]
+
+
+def test_a_result_without_a_uuid_and_no_origin_is_accepted_as_before():
+    """An older CLI or SDK that does not echo: the docs' best-effort rule."""
+    sdk.set_script([_text("ready"), _result(), _text("later"), _result("later")])
+    capture = _drive(["hi"])
+    assert len(capture.results) == 1 and capture.result["result_text"] == "ready"
+    assert "user_message_uuid" not in capture.result, "absent, not null: the 0.2.5 shape"
+    assert _notes(capture) == []
+
+
+def test_a_human_origin_without_a_uuid_is_accepted_too():
+    sdk.set_script([_result(origin={"kind": "human"}), _result("later")])
+    capture = _drive(["hi"])
+    assert len(capture.results) == 1
+
+
+def test_foreign_results_are_capped_and_the_drain_returns():
+    foreign = [_result(f"other {i}", user_message_uuid=f"{i:032x}") for i in range(6)]
+    sdk.set_script(foreign)
+    capture = _drive(["hi"])
+    assert len(capture.results) == MAX_FOREIGN_RESULTS + 1 == 4
+    notes = [n["message"] for n in _notes(capture)]
+    assert notes[:MAX_FOREIGN_RESULTS] == ["result for another turn"] * MAX_FOREIGN_RESULTS
+    assert notes[-1].startswith("no result for this prompt after 3 results")
+    assert capture.result["result_text"] == "other 3", "graded on the last result, as before"
+
+
+def test_an_error_result_ends_the_drain_whatever_its_uuid():
+    sdk.set_script([
+        _result("boom", subtype="error_during_execution", is_error=True,
+                 terminal_reason="aborted_tools", user_message_uuid="f" * 32),
+        _result("ready", user_message_uuid="$sent"),
+    ])
+    capture = _drive(["hi"])
+    assert len(capture.results) == 1 and capture.result["subtype"] == "error_during_execution"
+    assert _notes(capture) == []
+
+
+def test_a_stream_that_ends_without_a_result_does_not_hang():
+    sdk.set_script([_text("no result follows")])
+    capture = _drive(["hi"])
+    assert capture.results == [] and _notes(capture) == []
+
+
+def test_each_scripted_turn_gets_its_own_uuid():
+    sdk.set_script([_result("one", user_message_uuid="$sent", _turn=1),
+                    _result("two", user_message_uuid="$sent", _turn=2)])
+    capture = _drive(["first", "second"])
+    uids = [c["uuid"] for c in sdk.calls()]
+    assert len(set(uids)) == 2, "a new uuid per message, never reused"
+    assert [e["uuid"] for e in capture.events if e["type"] == "user"] == uids
+    assert [r["user_message_uuid"] for r in capture.results] == uids
+
+
+def test_drive_simulated_sends_each_persona_turn_through_the_same_path():
+    class User:
+        def __init__(self):
+            self.turns: list[str] = []
+
+        async def next_turn(self, pairs):
+            if len(self.turns) == 2:
+                return None
+            self.turns.append(f"turn {len(self.turns) + 1}")
+            return self.turns[-1]
+
+    sdk.set_script([
+        _text("hello", _turn=1), _result("hello", user_message_uuid="$sent", _turn=1),
+        _result("bg", origin={"kind": "cron"}, _turn=2),
+        _text("bye", _turn=2), _result("bye", user_message_uuid="$sent", _turn=2),
+    ])
+    capture = Capture(run_id="r", case="c")
+
+    async def go():
+        async with sdk.ClaudeSDKClient() as client:
+            return await drive_simulated(client, capture, User())
+
+    turns = asyncio.run(go())
+    assert turns == ["turn 1", "turn 2"]
+    calls = sdk.calls()
+    assert [c["prompt"] for c in calls] == turns
+    assert all(c["message"]["type"] == "user" and c["uuid"] for c in calls)
+    assert [r["result_text"] for r in capture.results] == ["hello", "bg", "bye"]
+    assert [n["message"] for n in _notes(capture)] == ["result for another turn"]
+
+
+def test_send_and_drain_is_what_drive_uses():
+    import inspect
+
+    from agent_sdk_evals import session
+    assert "send_and_drain" in inspect.getsource(session.drive)
+    assert "send_and_drain" in inspect.getsource(session.drive_simulated)
+    assert callable(send_and_drain)

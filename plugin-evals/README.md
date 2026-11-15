@@ -33,7 +33,13 @@ install, the same build claude-agent-sdk 0.2.179 bundles); 2.1.319 fixed `plugin
 suggested `max: 0`; no case here uses `max`; cases not re-run. On 2026-11-14 the local `claude` is **2.1.325**
 (the build claude-agent-sdk 0.2.182 bundles); 2.1.323 made `claude plugin eval --output-dir ''` exit with an
 error instead of writing into the current folder; cases not re-run, and the `plugin-evals` page is
-unchanged. The changelog also names a `disallowed_tools` case field; it is not in
+unchanged. On 2026-11-17 the local `claude` is **2.1.327** (npm `next`, published that day with no changelog
+section or tag; claude-agent-sdk 0.2.183 bundles 2.1.326); nothing in 2.1.326 changes `plugin eval`, and
+cases were not re-run. The `plugin-evals` page now has "Shell grants refused on a managed machine": if a
+shell-granting case is refused with `A shell tool (Bash or PowerShell) was granted but this machine cannot
+confine it`, a `sandbox` key in the machine's managed settings can be the cause (the full message ends with
+the key; read it in the summary's `NOTES` column or the run's `error` under `--json`) — ask the
+administrator, or drop the shell grant from that run. The changelog also names a `disallowed_tools` case field; it is not in
 the plugin-evals docs yet and no case here uses it until a local run has
 accepted it.
 

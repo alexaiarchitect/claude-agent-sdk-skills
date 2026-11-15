@@ -7,14 +7,14 @@
 | Event | What to read in it |
 |---|---|
 | `init` | model, tools, MCP servers, permission mode, `cli_version`, `api_key_source`, the isolation applied |
-| `user` | the prompt of each turn |
+| `user` | the prompt of each turn, and from runner 0.2.6 the `uuid` it was sent with |
 | `assistant_text` | what the agent said, and `model` (the model that answered) |
 | `tool_use` | `tool`, `input`, `parent_tool_use_id` (set inside a subagent), `synthetic` (`StructuredOutput`) |
 | `tool_result` | `is_error` (truthy on error, `null` on success), `content` (truncated), `tool_use_result` |
 | `hook` | `event`, `phase`, `decision`, `fault_id` when a fault was injected |
 | `rate_limit` | `status`, `windows` (five-hour and seven-day utilization), `resets_at` |
 | `system` | any other system message, as `subtype` and `data` — including a failed hook callback (`subtype: informational`, `data.tag: hook_callback_failed`) |
-| `result` | `subtype`, `is_error`, `terminal_reason`, `stop_reason`, `num_turns`, `total_cost_usd`, `cost_delta_usd`, `usage`, `permission_denials`, `structured_output`. Read `stop_reason` before `is_error`: on `subtype: success`, `refusal` (the model declined) and `tool_deferred_unavailable` (a deferred tool gone on resume) set `is_error` without being API errors |
+| `result` | `subtype`, `is_error`, `terminal_reason`, `stop_reason`, `num_turns`, `total_cost_usd`, `cost_delta_usd`, `usage`, `permission_denials`, `structured_output`, and from runner 0.2.6 `user_message_uuid`/`user_message_uuids` (claude-agent-sdk 0.2.183+; equal to the `user` event's `uuid` when the result answers that prompt). Read `stop_reason` before `is_error`: on `subtype: success`, `refusal` (the model declined) and `tool_deferred_unavailable` (a deferred tool gone on resume) set `is_error` without being API errors |
 
 Useful reads:
 
@@ -61,7 +61,7 @@ Two differences matter:
 bundled with the SDK the runner used; both are reported. Before **2.1.311**,
 `claude -p` and SDK sessions could save transcript messages **out of order** or
 keep messages that were taken back; a session file written by an older CLI
-(the 0.2.174 wheel bundled 2.1.310; the pinned 0.2.182 bundles 2.1.325) can therefore disagree with the live
+(the 0.2.174 wheel bundled 2.1.310; the pinned 0.2.183 bundles 2.1.326) can therefore disagree with the live
 message stream. Prefer the runner's trace, which records the stream as it came,
 and order a session file by its `parentUuid` graph, never by line position.
 
@@ -92,7 +92,9 @@ and `claude setup-token`. From **2.1.319** (changelog) an SDK host whose run fai
 full disk gets that run's own error instead of a generic exit-code error; `claude -p` exits 1 when
 auto mode refused actions for lack of a safety check; and a `claude -p --resume` whose deferred
 tool's MCP server is missing exits 1, keeps the call and refuses later input until the tool is back
-or `CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL=1` drops it (hooks page).
+or `CLAUDE_CODE_DROP_UNAVAILABLE_DEFERRED_TOOL=1` drops it (hooks page; the Python page says the same from
+2026-11-17). A Python run that ends with no result and no exception may be a prompt generator that raised: look
+for `Prompt stream failed; closing stdin:` in the app's log at `ERROR` (`failure-shapes.md`, transport stops).
 
 ## Capturing fresh evidence (spends)
 
@@ -119,5 +121,8 @@ exit codes and `ProcessError` measured by this plugin on 2026-11-02
 lost writes, API-error-cut replies, `credential_expires_at`; disk-full error, auto-mode exit 1,
 deferred-tool resume), `https://code.claude.com/docs/en/hooks` ("Resume when a deferred tool is
 unavailable"); both `on_failure` paths and the `-p` JSON keys measured by this plugin on
-2026-11-04 on 0.2.178 / 2.1.318 and again on 2026-11-08 on 0.2.179 / 2.1.319.
+2026-11-04 on 0.2.178 / 2.1.318 and again on 2026-11-08 on 0.2.179 / 2.1.319; the uuid echo measured by this
+plugin on 2026-11-17 (0.2.183, CLI 2.1.326), `.dev/CONTRACTS.md` §22.5 (the runner's matching rule) and
+`https://code.claude.com/docs/en/agent-sdk/troubleshooting` ("Streaming input", read 2026-11-17).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

@@ -45,6 +45,7 @@ LATER_REREAD_NOTES = (
     "re-read 2026-11-05 against claude-agent-sdk 0.2.178 / claude code 2.1.318 docs",
     "re-read 2026-11-08 against claude-agent-sdk 0.2.179 / claude code 2.1.319 docs",
     "re-read 2026-11-14 against claude-agent-sdk 0.2.182 / claude code 2.1.325 docs",
+    "re-read 2026-11-17 against claude-agent-sdk 0.2.183 / claude code 2.1.326 docs",
 )
 
 
@@ -149,8 +150,10 @@ def test_the_sdk_venv_and_the_live_command_name_the_pin():
 
 # -- 2. types.py citations ----------------------------------------------------------
 
-#: Every `types.py` line (or range) the plugin may cite, as numbered in the 0.2.182
-#: wheel (shifted from the 0.2.178 numbers on 2026-11-14; `client_app` added): (what the first line of it starts with, stripped; names the citing
+#: Every `types.py` line (or range) the plugin may cite, as numbered in the 0.2.183
+#: wheel (shifted from the 0.2.178 numbers on 2026-11-14, `client_app` added; shifted
+#: again on 2026-11-17 by the 0.2.183 map, +51 from old 1756, `user_message_uuid(s)`,
+#: `MessageOrigin`, `PermissionRuleValue`/`PermissionUpdate` added): (what the first line of it starts with, stripped; names the citing
 #: paragraph may use for it, lower-cased). From the Phase 1 table (0 symbol
 #: mismatches after the shift) plus the new `on_failure` lines. A new citation
 #: goes here after its line was read in the wheel.
@@ -175,49 +178,62 @@ CITED = {
     "842": ("class HookMatcher:", ("hookmatcher",)),
     "857-866": ("# What happens when a callback in this matcher fails.", ("on_failure",)),
     "866": ('on_failure: Literal["continue", "block"] | None = None', ("on_failure",)),
-    "2334-2335": ('if hasattr(matcher, "on_failure")', ("on_failure",)),
+    "2385-2386": ('if hasattr(matcher, "on_failure")', ("on_failure",)),
     "1139": ("SandboxIgnoreViolations: TypeAlias = dict[str, list[str]]", ("ignoreviolations",)),
     "1154": ("class SandboxSettings(TypedDict, total=False):", ("sandboxsettings", "sandbox")),
     "1231": ("class ToolResultBlock:", ("toolresultblock",)),
-    "1456": ('FastModeState = Literal["off", "cooldown", "on"]', ("fastmodestate", "fast_mode")),
-    "1460": ("FastModeDisabledReason = Literal[", ("fastmodedisabledreason", "fast_mode")),
-    "1474": ("class SystemInitData(TypedDict):", ("systeminitdata",)),
-    "1682": ("class ModelUsage(TypedDict):", ("modelusage", "model_usage")),
-    "1708": ("class ResultMessage:", ("resultmessage",)),
-    "1708-1747": ("class ResultMessage:", ("resultmessage",)),
-    "1760": ("RateLimitType = Literal[", ("ratelimittype",)),
-    "1766": ("class RateLimitInfo:", ("ratelimitinfo",)),
-    "1834": ("class HookEventMessage(SystemMessage):", ("hookeventmessage",)),
-    "2185": ("class ThinkingConfigAdaptive(TypedDict):", ("thinkingconfig", "thinking")),
-    "2185-2198": ("class ThinkingConfigAdaptive(TypedDict):", ("thinkingconfig", "thinking")),
-    "2203-2292": ("class CanUseToolShadowedWarning(UserWarning):", ("canusetoolshadowedwarning",)),
-    "2341": ("class ClaudeAgentOptions:", ("claudeagentoptions",)),
-    "2341-2813": ("class ClaudeAgentOptions:", ("claudeagentoptions", "50 fields")),
-    "2341-2804": ("class ClaudeAgentOptions:", ("claudeagentoptions", "49 fields", "50 fields")),
-    "2344-2363": ("tools: list[str] | ToolsPreset | None = None", ("tools",)),
-    "2361": ('Passing ``"Skill"`` here is deprecated.', ("skill",)),
-    "2380": ("mcp_servers: dict[str, McpServerConfig] | str | Path = field", ("mcp_servers",)),
-    "2388": ("strict_mcp_config: bool = False", ("strict_mcp_config",)),
-    "2395": ("permission_mode: PermissionMode | None = None", ("permission_mode",)),
-    "2420": ("max_turns: int | None = None", ("max_turns",)),
-    "2426": ("max_budget_usd: float | None = None", ("max_budget_usd",)),
-    "2440": ("model: str | None = None", ("model",)),
-    "2446": ("fallback_model: str | None = None", ("fallback_model",)),
-    "2466": ("cwd: str | Path | None = None", ("cwd",)),
-    "2475": ("settings: str | None = None", ("settings",)),
-    "2521": ("debug_stderr: Any = sys.stderr", ("debug_stderr",)),
-    "2548-2559": ("hooks: dict[HookEvent, list[HookMatcher]] | None = None", ("hooks",)),
-    "2571": ("include_hook_events: bool = False", ("include_hook_events",)),
-    "2571-2577": ("include_hook_events: bool = False", ("include_hook_events",)),
-    "2580-2590": ("forward_subagent_text: bool = False", ("forward_subagent_text", "parent_tool_use_id")),
-    "2664": ("agents: dict[str, AgentDefinition] | None = None", ("agents",)),
-    "2670": ("setting_sources: list[SettingSource] | None = None", ("setting_sources",)),
-    "2683": ('skills: list[str] | Literal["all"] | None = None', ("skills",)),
-    "2724": ("max_thinking_tokens: int | None = None", ("max_thinking_tokens",)),
-    "2746": ("effort: EffortLevel | None = None", ("effort",)),
-    "2777": ("session_store: SessionStore | None = None", ("session_store",)),
-    "2804": ("task_budget: TaskBudget | None = None", ("task_budget",)),
-    "2813": ("client_app: str | None = None", ("client_app",)),
+    "1476": ('FastModeState = Literal["off", "cooldown", "on"]', ("fastmodestate", "fast_mode")),
+    "1480": ("FastModeDisabledReason = Literal[", ("fastmodedisabledreason", "fast_mode")),
+    "1494": ("class SystemInitData(TypedDict):", ("systeminitdata",)),
+    "1702": ("class ModelUsage(TypedDict):", ("modelusage", "model_usage")),
+    "138": ("class PermissionRuleValue:", ("permissionrulevalue", "rule_content", "rulecontent")),
+    "146": ("class PermissionUpdate:", ("permissionupdate", "updated_permissions")),
+    "1318": ("MessageOrigin = TypedDict(", ("messageorigin", "origin")),
+    "1359-1373": ("sessions, ...). ``origin`` tells you what started a turn.", ("messageorigin", "origin")),
+    "1401": ("class AssistantMessage:", ("assistantmessage",)),
+    "1413-1422": ("user_message_uuid: str | None = None", ("user_message_uuid",)),
+    "1728": ("class ResultMessage:", ("resultmessage",)),
+    "1728-1788": ("class ResultMessage:", ("resultmessage",)),
+    "1728-1786": ("class ResultMessage:", ("resultmessage",)),
+    "1760": ("origin: MessageOrigin | None = None", ("origin",)),
+    "1760-1786": ("origin: MessageOrigin | None = None", ("origin", "user_message_uuid", "resultmessage")),
+    "1767": ("user_message_uuid: str | None = None", ("user_message_uuid",)),
+    "1767-1786": ("user_message_uuid: str | None = None", ("user_message_uuid",)),
+    "1779": ("user_message_uuids: list[str] | None = None", ("user_message_uuids",)),
+    "1790": ("class StreamEvent:", ("streamevent",)),
+    "1811": ("RateLimitType = Literal[", ("ratelimittype",)),
+    "1817": ("class RateLimitInfo:", ("ratelimitinfo",)),
+    "1885": ("class HookEventMessage(SystemMessage):", ("hookeventmessage",)),
+    "2236": ("class ThinkingConfigAdaptive(TypedDict):", ("thinkingconfig", "thinking")),
+    "2236-2249": ("class ThinkingConfigAdaptive(TypedDict):", ("thinkingconfig", "thinking")),
+    "2254-2343": ("class CanUseToolShadowedWarning(UserWarning):", ("canusetoolshadowedwarning",)),
+    "2392": ("class ClaudeAgentOptions:", ("claudeagentoptions",)),
+    "2392-2864": ("class ClaudeAgentOptions:", ("claudeagentoptions", "50 fields")),
+    "2392-2855": ("class ClaudeAgentOptions:", ("claudeagentoptions", "49 fields", "50 fields")),
+    "2395-2414": ("tools: list[str] | ToolsPreset | None = None", ("tools",)),
+    "2412": ('Passing ``"Skill"`` here is deprecated.', ("skill",)),
+    "2431": ("mcp_servers: dict[str, McpServerConfig] | str | Path = field", ("mcp_servers",)),
+    "2439": ("strict_mcp_config: bool = False", ("strict_mcp_config",)),
+    "2446": ("permission_mode: PermissionMode | None = None", ("permission_mode",)),
+    "2471": ("max_turns: int | None = None", ("max_turns",)),
+    "2477": ("max_budget_usd: float | None = None", ("max_budget_usd",)),
+    "2491": ("model: str | None = None", ("model",)),
+    "2497": ("fallback_model: str | None = None", ("fallback_model",)),
+    "2517": ("cwd: str | Path | None = None", ("cwd",)),
+    "2526": ("settings: str | None = None", ("settings",)),
+    "2572": ("debug_stderr: Any = sys.stderr", ("debug_stderr",)),
+    "2599-2610": ("hooks: dict[HookEvent, list[HookMatcher]] | None = None", ("hooks",)),
+    "2622": ("include_hook_events: bool = False", ("include_hook_events",)),
+    "2622-2628": ("include_hook_events: bool = False", ("include_hook_events",)),
+    "2631-2641": ("forward_subagent_text: bool = False", ("forward_subagent_text", "parent_tool_use_id")),
+    "2715": ("agents: dict[str, AgentDefinition] | None = None", ("agents",)),
+    "2721": ("setting_sources: list[SettingSource] | None = None", ("setting_sources",)),
+    "2734": ('skills: list[str] | Literal["all"] | None = None', ("skills",)),
+    "2775": ("max_thinking_tokens: int | None = None", ("max_thinking_tokens",)),
+    "2797": ("effort: EffortLevel | None = None", ("effort",)),
+    "2828": ("session_store: SessionStore | None = None", ("session_store",)),
+    "2855": ("task_budget: TaskBudget | None = None", ("task_budget",)),
+    "2864": ("client_app: str | None = None", ("client_app",)),
 }
 
 #: `x.py:N` starts a run; a backticked `` `:N` `` continues the last file named in
@@ -242,9 +258,12 @@ def types_py_citations(text: str):
 
 
 def citing_files():
+    """Skill, library and runner files; the runner CHANGELOG is history (its 0.2.5 entry
+    cites 0.2.182's `types.py:2813`, written when that was the pin) and is left out."""
     roots = (SKILLS, PLUGIN_ROOT / "lib", PLUGIN_ROOT / "runner")
     return sorted(p for root in roots for p in root.rglob("*")
-                  if p.is_file() and p.suffix in (".md", ".py") and "__pycache__" not in p.parts)
+                  if p.is_file() and p.suffix in (".md", ".py") and "__pycache__" not in p.parts
+                  and p.name != "CHANGELOG.md")
 
 
 def test_the_scanner_finds_what_the_phase_1_table_found():
@@ -253,12 +272,12 @@ def test_the_scanner_finds_what_the_phase_1_table_found():
     assert [n for n, _ in types_py_citations(sample)] == ["2341", "2393", "842", "864"]
 
 
-def test_every_types_py_citation_is_a_known_0_2_182_line():  # awaits lanes B/C
+def test_every_types_py_citation_is_a_known_0_2_183_line():  # awaits lanes B/C
     unknown = sorted({f"{p.relative_to(PLUGIN_ROOT)}: types.py:{n}"
                       for p in citing_files()
                       for n, _ in types_py_citations(p.read_text(encoding="utf-8"))
                       if n not in CITED})
-    assert unknown == [], ("a citation this file does not know for 0.2.182: renumber it from "
+    assert unknown == [], ("a citation this file does not know for 0.2.183: renumber it from "
                            ".dev/measured/2026-11-04/types-citation-table.md, or read the "
                            "wheel and add the line to CITED")
 
@@ -276,13 +295,14 @@ def test_every_types_py_citation_names_its_symbol_nearby():  # awaits lanes B/C
 #: 0.2.176 citations that moved, written in full so none can match a 0.2.178 one
 #: (old `:2563-2573` ends where new `:2567-2573` ends; never guard a bare number).
 STALE_0_2_176 = (
-    # `types.py:2380`/`:2380` left out since 2026-11-14: 0.2.182's `mcp_servers` sits at 2380 again.
+    # `types.py:2380`/`:2380` left out since 2026-11-14: 0.2.182's `mcp_servers` sat at 2380 again;
+    # `` `:2431` `` left out since 2026-11-17: 0.2.183's `mcp_servers` sits at 2431.
     "types.py:2326-2786", "`:2326-2786`", "types.py:2326",
     "types.py:1695", "`:1695`", "`:1695-1734`", "types.py:1126", "`:1126`",
     "types.py:1141", "`:1141`", "types.py:1218", "types.py:1461", "`:1669`",
     "types.py:1669", "`:2172-2185`", "`:2190-2279`", "`:2329-2348`", "types.py:2346",
     "`:2346`", "`:2365`", "`:2373`", "types.py:2405", "`:2411`", "types.py:2425",
-    "`:2431`", "types.py:2451", "`:2451`", "`:2460`", "types.py:2504", "`:2504`",
+    "types.py:2451", "`:2451`", "`:2460`", "types.py:2504", "`:2504`",
     "`:2531-2542`", "types.py:2554", "`:2554-2560`", "`:2563-2573`", "types.py:2647",
     "types.py:2653", "`:2653`", "types.py:2665", "types.py:2706", "`:2706`", "`:2728`",
     "`:2759`", "`:1443`", "`:1447`", "`:1747`", "`:1753`", "`:1821`", "`:2172`",
@@ -322,7 +342,7 @@ def test_the_wheel_is_the_pin(surface):
 def test_every_known_line_reads_as_expected_on_the_wheel(surface, number):
     lines = Path(surface["types_path"]).read_text(encoding="utf-8").splitlines()
     first, *last = (int(n) for n in number.split("-"))
-    assert len(lines) == 2935, "0.2.182's types.py has 2935 lines (0.2.178-0.2.180: 2914)"
+    assert len(lines) == 2986, "0.2.183's types.py has 2986 lines (0.2.182: 2935; 0.2.178-0.2.180: 2914)"
     assert lines[first - 1].strip().startswith(CITED[number][0]), (number, lines[first - 1])
     if last:
         assert first < last[0] <= len(lines)
@@ -331,7 +351,8 @@ def test_every_known_line_reads_as_expected_on_the_wheel(surface, number):
 def test_hook_matcher_on_the_pin_has_on_failure(surface):
     assert surface["hook_matcher"] == ["matcher", "hooks", "timeout", "on_failure"]
     assert len(surface["option_names"]) == 50 and "on_failure" not in surface["option_names"]
-    assert len(surface["result_message"]) == 19 and len(surface["all"]) == 159
+    # 19 result fields through 0.2.182; 0.2.183 added `user_message_uuid(s)` (2026-11-17).
+    assert len(surface["result_message"]) == 21 and len(surface["all"]) == 159
 
 
 # -- 3. on_failure and HOK011 --------------------------------------------------------
@@ -430,10 +451,10 @@ PRESENT = (  # awaits lanes B/C
     ("skills/eval-run/references/running-in-ci.md", ("2.1.317",)),
     ("skills/eval-simulation/references/fault-injection.md", ("on_failure",)),
     ("skills/agent-sdk/references/environment.md", ("0.2.178", "2.1.318")),
-    ("skills/agent-sdk/SKILL.md", ("0.2.182",)),  # follows the pin
+    ("skills/agent-sdk/SKILL.md", ("0.2.183",)),  # follows the pin
     # the article count and the cookbooks head move each sync: 25 and 785d7a0 here;
     # 29 and ce8b262 from 2026-11-05, checked in `test_sync_2026_11_05.py`
-    ("README.md", ("documentation read at claude code 2.1.325",)),
+    ("README.md", ("documentation read at claude code 2.1.326",)),
     ("THIRD_PARTY_NOTICES.md",
      ("3be907edb9c86269d30d1427a77937dd788d6419", "26382c08758260c9f5deb2019d8fe851f89fa9ae")),
 )
@@ -521,7 +542,7 @@ LANE_PRESENT = (
       "a hook changed this call's input after auto mode reviewed it",
       # "the hooks page read 2026-11-04 still says" until the 2026-11-05 re-read
       'still says "if more than 12 of them are prompt or agent hooks, 12 of those run at once"',
-      "the pinned 0.2.182 (bundled cli 2.1.325) has all of this")),
+      "the pinned 0.2.183 (bundled cli 2.1.326) has all of this")),
     ("skills/agent-harness/references/permission-model.md",
      ("can stop the turn after ten responses in a row with no verdict",
       "on `permissionrequest` that block counts only if the failure lands before `can_use_tool` answers")),
@@ -542,7 +563,7 @@ LANE_PRESENT = (
       "an sdk `hookmatcher` can block on failure too")),
     ("skills/agent-review/references/options-reference.md",
      ("from 0.2.177 `on_failure`", "it is **not** a `resultmessage` field",
-      "no `permission_mode` key", "`ultrathink_typed_raises`", "types.py:2341-2813")),
+      "no `permission_mode` key", "`ultrathink_typed_raises`", "types.py:2392-2864")),
     # model-policy's "as of 2026-11-04" moves each sync ("as of 2026-11-05" from 2026-11-05)
     ("skills/agent-review/references/load-check.md",
      ("the **0.2.178** wheel bundles **2.1.318**",)),
@@ -582,11 +603,11 @@ LANE_PRESENT = (
     ("skills/agent-review/scripts/_checks.py",
      ('id="hok011"', " types.py:866 (hookmatcher.on_failure)",
       "hooks#block-the-action-when-a-callback-fails", 'on_failure_since_sdk = "0.2.177"',
-      " types.py:2395 (permission_mode)", " types.py:2361")),
+      " types.py:2446 (permission_mode)", " types.py:2412")),
     ("skills/agent-review/scripts/lint_agent.py",
-     (" types.py:2724", " types.py:2521", "0.2.177+")),
+     (" types.py:2775", " types.py:2572", "0.2.177+")),
     ("skills/agent-harness/scripts/lint_harness.py",
-     (" types.py:2571 (include_hook_events)",)),
+     (" types.py:2622 (include_hook_events)",)),
     ("skills/agent-harness/scripts/gen_hook.py",
      ('on_failure="block"', "# a guard fails closed: a callback that crashes refuses the call",
       '"behavior": "deny"')),

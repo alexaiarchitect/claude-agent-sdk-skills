@@ -79,7 +79,7 @@ branch on them and a test may assert them.
 | Id | Severity | Trigger | Why |
 |---|---|---|---|
 | `HOK001` | **error** | a callback is not `async def`, or does not take three parameters | the SDK awaits `cb(input_data, tool_use_id, context)` |
-| `HOK002` | **error** | a callback returns a dict the SDK does not read — no `hookSpecificOutput` **and** a key outside the common fields — or a `hookSpecificOutput` whose `hookEventName` is not the event it is registered on | nothing in that dict reaches the decision. Not flagged: `return {}` (allow, unchanged), and a return made only of common top-level fields (`continue_`, `stopReason`, `decision`, `reason`, `systemMessage`, `suppressOutput`, `async_`), which every event accepts — that is how a hook halts a turn (and how a `Stop`/`SubagentStop` hook blocks a stop). Only `PreCompact` has no `hookSpecificOutput` type and is skipped; `Stop` and `SubagentStop` take `additionalContext` (typed from 0.2.166) |
+| `HOK002` | **error** | a callback returns a dict the SDK does not read — no `hookSpecificOutput` **and** a key outside the common fields — or a `hookSpecificOutput` whose `hookEventName` is not the event it is registered on | nothing in that dict reaches the decision. Not flagged: `return {}` (allow, unchanged), and a return made only of common top-level fields (`continue_`, `stopReason`, `decision`, `reason`, `systemMessage`, `suppressOutput`, `async_`), which every event accepts — that is how a hook halts a turn (and how a `Stop`/`SubagentStop` hook blocks a stop). `continue_: False` alone does **not** block a `PreToolUse` call (the hooks docs, 2026-11-17): a reviewer checks that a guard also returns `permissionDecision: "deny"`. Only `PreCompact` has no `hookSpecificOutput` type and is skipped; `Stop` and `SubagentStop` take `additionalContext` (typed from 0.2.166) |
 | `HOK003` | **error** | the matcher is not a valid regular expression | it can never match |
 | `HOK010` | warn | a `PreToolUse` deny with no `permissionDecisionReason` | the reason is the only thing the model reads; without it the agent is told no and cannot correct |
 | `HOK011` | warn | a `PreToolUse` or `PermissionRequest` guard (a callback that denies, asks or blocks) whose `HookMatcher` has no `on_failure="block"`; not reported when the project pins claude-agent-sdk below 0.2.177 | the guard **fails open**: a callback that raises, returns `None` (a path with no `return`) or returns a value the CLI rejects counts as no decision, and the call goes ahead (measured on 2.1.318 and 2.1.319). `on_failure="block"` (0.2.177+, Claude Code 2.1.317+) refuses it instead. Return `{}` where the guard has no opinion and let errors propagate. `Stop`, `SubagentStop`, `TaskCompleted`, `TeammateIdle` ignore the option; on `PermissionRequest` a block counts only before `can_use_tool` answers; an old CLI makes connecting raise `CLIConnectionError` (`does not honor`) |
@@ -144,12 +144,12 @@ Sources: <https://code.claude.com/docs/en/agent-sdk/permissions>,
 `.../agent-sdk/claude-code-features`, `.../agent-sdk/modifying-system-prompts`,
 `.../agent-sdk/structured-outputs`, `.../agent-sdk/agent-loop`,
 `.../agent-sdk/migration-guide`, `.../agent-sdk/python`;
-`claude-agent-sdk` 0.2.182 `types.py:25` (`PermissionMode`), `:37`
+`claude-agent-sdk` 0.2.183 `types.py:25` (`PermissionMode`), `:37`
 (`EffortLevel`), `:286` (`HookEvent`), `:730-817` (`HookJSONOutput`), `:830`
 (`HookCallback`), `:842` (`HookMatcher`), `:866` (`on_failure`, the field `HOK011`
-reads), `:2361` (the `Skill` deprecation), `:2395` (`permission_mode`, the field
-`OPT013` reads), `:2521` (`debug_stderr`), `:2724` (`max_thinking_tokens`),
-`:2341-2813` (the 50 fields); `__init__.py:267` (`SdkMcpTool`);
+reads), `:2412` (the `Skill` deprecation), `:2446` (`permission_mode`, the field
+`OPT013` reads), `:2572` (`debug_stderr`), `:2775` (`max_thinking_tokens`),
+`:2392-2864` (the 50 fields); `__init__.py:267` (`SdkMcpTool`);
 <https://code.claude.com/docs/en/agent-sdk/hooks#block-the-action-when-a-callback-fails>
 (`HOK011`);
 <https://platform.claude.com/docs/en/about-claude/model-deprecations>;
@@ -176,5 +176,7 @@ code review", 2026-10-15, verifier agents that vote before a finding is posted, 
 incident-derived eval and known-clean inputs). Line numbers above
 re-pinned to 0.2.178 on 2026-11-04 (`types.py` gained 13 lines for `on_failure`: +11 from line 855,
 +13 from 2321); 0.2.179's `types.py` is byte-identical, so they held; 0.2.182 added `client_app` and 21
-lines, so they were renumbered again on 2026-11-14.
+lines, so they were renumbered again on 2026-11-14; 0.2.183 added the `user_message_uuid` fields and 51 lines
+(renumbered 2026-11-17). <https://code.claude.com/docs/en/hooks#json-output> (`continue` and `PreToolUse`).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

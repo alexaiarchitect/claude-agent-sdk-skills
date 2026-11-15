@@ -173,9 +173,15 @@ class Capture:
         self.events.append(event)
         return event
 
-    def user_turn(self, text: str) -> None:
+    def user_turn(self, text: str, *, uuid: str | None = None) -> None:
+        """A prompt the runner sent; `uuid` is the one it was stamped with
+        (runner 0.2.6+), kept so a reader can match it to the result's
+        `user_message_uuid`."""
         self.turn += 1
-        self.emit("user", text=text, turn=self.turn)
+        if uuid is None:
+            self.emit("user", text=text, turn=self.turn)
+        else:
+            self.emit("user", text=text, turn=self.turn, uuid=uuid)
 
     def note(self, message: str, **fields: Any) -> None:
         self.emit("system", subtype="runner_note", data={"message": message, **fields})
@@ -261,10 +267,11 @@ class Capture:
             self.init_count += 1
             # Recorded when present, never required (CONTRACTS section 14.4):
             # `capabilities` (CLI 2.1.205+; 11 strings on 2.1.301, 13 on 2.1.310, 14 on
-            # 2.1.316 and 2.1.318, 15 on 2.1.319 and 2.1.321, 19 on 2.1.325) is for feature detection instead of
+            # 2.1.316 and 2.1.318, 15 on 2.1.319 and 2.1.321, 19 on 2.1.325, 20 on 2.1.326) is for feature detection instead of
             # version comparison, and the
             # fast-mode pair is declared on `SystemInitData` from SDK 0.2.166. Undeclared
             # keys the CLI also sends (`original_cwd`, `memory_paths`, `view_mode`,
+            # `additional_directories`, `user_message_uuids` (2.1.326, when the first prompt carried a uuid),
             # `ultrathink_available` from 2.1.316, `ultrathink_typed_raises` from 2.1.318, ...) are ignored, and `plugins[]` entries are copied as they come
             # (2.1.301 and 2.1.310 send `source`, not `version`).
             extras: dict[str, Any] = {}
@@ -311,13 +318,17 @@ class Capture:
         uuid = getattr(message, "uuid", None)
         stop_reason = getattr(message, "stop_reason", None)
         parent = getattr(message, "parent_tool_use_id", None)
+        # 0.2.183+: set on the first assistant message after the prompt's uuid
+        # is taken in, `None` on the rest (and on older SDKs): kept only when set.
+        echoed = {key: getattr(message, key) for key in ("user_message_uuid", "user_message_uuids")
+                  if getattr(message, key, None) is not None}
         for block in _blocks(getattr(message, "content", None)):
             kind, payload = _block_kind(block)
             if kind == "text":
                 text = payload.get("text", "")
                 self._assistant_texts.append(text)
                 self.emit("assistant_text", text=text, model=model, message_id=message_id,
-                          uuid=uuid, stop_reason=stop_reason)
+                          uuid=uuid, stop_reason=stop_reason, **echoed)
             elif kind == "thinking":
                 thinking = payload.get("thinking", "")
                 fields = {"chars": len(thinking)}
@@ -429,6 +440,13 @@ class Capture:
             "session_id": getattr(message, "session_id", None),
             "uuid": getattr(message, "uuid", None),
         }
+        # claude-agent-sdk 0.2.183+: which prompt(s) this result answers. Recorded
+        # when the CLI sent them (`None` on older SDKs and for plain-string
+        # prompts), so traces from a CLI that does not echo keep their 0.2.5 shape.
+        for key in ("user_message_uuid", "user_message_uuids"):
+            value = getattr(message, key, None)
+            if value is not None:
+                payload[key] = value
         self.results.append(payload)
         self.emit("result", **payload)
         outcome = result_outcome(payload["subtype"], is_error, stop_reason)

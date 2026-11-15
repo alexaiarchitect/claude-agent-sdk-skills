@@ -34,10 +34,15 @@ fields are unchanged. Re-run 2026-11-08 against 0.2.179 (bundled CLI 2.1.319) in
 bundled binary), `types.py` byte-identical to 0.2.178's (2,914 lines), every
 answer unchanged; the 2.1.319 `init` carries 15 capabilities, a CLI fact the
 wheel does not state. Re-run 2026-11-14 against 0.2.182 (bundled CLI 2.1.325) in
-`../tmp/venvs/casdk-venv-0.2.182`: `client_app` is the 50th option (`types.py:2813`),
+`../tmp/venvs/casdk-venv-0.2.182`: `client_app` is the 50th option (`types.py:2864`),
 `types.py` is 2,935 lines and every cited line moved (map in `TYPES_PY_LINES`);
 modes, events, union members, exports and `ResultMessage` fields unchanged; the
-2.1.325 `init` carries 19 capabilities. (History: the 2026-10-17 run against 0.2.168 / CLI
+2.1.325 `init` carries 19 capabilities. Re-run 2026-11-17 against 0.2.183 (bundled CLI
+2.1.326) in `../tmp/venvs/casdk-venv-0.2.183`: `user_message_uuid` and `user_message_uuids`
+are the 20th and 21st `ResultMessage` fields (after `origin`), `types.py` is 2,986 lines and
+every cited line from 1,359 on moved (map in `TYPES_PY_LINES`); options (50, same names and
+order), modes, events, union members and exports unchanged; the 2.1.326 `init` carries 20
+capabilities. (History: the 2026-10-17 run against 0.2.168 / CLI
 2.1.301 and the 2026-10-11 run against 0.2.165 / CLI 2.1.294 matched the checks
 that existed then.)
 """
@@ -63,11 +68,14 @@ from agent_sdk_skills import (
 
 #: The release and bundled CLI this sync measured. Literal on purpose: a pin
 #: moved without re-reading the wheel fails here, not just in the equality below.
-MEASURED_SDK = "0.2.182"
-MEASURED_CLI = "2.1.325"
+MEASURED_SDK = "0.2.183"
+MEASURED_CLI = "2.1.326"
 
-#: Where each symbol the plugin cites by line number sits in the 0.2.182 `types.py`
-#: (2935 lines; 0.2.182 added `client_app` and 21 lines against 0.2.178-0.2.180's
+#: Where each symbol the plugin cites by line number sits in the 0.2.183 `types.py`
+#: (2986 lines; 0.2.183 added `user_message_uuid(s)` to three message classes and 51
+#: lines against 0.2.182's 2935: up to 1358 stay, 1364-1402 +10, 1403-1741 +20,
+#: 1746-1755 +41, 1756 on +51, re-measured 2026-11-17). Before that, the 0.2.182
+#: `types.py` (2935 lines; 0.2.182 added `client_app` and 21 lines against 0.2.178-0.2.180's
 #: 2914: lines up to 191 stay, 196-2478 +2, 2505-2673 +4, 2675-2807 +5, 2808 on +21,
 #: re-measured 2026-11-14). Before that, the 0.2.178 (= 0.2.179 = 0.2.180)
 #: `types.py` (2914 lines). 0.2.177 inserted `HookMatcher.on_failure` and its
@@ -85,31 +93,36 @@ TYPES_PY_LINES = {
     "on_failure": (866, "on_failure: Literal[\"continue\", \"block\"] | None = None"),
     "SandboxIgnoreViolations": (1139, "SandboxIgnoreViolations: TypeAlias = dict[str, list[str]]"),
     "SandboxSettings": (1154, "class SandboxSettings("),
-    "SystemInitData": (1474, "class SystemInitData("),
-    "ModelUsage": (1682, "class ModelUsage("),
-    "ResultMessage": (1708, "class ResultMessage:"),
-    "RateLimitType": (1760, "RateLimitType = Literal["),
-    "RateLimitInfo": (1766, "class RateLimitInfo:"),
-    "ClaudeAgentOptions": (2341, "class ClaudeAgentOptions:"),
-    "permission_mode": (2395, "permission_mode:"),
-    "include_hook_events": (2571, "include_hook_events:"),
-    "forward_subagent_text": (2580, "forward_subagent_text:"),
-    "agents": (2664, "agents:"),
-    "setting_sources": (2670, "setting_sources:"),
-    "skills": (2683, "skills:"),
-    "max_thinking_tokens": (2724, "max_thinking_tokens:"),
-    "effort": (2746, "effort:"),
-    "session_store": (2777, "session_store:"),
-    "task_budget": (2804, "task_budget:"),
-    "client_app": (2813, "client_app: str | None = None"),
+    "SystemInitData": (1494, "class SystemInitData("),
+    "ModelUsage": (1702, "class ModelUsage("),
+    "AssistantMessage": (1401, "class AssistantMessage:"),
+    "ResultMessage": (1728, "class ResultMessage:"),
+    "result_user_message_uuid": (1767, "user_message_uuid: str | None = None"),
+    "result_user_message_uuids": (1779, "user_message_uuids: list[str] | None = None"),
+    "StreamEvent": (1790, "class StreamEvent:"),
+    "RateLimitType": (1811, "RateLimitType = Literal["),
+    "RateLimitInfo": (1817, "class RateLimitInfo:"),
+    "ClaudeAgentOptions": (2392, "class ClaudeAgentOptions:"),
+    "permission_mode": (2446, "permission_mode:"),
+    "include_hook_events": (2622, "include_hook_events:"),
+    "forward_subagent_text": (2631, "forward_subagent_text:"),
+    "agents": (2715, "agents:"),
+    "setting_sources": (2721, "setting_sources:"),
+    "skills": (2734, "skills:"),
+    "max_thinking_tokens": (2775, "max_thinking_tokens:"),
+    "effort": (2797, "effort:"),
+    "session_store": (2828, "session_store:"),
+    "task_budget": (2855, "task_budget:"),
+    "client_app": (2864, "client_app: str | None = None"),
 }
 
-#: The 19 `ResultMessage` fields, in declaration order (`types.py:1708` of 0.2.182).
+#: The 21 `ResultMessage` fields, in declaration order (`types.py:1728` of 0.2.183;
+#: 19 through 0.2.182, then `user_message_uuid` and `user_message_uuids`).
 RESULT_MESSAGE_FIELDS = (
     "subtype", "duration_ms", "duration_api_ms", "is_error", "num_turns", "session_id",
     "stop_reason", "total_cost_usd", "usage", "result", "structured_output", "model_usage",
     "permission_denials", "deferred_tool_use", "errors", "api_error_status", "uuid",
-    "terminal_reason", "origin",
+    "terminal_reason", "origin", "user_message_uuid", "user_message_uuids",
 )
 
 #: The 26 names `__all__` gained in 0.2.166 (133 -> 159; none removed since).
@@ -159,6 +172,8 @@ print(json.dumps({
     "effort_levels": literal("EffortLevel"),
     "hook_events": literal("HookEvent"),
     "result_message": fields(sdk.ResultMessage),
+    "assistant_message": fields(sdk.AssistantMessage),
+    "stream_event": fields(sdk.StreamEvent),
     "all": list(sdk.__all__),
     "specific_output_events": [
         typing.get_args(typing.get_type_hints(c)["hookEventName"])[0]
@@ -213,12 +228,21 @@ def test_the_hook_events_are_the_ten_python_accepts(surface):
     assert "SessionStart" not in live and "SessionEnd" not in live, "HOK020's whole point"
 
 
-def test_the_result_message_fields_are_the_nineteen_the_graders_read(surface):
+def test_the_result_message_fields_are_the_twenty_one_the_graders_read(surface):
     assert list(RESULT_MESSAGE_FIELDS) == surface["result_message"]
 
 
+def test_result_message_has_user_message_uuid_fields(surface):
+    """0.2.183 added both after `origin`; the runner matches its prompt's uuid against them."""
+    live = surface["result_message"]
+    assert live[-2:] == ["user_message_uuid", "user_message_uuids"]
+    assert len(live) == 21
+    assert set(surface["assistant_message"]) >= {"user_message_uuid", "user_message_uuids"}
+    assert set(surface["stream_event"]) >= {"user_message_uuid", "user_message_uuids"}
+
+
 def test_the_export_list_is_the_one_the_stub_mirrors(surface):
-    """159 names on 0.2.179 (as on 0.2.168, 0.2.174, 0.2.176 and 0.2.178; `on_failure` is a field, not an export); `HookEvent` is not among them (import it
+    """159 names on 0.2.183 (as on 0.2.179, 0.2.182, 0.2.168, 0.2.174, 0.2.176 and 0.2.178; `on_failure` is a field, not an export); `HookEvent` is not among them (import it
     from `.types`)."""
     live = surface["all"]
     assert len(live) == 159
@@ -240,7 +264,7 @@ def test_ignore_violations_maps_a_command_pattern_to_violation_substrings(surfac
 
 
 def test_system_init_data_declares_capabilities_and_fast_mode(surface):
-    """Declared, not counted: 19 capability strings on CLI 2.1.325 (15 on 2.1.319
+    """Declared, not counted: 20 capability strings on CLI 2.1.326 (19 on 2.1.325, 15 on 2.1.319
     and 2.1.321, 14 on 2.1.316
     and 2.1.318, 13 on 2.1.310, 11 on 2.1.301) is a CLI fact measured live, not something the wheel says.
     Neither are the `ultrathink_available` (2.1.316) and `ultrathink_typed_raises`
@@ -254,7 +278,8 @@ def test_system_init_data_declares_capabilities_and_fast_mode(surface):
 #: on 2026-11-02 (`d38e51e`; the 2.1.316 CLI refused it at connect) and shipped in
 #: 0.2.177 (`Literal["continue", "block"] | None = None`, `types.py:866`); the
 #: bundled 2.1.318 honours it (measured 2026-11-04). The test was flipped then;
-#: 2.1.319 (0.2.179) the same (2026-11-08); 2.1.325 (0.2.182) the same (2026-11-14).
+#: 2.1.319 (0.2.179) the same (2026-11-08); 2.1.325 (0.2.182) the same (2026-11-14);
+#: 2.1.326 (0.2.183) the same (2026-11-17).
 HOOK_MATCHER_FIELDS = ("matcher", "hooks", "timeout", "on_failure")
 
 
@@ -277,14 +302,14 @@ def test_every_cited_types_py_line_is_where_the_plugin_says(surface, symbol):
 
 
 def test_claude_agent_options_ends_at_client_app(surface):
-    """The references cite the dataclass as `types.py:2341-2813` (`:2339-2799` on
-    0.2.178-0.2.180, `:2326-2786` before 0.2.177): `client_app` (0.2.181) is the last
-    field, right after `task_budget` (`:2804`)."""
+    """The references cite the dataclass as `types.py:2392-2864` (`:2339-2799` on
+    0.2.178-0.2.180, lines 2341 to 2813 on 0.2.181-0.2.182, `:2326-2786` before 0.2.177):
+    `client_app` (0.2.181) is the last field, right after `task_budget` (`:2855`)."""
     lines = Path(surface["types_path"]).read_text(encoding="utf-8").splitlines()
-    assert lines[2803].strip().startswith("task_budget:")
-    assert lines[2812].strip().startswith("client_app:")
+    assert lines[2854].strip().startswith("task_budget:")
+    assert lines[2863].strip().startswith("client_app:")
     after = []
-    for line in lines[2813:]:
+    for line in lines[2864:]:
         if line and not line[0].isspace():
             break                          # the next top-level statement ends the class
         if re.match(r"^    [a-z_]+: ", line):

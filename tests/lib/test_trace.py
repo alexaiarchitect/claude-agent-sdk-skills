@@ -467,9 +467,11 @@ def test_a_2_1_310_trace_summarizes_thirteen_capabilities(traces):
 @pytest.mark.parametrize("cli,count,new_capability", [
     ("2.1.316", 14, "ask_user_question_unanswered_v1"),
     ("2.1.319", 15, "mcp_call_check_permissions_v1"),
-], ids=("2.1.316", "2.1.319"))
+    ("2.1.326", 20, "silent_resend_files_v1"),
+], ids=("2.1.316", "2.1.319", "2.1.326"))
 def test_a_2_1_316_or_later_trace_summarizes_its_capabilities(traces, cli, count, new_capability):
-    """14 capabilities on 2.1.316 (and 2.1.318), 15 on 2.1.319: recorded, never required."""
+    """14 capabilities on 2.1.316 (and 2.1.318), 15 on 2.1.319, 20 on 2.1.326 (measured
+    2026-11-17): recorded, never required."""
     events = load_trace(traces / f"init_{cli.replace('.', '_')}.trace.jsonl")
     summary = to_summary(events)
     assert summary["init"]["cli_version"] == cli
@@ -478,6 +480,16 @@ def test_a_2_1_316_or_later_trace_summarizes_its_capabilities(traces, cli, count
     assert len(capabilities) == count and new_capability in capabilities
     assert "ultrathink_available" not in summary["init"], "an undeclared init key, not summarized"
     assert summary["result"]["outcome"] == "success"
+
+
+def test_a_runner_0_2_6_trace_loads_with_the_prompt_uuid_on_user_and_result(traces):
+    """Additive keys under the same schema: `uuid` on the `user` event and
+    `user_message_uuid(s)` on the result; the reader needs no change."""
+    events = load_trace(traces / "init_2_1_326.trace.jsonl")
+    user = events_of(events, "user")[0]
+    result = events_of(events, "result")[0]
+    assert user.get("uuid") == result.get("user_message_uuid") == "0000000000004000a000000000000326"
+    assert result.get("user_message_uuids") == [user.get("uuid")]
 
 
 # -- is_error on a success subtype (Python SDK docs, Claude Code 2.1.310) ----

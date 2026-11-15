@@ -64,7 +64,9 @@ utilization, which is the right "how close am I" figure.
 ## Reading the cost afterwards
 
 `total_cost_usd` is a session running total, so a multi-turn case's cost is the
-last value, not a sum of turns; the trace records `cost_delta_usd` per turn.
+last value, not a sum of turns; the trace records `cost_delta_usd` per turn. Runner 0.2.6 stamps each prompt
+with a uuid and reads past results of injected turns (up to three) before taking the cost, so the recorded
+total covers the turn that answered the case's prompt.
 `model_usage` also lists models the agent never asked for: measured 2026-10-11
 on SDK 0.2.165 with bundled CLI 2.1.294, the extra row was **`claude-haiku-5-5`**
 (1192 in / 26 out, $0.0001322 — exactly $0.10 and $0.50 per Mtok), where the
@@ -119,5 +121,6 @@ threshold). <https://www.anthropic.com/research/formal-verification> ("LLMs are
 making formal software verification feasible at a much larger scale",
 2026-10-22, three independent attempts at a 5M-token budget per task as the
 worked example); `task_budget` per the claude-agent-sdk 0.2.178 `types.py`
-docstring (`types.py:2804` in 0.2.182). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
+docstring (`types.py:2855` in 0.2.183). Re-read 2026-11-04 against claude-agent-sdk 0.2.178 / Claude Code 2.1.318 docs.
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

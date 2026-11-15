@@ -776,7 +776,9 @@ def result_outcome(result: TraceEvent | dict[str, Any] | None) -> str | None:
     `terminal_reason`, then `subtype`. `is_error` is `True` on
     `subtype="success"` in three cases — `stop_reason == "refusal"` (the model
     declined), `"tool_deferred_unavailable"` (a deferred tool was missing on
-    resume), and anything else, which is an error reported in place of a model
+    resume; per the docs re-read 2026-11-17 the call stays pending and a prompt
+    sent with the resume does not reach Claude unless the call is dropped), and
+    anything else, which is an error reported in place of a model
     response. The first two are not API errors even when `terminal_reason` reads
     `"api_error"`, so a report must not file them with the 429s and timeouts.
     """

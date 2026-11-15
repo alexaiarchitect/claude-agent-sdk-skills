@@ -130,6 +130,32 @@ measured the grader. In this plugin the rubric lives in the grader file's frontm
 `DEFAULT_JUDGE_MODEL` can be the model under test (name another on the grader), and a
 judge call that fails is `NOT_EVALUATED`, never a pass.
 
+## Graders the agent cannot reach
+
+The Claude Code team's verification post (2026-11-16, article #45; Claude Code practice,
+no Agent SDK mention) states the rule every grader here rests on: "If a change can
+modify the check that judges it, the check is broken." The team's Code Review reads its
+rules (`REVIEW.md`) from the base branch, never from the change under review. For a
+suite: case files, grader files and rubrics live outside the run's working directory and
+are never written by the run under test, and a pull request that changes both the agent
+and the graders that judge it gets those grader changes reviewed on their own. A case
+whose agent can edit its own tests grades nothing.
+
+**Prefer end-to-end graders.** A check on the finished artifact (`file_exists` plus
+`regex` with `target: files`, `structured_output`, `terminal`) is hard to fool; a check
+on one intermediate step can pass while the task failed. **Property and differential
+checks** make the strongest code graders: a round-trip, an invariant, idempotency, or
+equivalence with a naive version; for a migration, the old system as the oracle on the
+same inputs, with irrelevant differences (whitespace, ordering) normalised. No grader
+here executes code, so run those checks in the project's own tests against the run's
+output files, or seed the oracle's output as a fixture and compare it with `regex` or
+`final_text`.
+
+**A flaky grader trains retries.** The article's point about flaky tests, that they
+teach the agent to run them again, holds for whoever iterates against a suite, person or
+hillclimbing agent. Fix a flaky grader or delete it with a note saying why; never add
+sleeps or retries to make it pass, and never let a grader pass because it was run again.
+
 ## What every grader file owes the reader
 
 Frontmatter is the check; the **body is the argument**. Two paragraphs: what
@@ -149,7 +175,10 @@ https://code.claude.com/docs/en/agent-sdk/agent-loop (the `max_turns` "+1" rule)
 https://platform.claude.com/docs/en/about-claude/models/overview (Haiku 5.5's
 price); https://www.anthropic.com/research/building-strong-safety-evaluations ("Building
 strong safety evaluations", 2026-11-13, atomic binary criteria, grader bias, fail loudly,
-human-label validation; no Agent SDK mention). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
+human-label validation; no Agent SDK mention);
+https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/ ("How the Claude Code team thinks about
+verification", 2026-11-16, checks out of reach of the change they judge, end-to-end over unit checks, property and
+differential tests, flaky tests fixed or deleted with a note; the Claude Code team's practice, no Agent SDK mention). `costBasis: "list"` was measured by this plugin on 2026-10-11 against
 SDK 0.2.165 with bundled CLI 2.1.294. Re-read 2026-10-11 against
 claude-agent-sdk 0.2.165 / Claude Code 2.1.296 docs.
 Re-read 2026-10-24 against claude-agent-sdk 0.2.174 / Claude Code 2.1.310 docs.

@@ -11,11 +11,11 @@ Every constant below that describes the SDK was read from the installed wheel
 named in `.dev/VERIFIED-FACTS.md` and is re-pinned at each upstream sync.
 """
 
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 #: The runner package version this plugin ships under `runner/agent_sdk_evals/`.
 #: A project's copy carries its own `VERSION`; `runner_version.py` compares them.
-RUNNER_VERSION = "0.2.5"
+RUNNER_VERSION = "0.2.6"
 
 #: The `claude-agent-sdk` release the rules were checked against, and the
 #: oldest release the runner is known to work with (`ResultError` and the
@@ -30,22 +30,32 @@ RUNNER_VERSION = "0.2.5"
 #: the bundled binary (2.1.319), `types.py` is byte-identical to 0.2.178, so
 #: every citation holds (checked 2026-11-08). 0.2.180 (2026-11-09) is CLI-only
 #: again (bundled 2.1.321). 0.2.181 (2026-11-12, CLI 2.1.323) and 0.2.182
-#: (2026-11-13, CLI 2.1.325) add the `client_app` option (`types.py:2813`, the
+#: (2026-11-13, CLI 2.1.325) add the `client_app` option (`types.py:2864` on 0.2.183, the
 #: 50th field), make settings that cannot be loaded or merged with `sandbox`
 #: raise `CLIConnectionError`, and read the CLI version from its `init` message.
 #: `types.py` gained 21 lines against 0.2.180 (lines up to 191 unchanged,
 #: 196-2478 moved by 2, 2505-2673 by 4, 2675-2807 by 5, 2808 on by 21), so every
 #: `types.py:<line>` citation was renumbered again (checked 2026-11-14). None of
 #: 0.2.179-0.2.182 has a CHANGELOG entry; cite the GitHub release pages.
-SDK_TARGET = "0.2.182"
+#: 0.2.183 (2026-11-16, CLI 2.1.326) adds `user_message_uuid` and
+#: `user_message_uuids` to `AssistantMessage`, `ResultMessage` (now 21 fields,
+#: `types.py:1728`) and `StreamEvent`, and rewrites the `MessageOrigin` docstring;
+#: `types.py` grew 51 lines (2935 -> 2986: up to 1358 unchanged, 1364-1402 +10,
+#: 1403-1741 +20, 1746-1755 +41, 1756 on +51), so every citation was renumbered
+#: again (`ClaudeAgentOptions` 2392, `client_app` 2864; checked 2026-11-17). No
+#: CHANGELOG entry; cite the release page. Unreleased on `main` (`8ed58af`,
+#: 2026-11-17): `PermissionUpdate.to_dict()` stops sending `"ruleContent": null`,
+#: which Claude Code rejects together with every other update in that response.
+SDK_TARGET = "0.2.183"
 SDK_MIN_SUPPORTED = "0.2.140"
-CLI_BUNDLED_WITH_TARGET = "2.1.325"
+CLI_BUNDLED_WITH_TARGET = "2.1.326"
 #: The Claude Code version whose documentation the references were read against
 #: (docs and changelog re-read 2026-11-04).
 #: docs re-read 2026-11-05 (lastmod 2026-11-04), no CLI release.
 #: docs re-read 2026-11-08 (lastmod 2026-11-06/07), CLI 2.1.319.
 #: docs re-read 2026-11-14 (lastmod 2026-11-12/13/14), CLI 2.1.325.
-DOCS_READ_AT_CLI = "2.1.325"
+#: docs re-read 2026-11-17 (47 pages changed, 1 new), CLI 2.1.326.
+DOCS_READ_AT_CLI = "2.1.326"
 
 #: Model policy. Ids from platform.claude.com/docs/en/models/overview and
 #: .../about-claude/model-deprecations (read 2026-10-11, re-read 2026-11-14:
@@ -83,8 +93,8 @@ RETIRED_MODELS = (
 #: Aliases the CLI resolves at run time; they never go stale but do move.
 ALIAS_MODELS = ("sonnet", "opus", "haiku", "fable", "best", "default", "opusplan")
 
-#: `ClaudeAgentOptions` field names in declaration order (`types.py:2341` of
-#: claude-agent-sdk 0.2.182, 50 fields). "Is this even an option?" (EVC003).
+#: `ClaudeAgentOptions` field names in declaration order (`types.py:2392` of
+#: claude-agent-sdk 0.2.183, 50 fields). "Is this even an option?" (EVC003).
 OPTION_NAMES = (
     "tools", "allowed_tools", "system_prompt", "mcp_servers", "strict_mcp_config",
     "permission_mode", "continue_conversation", "resume", "session_id", "max_turns",
@@ -161,12 +171,14 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.319, unchanged at 2.1.325): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.319, unchanged at 2.1.326): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
-#: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
+#: `"tool_deferred_unavailable"` (a deferred tool was not available on resume;
+#: docs re-read 2026-11-17: a resume with a prompt leaves the call pending and the
+#: prompt does not reach Claude, unless the call is dropped as the hooks page shows),
 #: and any other value, which is an error reported in place of a model response.
 #: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
 #: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
-#: through from the CLI unchanged (0.2.182 `_internal/message_parser.py`, unchanged since 0.2.178).
+#: through from the CLI unchanged (0.2.183 `_internal/message_parser.py`; these fields unchanged since 0.2.178).
 RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")

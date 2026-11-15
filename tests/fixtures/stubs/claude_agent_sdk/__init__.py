@@ -11,7 +11,9 @@ bundled CLI 2.1.310; re-pinned to 0.2.176 / 2.1.316 on 2026-11-02, whose `types.
 is byte-identical, and to 0.2.178 / 2.1.318 on 2026-11-04, whose `types.py` adds
 `HookMatcher.on_failure` and so 13 lines, and to 0.2.179 / 2.1.319 on 2026-11-08,
 whose `types.py` is byte-identical to 0.2.178, and to 0.2.182 / 2.1.325 on 2026-11-14,
-whose `types.py` adds `client_app` as the 50th option and 21 lines; the stub mirrors a subset of the wheel's 159 exports); `ClaudeAgentOptions` carries all 50 fields in declaration
+whose `types.py` adds `client_app` as the 50th option and 21 lines, and to 0.2.183 / 2.1.326
+on 2026-11-17, whose `types.py` adds `user_message_uuid` and `user_message_uuids` to
+`AssistantMessage`, `ResultMessage` and `StreamEvent` and 51 lines; the stub mirrors a subset of the wheel's 159 exports); `ClaudeAgentOptions` carries all 50 fields in declaration
 order, so a test can compare the runner's pinned option list against
 `__dataclass_fields__` exactly as the runner does at run time.
 
@@ -26,6 +28,15 @@ rest of the keys being that type's fields — the same shape the measured runs i
 `.dev/measured/run*.jsonl` are stored in, so a real captured session can be
 replayed verbatim. An optional `_turn` splits a script across the turns of a
 multi-turn `ClaudeSDKClient` session.
+
+`ClaudeSDKClient.query()` takes a string or an async iterable of user-message
+dicts, as the real one does; each call is recorded in `calls()` with the prompt
+text, the dict's `uuid` and the dict itself. A script value `"$sent"` in
+`user_message_uuid` (or an item of `user_message_uuids`) stands for the uuid of
+the last message sent, so a script can say "this result answers your prompt"
+without knowing the random value. `receive_response()` stops after each
+`ResultMessage` and keeps the rest of the turn for the next call, so a caller
+that drains past a result for another turn sees the next one.
 """
 
 from __future__ import annotations
@@ -36,8 +47,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Generic, Literal, TypedDict, TypeVar
 
-__version__ = "0.2.182"
-__cli_version__ = "2.1.325"
+__version__ = "0.2.183"
+__cli_version__ = "2.1.326"
 
 T = TypeVar("T")
 
@@ -381,6 +392,8 @@ class AssistantMessage:
     stop_reason: str | None = None
     session_id: str | None = None
     uuid: str | None = None
+    user_message_uuid: str | None = None
+    user_message_uuids: list[str] | None = None
 
 
 @dataclass
@@ -444,6 +457,8 @@ class ResultMessage:
     uuid: str | None = None
     terminal_reason: str | None = None
     origin: dict[str, Any] | None = None
+    user_message_uuid: str | None = None
+    user_message_uuids: list[str] | None = None
 
 
 @dataclass
@@ -452,6 +467,8 @@ class StreamEvent:
     session_id: str
     event: dict[str, Any]
     parent_tool_use_id: str | None = None
+    user_message_uuid: str | None = None
+    user_message_uuids: list[str] | None = None
 
 
 @dataclass
@@ -608,6 +625,10 @@ def create_sdk_mcp_server(name: str, version: str = "1.0.0",
 
 _SCRIPT: list[dict[str, Any]] = []
 _CALLS: list[dict[str, Any]] = []
+#: The `uuid` of the last user-message dict a client sent; `"$sent"` in a script
+#: entry's `user_message_uuid(s)` is replaced with it.
+_LAST_SENT_UUID: str | None = None
+SENT = "$sent"
 
 _CLASSES: dict[str, Any] = {
     "UserMessage": UserMessage, "AssistantMessage": AssistantMessage,
@@ -622,9 +643,10 @@ _CLASSES: dict[str, Any] = {
 
 def set_script(messages: list[Any]) -> None:
     """Replace the script. Entries may be dicts or already-built message objects."""
-    global _SCRIPT
+    global _SCRIPT, _LAST_SENT_UUID
     _SCRIPT = list(messages)
     _CALLS.clear()
+    _LAST_SENT_UUID = None
 
 
 def push_script(messages: list[Any]) -> None:
@@ -667,6 +689,11 @@ def build_message(entry: Any) -> Any:
     if not isinstance(entry, dict):
         return entry
     payload = {k: v for k, v in entry.items() if not k.startswith("_") and k != "__class__"}
+    if payload.get("user_message_uuid") == SENT:
+        payload["user_message_uuid"] = _LAST_SENT_UUID
+    if isinstance(payload.get("user_message_uuids"), list):
+        payload["user_message_uuids"] = [_LAST_SENT_UUID if u == SENT else u
+                                         for u in payload["user_message_uuids"]]
     cls = _CLASSES.get(entry.get("__class__", ""))
     if cls is None:
         return SystemMessage(subtype=entry.get("__class__", "unknown"), data=payload)
@@ -763,10 +790,23 @@ class ClaudeSDKClient:
             raise CLIConnectionError("Not connected. Call connect() first.")
 
     async def query(self, prompt: Any, session_id: str = "default") -> None:
+        """A string, or an async iterable of user-message dicts (consumed here,
+        `session_id` added when missing, as the real client does)."""
+        global _LAST_SENT_UUID
         self._require()
         self._turn += 1
-        _CALLS.append({"prompt": prompt, "options": self.options, "via": "client",
-                       "turn": self._turn})
+        if isinstance(prompt, str):
+            _CALLS.append({"prompt": prompt, "uuid": None, "message": None,
+                           "options": self.options, "via": "client", "turn": self._turn})
+        else:
+            async for message in prompt:
+                message.setdefault("session_id", session_id)
+                content = (message.get("message") or {}).get("content")
+                uid = message.get("uuid")
+                if uid is not None:
+                    _LAST_SENT_UUID = uid
+                _CALLS.append({"prompt": content, "uuid": uid, "message": message,
+                               "options": self.options, "via": "client", "turn": self._turn})
         script = _script()
         turns = {_turn_of(e) for e in script}
         if turns == {None}:
@@ -776,14 +816,15 @@ class ClaudeSDKClient:
 
     async def receive_response(self) -> AsyncIterator[Any]:
         self._require()
-        for entry in self._pending:
+        while self._pending:
+            entry = self._pending.pop(0)
             if isinstance(entry, dict) and entry.get("__class__") == "raise":
+                self._pending = []
                 raise _build_error(entry)
             message = build_message(entry)
             yield message
             if isinstance(message, ResultMessage):
-                break
-        self._pending = []
+                return                     # the rest of the turn waits for the next drain
 
     async def receive_messages(self) -> AsyncIterator[Any]:
         async for message in self.receive_response():

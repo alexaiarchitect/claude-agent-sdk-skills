@@ -132,27 +132,36 @@ and its two siblings); put those in the job's environment or managed settings. `
 `CLAUDE_CODE_WARN_MEMORY_FREE_GIB` and `CLAUDE_CODE_DISABLE_MOUNTED_DRIVE_RM_PROMPT` (2.1.304+) are honoured only from
 the launching environment.
 
-**Claude Code 2.1.319–2.1.325 for a deployment:** Bash permission gaps keep being closed (`sed`, `cp`/`mv`, wrappers,
-wildcards — `../../agent-harness/references/permission-model.md`), another reason not to treat `acceptEdits` or rules
-as the boundary; `claude -p` exits 1 on a full disk and when auto mode refused actions for lack of a safety check;
-**sandboxed Bash follows the normal permission flow by default** from 2.1.324 (`sandbox.autoAllowBashIfSandboxed:
-true` restores prompt-free sandboxed commands; the Python SDK docs put the `False` default at SDK 0.2.182); and from
-2.1.325 `claude -p` and the SDK **stop at start-up** when `--settings`/SDK settings that turn the sandbox on fail
-validation, naming the setting, instead of running Bash unsandboxed — the 0.2.182 transport raises
-`CLIConnectionError` for settings it cannot load. The SDK docs' container example now uses `--pids-limit 600`
-(processes and threads).
+**Claude Code 2.1.319–2.1.325 for a deployment:** Bash permission gaps keep being closed (`sed`, `cp`/`mv`, wrappers, wildcards
+— `../../agent-harness/references/permission-model.md`), another reason not to treat `acceptEdits` or rules as the boundary;
+`claude -p` exits 1 on a full disk and when auto mode refused actions for lack of a safety check; **sandboxed Bash follows the
+normal permission flow by default** from 2.1.324 (`sandbox.autoAllowBashIfSandboxed: true` restores prompt-free sandboxed
+commands; the Python SDK docs put the `False` default at SDK 0.2.182); and from 2.1.325 `claude -p` and the SDK **stop at
+start-up** when `--settings`/SDK settings that turn the sandbox on fail validation, naming the setting, instead of running Bash
+unsandboxed — the 0.2.182 transport raises `CLIConnectionError` for settings it cannot load. The SDK docs' container example
+now uses `--pids-limit 600` (processes and threads).
 
 **Sandbox keys and changes.** Set **`sandbox.failIfUnavailable`** on a host that must never run unsandboxed: with
-`sandbox.enabled` true and the sandbox unable to start (platform or dependency check), Claude Code exits with an error
-at startup instead of running commands unsandboxed. **`sandbox.network.allowMachLookup`** lists macOS XPC/Mach
-services a sandboxed command may reach, and the docs (read 2026-11-04) warn that the sandbox does not confine what
-those services do for it, so keep the list short. Both keys are documented, not new.
-`sandbox.allowNestedUserNamespaces` (2.1.305+, user or managed scope) lets sandboxed Linux/WSL2 commands create user
-namespaces and, per the docs, turns off a security boundary; `SandboxSettings` does not declare it; keep it off in a
-multi-tenant host. From **2.1.314** sandbox protections also apply to a worktree entered by `claude -p --resume` or
-`--continue`; from 2.1.316 a `--restricted` session no longer uploads files from outside the working directories.
-`CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1` concerns agent-view background sessions, not an SDK subprocess, which ends
-with its query.
+`sandbox.enabled` true and the sandbox unable to start (platform or dependency check), Claude Code exits with an error at
+startup instead of running commands unsandboxed. **`sandbox.network.allowMachLookup`** lists macOS XPC/Mach services a
+sandboxed command may reach, and the docs (read 2026-11-04) warn that the sandbox does not confine what those services do for
+it, so keep the list short. Both keys are documented, not new. `sandbox.allowNestedUserNamespaces` (2.1.305+, user or managed
+scope) lets sandboxed Linux/WSL2 commands create user namespaces and, per the docs, turns off a security boundary;
+`SandboxSettings` does not declare it; keep it off in a multi-tenant host. From **2.1.314** sandbox protections also apply to a
+worktree entered by `claude -p --resume` or `--continue`; from 2.1.316 a `--restricted` session no longer uploads files from
+outside the working directories. `CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1` concerns agent-view background sessions, not an SDK
+subprocess, which ends with its query.
+
+**Claude Code 2.1.326 for a deployment.** The Bash sandbox keeps its state for the session until `/sandbox` or `/cd`, no longer
+writes to some sensitive home folders by default (grant one with `sandbox.filesystem.allowWrite`), sets aside unexpected `.git`
+entries, and with auto-allow off asks before some lines that set environment variables — unattended runs can refuse them. A
+command that a permission hook **or the SDK host** rewrites while approving stays sandboxed if the original was checked as
+sandboxed (opt out per call with `dangerouslyDisableSandbox: true`). `sandbox.failIfUnavailable` is **not enforced in an
+Anthropic-hosted environment**: the session starts with a warning and no `filesystem`/`network` rules (settings reference,
+2026-11-17); elsewhere the Python `query()` raises `ResultError`. A managed `autoMode.environment` without `"$defaults"` now
+replaces every built-in entry in Agent SDK apps too. `--bare` with an unapproved API key can't move to the background,
+`--await-initialize` is refused with `--bg`, HTTP hooks ignore `Content-Length`/`Transfer-Encoding` headers, and file tools
+refuse writes to `.credentials.json`.
 
 And none of it controls **egress**: apply per-tenant egress rules at the proxy (distinct outbound IPs, credentials or
 domain allowlists) so a compromised tenant cannot exfiltrate through another tenant's policy.
@@ -201,38 +210,40 @@ is the host process, and the sandbox is `sandbox` plus the process boundary; not
 
 ---
 
-Sources: <https://code.claude.com/docs/en/agent-sdk/secure-deployment> (threat model, isolation technologies, sandbox
-runtime caveats, the proxy pattern and `--network none`, credentials for allowed domains and other services,
-critical-path removals, filesystem configuration), <https://code.claude.com/docs/en/headless>,
+Sources: <https://code.claude.com/docs/en/agent-sdk/secure-deployment> (threat model, isolation technologies, sandbox runtime
+caveats, the proxy pattern and `--network none`, credentials for allowed domains and other services, critical-path removals,
+filesystem configuration), <https://code.claude.com/docs/en/headless>,
 <https://code.claude.com/docs/en/agent-sdk/hosting#multi-tenant-isolation>,
 <https://code.claude.com/docs/en/agent-sdk/claude-code-features#what-settingsources-does-not-control>,
 <https://code.claude.com/docs/en/agent-sdk/quickstart> (the third-party policy note),
 <https://code.claude.com/docs/en/sandboxing#security-limitations>; <https://code.claude.com/docs/en/model-config>
-(managed-settings delivery, `allowedProviders`), <https://code.claude.com/docs/en/permission-modes> (the HIPAA
-configuration and the mode-disabling settings), <https://code.claude.com/docs/en/permissions#network-paths>,
-<https://www.anthropic.com/research/how-we-contain-claude> ("How we contain Claude across products", 2026-10-12, for
-the containment model this checklist sits inside); <https://www.anthropic.com/research/claude-code-sandboxing>
-("Making Claude Code safer with sandboxing", 2025-10-20, filesystem and network isolation both required, proxy and
-credentials outside the sandbox, the reported 84 % fewer prompts); `claude-agent-sdk` 0.2.182 `types.py:2670`
-(`setting_sources`), `:2388` (`strict_mcp_config`), `:2395` (`permission_mode`), `:866` (`on_failure`),
-`_internal/session_resume.py:352-380` (credential handling and `apiKeyHelper`);
-<https://code.claude.com/docs/en/settings-reference> (variables ignored in project `env`,
-`sandbox.allowNestedUserNamespaces`, `sandbox.failIfUnavailable`, `sandbox.network.allowMachLookup`, "Where wildcards
-work in sandbox paths"), <https://code.claude.com/docs/en/env-vars> (`CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF`),
+(managed-settings delivery, `allowedProviders`), <https://code.claude.com/docs/en/permission-modes> (the HIPAA configuration
+and the mode-disabling settings), <https://code.claude.com/docs/en/permissions#network-paths>,
+<https://www.anthropic.com/research/how-we-contain-claude> ("How we contain Claude across products", 2026-10-12, for the
+containment model this checklist sits inside); <https://www.anthropic.com/research/claude-code-sandboxing> ("Making Claude Code
+safer with sandboxing", 2025-10-20, filesystem and network isolation both required, proxy and credentials outside the sandbox,
+the reported 84 % fewer prompts); `claude-agent-sdk` 0.2.183 `types.py:2721` (`setting_sources`), `:2439`
+(`strict_mcp_config`), `:2446` (`permission_mode`), `:866` (`on_failure`), `_internal/session_resume.py:352-380` (credential
+handling and `apiKeyHelper`); <https://code.claude.com/docs/en/settings-reference> (variables ignored in project `env`,
+`sandbox.allowNestedUserNamespaces`, `sandbox.failIfUnavailable`, `sandbox.network.allowMachLookup`, "Where wildcards work in
+sandbox paths"), <https://code.claude.com/docs/en/env-vars> (`CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF`),
 <https://code.claude.com/docs/en/permission-modes> ("The mounted drive prompt"),
 <https://code.claude.com/docs/en/permissions#hook-approvals-in-plan-mode>, <https://code.claude.com/docs/en/env-vars>
-(`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`), <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md>
-(2.1.302–2.1.316 as named above; 2.1.319 `sed` fix, disk-full error, `-p` exit 1 under auto-mode refusal; 2.1.321–2.1.325 as named above, `autoAllowBashIfSandboxed` default, start-up stop on invalid sandbox settings);
+(`CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`), <https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md> (2.1.302–2.1.316
+as named above; 2.1.319 `sed` fix, disk-full error, `-p` exit 1 under auto-mode refusal; 2.1.321–2.1.325 as named above,
+`autoAllowBashIfSandboxed` default, start-up stop on invalid sandbox settings);
 <https://code.claude.com/docs/en/settings-reference> and <https://code.claude.com/docs/en/permissions>
 (`permissions.blockWritesOutsideWorkingDirectories`);
-<https://www.anthropic.com/research/investigating-unintended-model-actions> ("Investigating unintended model actions
-in our evaluations and internal use", 2026-10-09, persistence around restrictions, explicit scope, live internet off
-for internal evals); <https://www.anthropic.com/research/alignment-assessment-ukaisi> ("An alignment assessment of the
-UK AISI cybertesting incident", 2026-10-23, an alignment write-up whose observed behaviours ground the isolation rules
-above; the rules are this plugin's inferences, not the article's advice). The list of what still loaded under
-`setting_sources=[]` was measured by this plugin on 2026-09-30.
-<https://claude.dev/blog/safely-scaling-multi-agent-teams-with-fable-5-2/> ("Safely scaling multi-agent teams with
-Claude Fable 5.2", 2026-11-09, one sandbox per agent, gateway identity, per-call classifier gate with human review,
-offline monitor; no Agent SDK mention); <https://code.claude.com/docs/en/agent-sdk/secure-deployment> (`--pids-limit
-600`, read 2026-11-14); <https://code.claude.com/docs/en/settings-reference#sandbox-autoallowbashifsandboxed> (default
-`false` from 2.1.324). Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+<https://www.anthropic.com/research/investigating-unintended-model-actions> ("Investigating unintended model actions in our
+evaluations and internal use", 2026-10-09, persistence around restrictions, explicit scope, live internet off for internal
+evals); <https://www.anthropic.com/research/alignment-assessment-ukaisi> ("An alignment assessment of the UK AISI cybertesting
+incident", 2026-10-23, an alignment write-up whose observed behaviours ground the isolation rules above; the rules are this
+plugin's inferences, not the article's advice). The list of what still loaded under `setting_sources=[]` was measured by this
+plugin on 2026-09-30. <https://claude.dev/blog/safely-scaling-multi-agent-teams-with-fable-5-2/> ("Safely scaling multi-agent
+teams with Claude Fable 5.2", 2026-11-09, one sandbox per agent, gateway identity, per-call classifier gate with human review,
+offline monitor; no Agent SDK mention); <https://code.claude.com/docs/en/agent-sdk/secure-deployment> (`--pids-limit 600`, read
+2026-11-14); <https://code.claude.com/docs/en/settings-reference#sandbox-autoallowbashifsandboxed> (default `false` from
+2.1.324); the 2.1.326 changelog (sandbox, hook and flag changes above) and the settings reference read 2026-11-17
+(`sandbox.failIfUnavailable` in Anthropic-hosted environments, `autoMode.*` `"$defaults"`).
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

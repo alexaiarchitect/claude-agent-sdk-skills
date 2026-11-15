@@ -110,6 +110,13 @@ before it ends and its JSON carries `credential_expires_at` — grep the step lo
 for it. `CLAUDE_CODE_OAUTH_TOKEN` belongs in the job's environment: project and
 local settings files ignore it (docs read 2026-11-04).
 
+Two docs points of 2026-11-17 for parallel jobs. Two `claude -p` runs (or SDK clients) that resume **the same
+session at once** write to one transcript and can lose messages: a matrix that resumes a shared session gives each
+leg `--fork-session` (`fork_session=True`). `--permission-prompts none` lasts one run, while
+`permissions.denyInsteadOfPrompting` in user or managed settings persists; the runner's `dontAsk` needs neither. From
+runner 0.2.6 every prompt goes out as a uuid-stamped user message and the drain keeps reading past results of injected
+turns (at most three), so a trace's result is the one that answers the case's prompt.
+
 ## The other shape: `claude-code-action`
 
 `anthropics/claude-code-action@v1` runs Claude Code itself in a job and accepts
@@ -140,5 +147,8 @@ Code quality reports", 2026-04-23, three harness changes that looked like model
 drift, per-model evals on every system-prompt change, testing the exact public
 build); the `-p` startup exit code per the Claude Code `CHANGELOG.md` (2.1.314)
 and measured by this plugin on 2026-11-02 (2.1.310 and 2.1.316); the 2.1.317 and
-2.1.318 entries per the same changelog.
+2.1.318 entries per the same changelog; <https://code.claude.com/docs/en/sessions> (concurrent resumes) and
+<https://code.claude.com/docs/en/headless> (`--permission-prompts none`), read 2026-11-17; `.dev/CONTRACTS.md` §22.5
+(the runner's matching rule).
 Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

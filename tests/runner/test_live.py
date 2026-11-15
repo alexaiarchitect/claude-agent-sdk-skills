@@ -26,7 +26,7 @@ money rather than plan quota, so it is opt-in on top of `AGENT_SDK_LIVE=1`:
 
     set -a; source ../.env; set +a
     AGENT_SDK_LIVE=1 AGENT_SDK_LIVE_CREDENTIAL=api_key PYTHONPATH=runner \\
-        ../tmp/venvs/casdk-venv-0.2.182/bin/python -m pytest tests/runner/test_live.py -q
+        ../tmp/venvs/casdk-venv-0.2.183/bin/python -m pytest tests/runner/test_live.py -q
 
 The CLI prints one stderr notice on every API-key run ("claude.ai connectors are
 disabled because ANTHROPIC_API_KEY … takes precedence"), which is not a failure.
@@ -156,6 +156,12 @@ def test_the_pr_tier_passes_against_the_real_backend(project, tmp_path_factory):
 
     # The cost is spread over every model the CLI billed, not just the agent's.
     result = next(e for e in events if e["type"] == "result")
+    # Runner 0.2.6 stamps every prompt with a uuid; Claude Code 2.1.326 and 2.1.327
+    # echo it verbatim (measured 2026-11-17), so the result names the prompt it answers.
+    user = next(e for e in events if e["type"] == "user")
+    uuid_echoed = bool(user.get("uuid")) and result.get("user_message_uuid") == user.get("uuid")
+    assert uuid_echoed, (user.get("uuid"), result.get("user_message_uuid"))
+    assert user["uuid"] in (result.get("user_message_uuids") or [])
     assert result["cost_basis"] == EXPECTED_BASIS
     assert result["models_billed"], "model_usage names at least the agent's model"
     assert result["cost_basis_list"] is True, "no negotiated rate on a first-party account"
@@ -164,7 +170,8 @@ def test_the_pr_tier_passes_against_the_real_backend(project, tmp_path_factory):
           f"stop_reason={result.get('stop_reason')} is_error={result.get('is_error')} "
           f"models_billed={result['models_billed']} "
           f"capabilities={len(init.get('capabilities') or [])} "
-          f"fast_mode={init.get('fast_mode_state')}/{init.get('fast_mode_disabled_reason')}")
+          f"fast_mode={init.get('fast_mode_state')}/{init.get('fast_mode_disabled_reason')} "
+          f"uuid_echoed={uuid_echoed}")
 
     if ON_API_KEY:
         # An API key has no plan windows, and no `RateLimitEvent` arrived on

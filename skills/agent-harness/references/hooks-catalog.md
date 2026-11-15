@@ -7,7 +7,7 @@ The Python SDK's `HookEvent` literal has exactly **ten** values. The TypeScript 
 |---|---|---|---|
 | `PreToolUse` | a tool call is requested, before it runs | `tool_name`, `tool_input`, `agent_id`/`agent_type` inside a subagent | `permissionDecision` (`allow`/`deny`/`ask`/`defer`), `permissionDecisionReason`, `updatedInput`, `additionalContext` |
 | `PostToolUse` | the tool returned | `tool_name`, `tool_input`, the result | `additionalContext`, `updatedToolOutput` (any tool), `updatedMCPToolOutput` (**MCP tools only — not deprecated**; prefer `updatedToolOutput`, which works for all tools) |
-| `PostToolUseFailure` | the tool raised or errored | as above plus the failure | `additionalContext` |
+| `PostToolUseFailure` | the tool raised or errored | as above plus the failure | `additionalContext`; it can't rewrite the result, so the failing output reaches Claude unchanged (hooks page, 2026-11-17) |
 | `UserPromptSubmit` | a user turn is submitted — **and a turn Claude Code starts on its own**: a scheduled task or `/loop` iteration firing, a background subagent reporting back to its parent, a cross-session message arriving in the main conversation | the prompt | `additionalContext` |
 | `Notification` | the agent emits a status message | `message` | `additionalContext` |
 | `SubagentStart` | a subagent begins | `agent_id`, `agent_type` (required here) | `additionalContext` |
@@ -19,6 +19,8 @@ The Python SDK's `HookEvent` literal has exactly **ten** values. The TypeScript 
 `PreCompact` is the only Python event with no `hookSpecificOutput` **type at all**. `Stop` and `SubagentStop` gained one in
 0.2.166 (`hookEventName` plus `additionalContext`; the dict shape works on older SDKs too). **Blocking a stop is still a common
 field**: `decision: "block"` with `reason` sends the agent back to work; `continue_: False` with `stopReason` ends the turn. A
+`Stop` hook that runs the tests when Claude finishes, or a `/goal` of a passing suite, is how the Claude Code team puts cheap
+checks first (claude.dev, 2026-11-16; a team practice, not an SDK feature). A
 check that demands `hookSpecificOutput` on `PreCompact`, or rejects it on `Stop`, is wrong. `updatedToolOutput` must match the
 tool's own output shape, or the original is kept; it "works for built-in and MCP tools in both SDKs" (SDK hooks page,
 2026-11-10), and a Cowork cloud session ignores it for `AskUserQuestion` and `ExitPlanMode`.
@@ -38,18 +40,16 @@ async def cb(input_data, tool_use_id, context) -> dict: ...
 ```
 
 - **`async def`, always.** The SDK awaits it; a plain `def` raises when the event fires (`HOK001`).
-- **Three parameters, always.** `input_data` (a TypedDict per event, sharing `session_id`,
-  `cwd`, `hook_event_name`), `tool_use_id` (`str | None`, which correlates `PreToolUse` with
-  `PostToolUse` for the same call), and `context` — in Python a `HookContext` with one key,
-  `signal`, documented as "reserved for future abort signal support. Currently always None."
-- **`return {}` means allow, unchanged.** Returning nothing (`None`) is a
-  *failure*, not an allow (see `on_failure` below).
-- **The common top-level fields are accepted on every event**: `continue_`,
-  `stopReason`, `decision`, `reason`, `systemMessage`, `suppressOutput`;
-  `{"continue_": False, "stopReason": "..."}` halts a turn on any event.
-- **Return `{"async_": True, "asyncTimeout": 30000}`** to let the agent proceed
-  without waiting (trailing underscore: the SDK converts `async_`/`continue_` on
-  the wire). An async output cannot block, modify or inject: logging only.
+- **Three parameters, always.** `input_data` (a TypedDict per event, sharing `session_id`, `cwd`, `hook_event_name`),
+  `tool_use_id` (`str | None`, which correlates `PreToolUse` with `PostToolUse` for the same call), and `context` — in Python
+  a `HookContext` with one key, `signal`, documented as "reserved for future abort signal support. Currently always None."
+- **`return {}` means allow, unchanged.** Returning nothing (`None`) is a *failure*, not an allow (see `on_failure` below).
+- **The common top-level fields are accepted on every event**: `continue_`, `stopReason`, `decision`, `reason`,
+  `systemMessage`, `suppressOutput` (which "Has no effect", docs 2026-11-17); `{"continue_": False, "stopReason": "..."}` ends
+  the turn, but it **doesn't block a `PreToolUse` call** — also return `permissionDecision: "deny"` — and doesn't apply when
+  the permission check refuses the call (hooks page, 2026-11-17).
+- **Return `{"async_": True, "asyncTimeout": 30000}`** to let the agent proceed without waiting (trailing underscore: the SDK
+  converts `async_`/`continue_` on the wire). An async output cannot block, modify or inject: logging only.
 
 ## Registering them
 
@@ -80,24 +80,22 @@ rewrite them.)
 
 ## Concurrency, precedence and timeouts
 
-- When several hooks or rules apply: **deny beats defer beats ask beats
-  allow.** One deny blocks the operation regardless of the others.
-- A `PreToolUse` hook that returns `allow` does **not** skip the deny and ask rules that follow it in
-  the evaluation order. It also cannot approve an `rm` or `rmdir` targeting a critical path, and it does
-  not skip the prompt for a read from a **network path**, which has its own check. From **2.1.325** a
-  permission check that errors after the hook's `allow` is decided as if no hook had answered, and input
-  a `PermissionRequest` hook rewrote that then fails the check is asked again or refused.
-- An `mcp_tool` hook whose server answers with a message Claude Code cannot read (too large, or a
-  result without its text) gives **no verdict**: on `PreToolUse` the tool call is refused, on other
-  events the error is non-blocking (hooks page 2026-11-10; a PreToolUse `mcp_tool` hook answer over
-  16 MiB is refused since 2.1.321).
-- Default timeout: **600 seconds** for most events, **30** for
-  `UserPromptSubmit`. Set `timeout=` on the `HookMatcher` to change it.
-- On `PreToolUse` an SDK callback that times out **blocks the tool call**: the tool result tells
-  Claude the hook did not respond in time and the turn continues (before 2.1.210 it was reported
-  as a user rejection, which left unattended sessions waiting). On `PostToolUse` the result is
-  kept; on `Stop`/`SubagentStop` a timeout counts as no decision. With `on_failure="block"` a
-  timeout also blocks `PreCompact`, `Elicitation` and `WorktreeCreate`.
+- When several hooks or rules apply: **deny beats defer beats ask beats allow.** One deny blocks the operation regardless of
+  the others.
+- A `PreToolUse` hook that returns `allow` does **not** skip the deny and ask rules that follow it in the evaluation order. It
+  also cannot approve an `rm` or `rmdir` targeting a critical path, and it does not skip the prompt for a read from a
+  **network path**, which has its own check. From **2.1.325** a permission check that errors after the hook's `allow` is
+  decided as if no hook had answered, and input a `PermissionRequest` hook rewrote that then fails the check is asked again or
+  refused.
+- An `mcp_tool` hook whose server answers with a message Claude Code cannot read (too large, or a result without its text)
+  gives **no verdict**: on `PreToolUse` the tool call is refused, on other events the error is non-blocking (hooks page
+  2026-11-10; a PreToolUse `mcp_tool` hook answer over 16 MiB is refused since 2.1.321).
+- Default timeout: **600 seconds** for most events, **30** for `UserPromptSubmit`. Set `timeout=` on the `HookMatcher` to
+  change it.
+- On `PreToolUse` an SDK callback that times out **blocks the tool call**: the tool result tells Claude the hook did not
+  respond in time and the turn continues (before 2.1.210 it was reported as a user rejection, which left unattended sessions
+  waiting). On `PostToolUse` the result is kept; on `Stop`/`SubagentStop` a timeout counts as no decision. With
+  `on_failure="block"` a timeout also blocks `PreCompact`, `Elicitation` and `WorktreeCreate`.
 
 ## When a callback fails: `on_failure` (SDK 0.2.177+, CLI 2.1.317+)
 
@@ -107,22 +105,18 @@ A callback **fails** when it raises, returns `None` (a path with no `return`), o
 `PreToolUse` guard fails open** (measured on 2.1.318 and 2.1.319: the guarded `ls` ran).
 
 `HookMatcher(matcher="Bash", hooks=[guard], on_failure="block")` blocks the action instead. Measured on 0.2.178 / 2.1.318 and,
-byte for byte, on 0.2.179 / 2.1.319 (2026-11-08; the 2.1.319 changelog fix for text dropped from informational messages left
-these texts as they were), the same informational message arrives, ending "onFailure is "block", so this failure counts as a
+byte for byte, on 0.2.179 / 2.1.319 (2026-11-08), the same informational message arrives, ending "onFailure is "block", so this failure counts as a
 block." (the docs describe it only for the default path), then an `is_error` tool result `PreToolUse:Bash hook error:
 [callback]: failed; blocking because onFailure is "block"` without the guard's error text; the call lands in
 `permission_denials`, Claude may retry it, and the result is still `subtype: "success"`.
 
-- **`return {}` when the callback has no opinion**; with `"block"` a path with
-  no `return` blocks. A guard that catches its own error and returns `{}` is not
-  failing, so let the error propagate from a guard.
-- `Stop`, `SubagentStop`, `TaskCompleted` and `TeammateIdle` ignore it; a `PermissionRequest`
-  block counts only if it lands before `can_use_tool` answers; on `PostToolUse` the tool already
-  ran, so Claude gets the failure as feedback.
-- With `"block"` the session fails at startup with `CLIConnectionError` and no
-  prompt sent: `does not honor` (CLI older than 2.1.317: update it) or `did not
-  register your hooks` (an already-running session: start a new one). The SDK
-  does not validate the value; the CLI reads an unknown one as `"block"`.
+- **`return {}` when the callback has no opinion**; with `"block"` a path with no `return` blocks. A guard that catches its
+  own error and returns `{}` is not failing, so let the error propagate from a guard.
+- `Stop`, `SubagentStop`, `TaskCompleted` and `TeammateIdle` ignore it; a `PermissionRequest` block counts only if it lands
+  before `can_use_tool` answers; on `PostToolUse` the tool already ran, so Claude gets the failure as feedback.
+- With `"block"` the session fails at startup with `CLIConnectionError` and no prompt sent: `does not honor` (CLI older than
+  2.1.317: update it) or `did not register your hooks` (an already-running session: start a new one). The SDK does not
+  validate the value; the CLI reads an unknown one as `"block"`.
 
 Set `"block"` on guards (callbacks that deny, ask or gate), not on observers. `HOK011` flags a `PreToolUse`/`PermissionRequest`
 guard without it (silent below a 0.2.177 pin); `gen_hook.py --purpose deny` emits it on those two events.
@@ -145,50 +139,51 @@ A hook in a settings file or a plugin manifest is a process or a request, so it 
 | Blocking error | exit **2** | the action is blocked and stderr goes back to the model |
 | Non-blocking error | any other exit code, or failing to start or to parse | the hook is ignored and the action proceeds — it **fails open** unless `onFailure: "block"` |
 
+Exit 2 with JSON that sets `continue: false`: on `Stop`/`SubagentStop` the field wins and the turn ends; on `PreToolUse` the call
+stays blocked either way (an `"allow"` in the JSON doesn't let it through); exit 127 (script missing) now says the check may not
+have run (2.1.326). `TeammateIdle`/`TaskCompleted` take a top-level
+`decision: "block"` (keep working, task open) while `continue: false` idles the teammate; `Setup` runs only `command` hooks and
+`SessionStart` `command` and `mcp_tool`; a `prompt`/`agent` hook over 4,000,000 characters doesn't run, and outside Code Mode a
+`PreToolUse` one then doesn't block (use a command hook). `StopFailure`: an HTTP 529 that ends the turn now
+matches `server_error`; the overload value left its matcher list (`rate_limit`, `billing_error`, … unchanged).
+HTTP hooks: `allowedHttpHookUrls`/`httpHookAllowedEnvVars` cover org hooks when set in managed settings, other hooks from any
+settings file (merged), and from 2.1.326 `Content-Length`/`Transfer-Encoding` headers in a hook's config are ignored.
+
 Stdout parses as JSON only when the **entire** output is one JSON object (from **2.1.295** it may be pretty-printed);
 JSON-per-line output is plain text. **`PreCompact` stdout** is the exception: when the hook exits 0 and does not block, its
 stdout becomes instructions for the compaction summary; its output is cut at 10,000 characters (2.1.314) per hook with a marker
-(larger output used to make compaction fail or repeat), and it is the one output not saved to a file in the session directory
-when it overflows (hooks page 2026-11-07).
+(larger output used to make compaction fail or repeat), the one output not saved to a session file on overflow (2026-11-07).
 
 `onFailure: "block"` (**2.1.295+**) on a `command` or `http` hook makes a failure (cannot start, exit other than 0 or 2, HTTP
 error, timeout, unparseable output) fail the action the way exit 2 would. It has **no effect** on `Stop`, `SubagentStop`,
-`TaskCompleted`, `TeammateIdle` or background (`async`/`asyncRewake`) command hooks. SDK callbacks use the matcher's
-`on_failure` (above).
+`TaskCompleted`, `TeammateIdle` or background (`async`/`asyncRewake`) command hooks. SDK callbacks use `on_failure` (above).
 
 ## Released in 0.2.166 (gate as "0.2.166+")
 
-The pinned 0.2.182 (bundled CLI 2.1.325) has all of this; code for 0.2.140–0.2.165 reads these fields with `.get()`. Hook inputs
+The pinned 0.2.183 (bundled CLI 2.1.326) has all of this; code for 0.2.140–0.2.165 reads these fields with `.get()`. Hook inputs
 gained `prompt_id`, `effort` (a `HookEffort`, `{level: str}`; `$CLAUDE_EFFORT` in command hooks), `duration_ms` on
 `PostToolUse`/`PostToolUseFailure`, and `last_assistant_message`, `background_tasks`, `session_crons` on `Stop`/`SubagentStop`.
 21 `*HookSpecificOutput` types are exported, 12 for events not registrable from Python (`SessionStart`, `PermissionDenied`,
 `Elicitation`, `WorktreeCreate`, …), so `HOK020` still fires on those; the ten `HookEvent` literals are unchanged. From 0.2.169
 `SessionStart` and `Setup` hook events are emitted regardless of `include_hook_events`.
 
-## Claude Code changes that reach hook authors (2.1.299–2.1.325)
+## Claude Code changes that reach hook authors (2.1.299–2.1.326)
 
-- **2.1.299–2.1.310**: `updatedInput` is validated like Claude's own input; `UserPromptSubmit` sees
-  the typed `/skill …` line; failing shell-form guards on Windows and PowerShell fail closed.
-- **Prompt and agent hooks run at most 24 at a time per session, plus at most 12 that have waited
-  longer than their event's timeout; a `timeout` under 1 second counts as 1 second** (changelog 2.1.312; the
-  hooks page still says "If more than 12 of them are prompt or agent hooks, 12 of those run at once").
-- **2.1.321 fixes**: a `PreToolUse` `ask` is no longer lost when another hook's `defer` finished first;
-  an embedding app gets its own hook's `ask` reason, not another hook's; a large hook output no longer
-  points Claude at another hook's file. **2.1.325**: `PreCompact`, `PostCompact` and post-compaction
-  `SessionStart` hooks receive `agent_id`/`agent_type` when a subagent compacts.
-- **Long-running programs from a hook** (hooks page 2026-11-10): run them in the background with stdout
-  and stderr redirected, or a non-async hook waits up to 10 seconds and a `PreToolUse` allow printed
-  before such a start is refused ("stdio went quiet … refusing to honor the suspect capture").
-- **`SubagentStop` fires once per subagent (2.1.311)**. **Skill hooks are capped
-  per source (2.1.304+)**: 1,024 hooks and 16,384 matcher characters per session.
-- **`PostToolUse` after an interrupt (2.1.319, hooks page)**: when a new message
-  interrupts a turn while a tool runs, `PostToolUse` hooks run on its result with
-  10 seconds to finish (before, they did not start). Interactive sessions only.
-- **`updatedInput` in auto mode (docs 2026-11-04)**: when a `PreToolUse` hook returns `updatedInput`
-  with no `permissionDecision`, Claude Code can deny the changed call (`a hook changed this call's input
-  after auto mode reviewed it`), because the server reviewed Claude's input, not the hook's; if Claude
-  repeats the call, the hook's `updatedInput` is dropped. A `command` hook in settings or a plugin's
-  hooks file may still change Bash, PowerShell, Monitor, Edit, Write and NotebookEdit calls.
+- **2.1.326**: `updatedInput` is kept when several `PreToolUse` hooks answer; `decision: "block"` is honoured in more cases (a hook
+  that unconditionally prints it can start blocking calls it used to let through); a crashed Node or Python hook shows its error; managed refusals reach OTel.
+- **Prompt and agent hooks run at most 24 at a time per session, plus at most 12 that have waited longer than their event's
+  timeout; a `timeout` under 1 second counts as 1 second** (changelog 2.1.312; the hooks page still says "If more than 12 of
+  them are prompt or agent hooks, 12 of those run at once").
+- **2.1.321 fixes**: a `PreToolUse` `ask` is no longer lost when another hook's `defer` finished first; an embedding app gets
+  its own hook's `ask` reason. **2.1.325**: compaction hooks receive `agent_id`/`agent_type` when a subagent compacts.
+- **Long-running programs from a hook** (hooks page 2026-11-10): background them with output redirected, or a non-async hook
+  waits up to 10 seconds and a `PreToolUse` allow printed before the start is refused.
+- **`SubagentStop` fires once per subagent (2.1.311)**. **Skill hooks are capped per source (2.1.304+)**: 1,024 hooks and
+  16,384 matcher characters per session.
+- **`PostToolUse` after an interrupt (2.1.319)**: hooks run on the tool's result with 10 seconds to finish (interactive only).
+- **`updatedInput` in auto mode (docs 2026-11-04)**: with no `permissionDecision`, Claude Code can deny the changed call (`a
+  hook changed this call's input after auto mode reviewed it`); a repeat drops the hook's `updatedInput`. Settings and plugin
+  `command` hooks may still change Bash, PowerShell, Monitor, Edit, Write and NotebookEdit calls.
 - **`@` mentions bypass `PreToolUse`** (no tool call); a `Read` deny rule still blocks the path, and
   `CLAUDE_CODE_DISABLE_FILE_MENTIONS=1` (2.1.299+) makes Claude read it with its tools so the hooks run.
 
@@ -240,11 +235,16 @@ frontmatter-hook trust), <https://code.claude.com/docs/en/env-vars> (`CLAUDE_COD
 and Monitor-tool hooks, 2.1.317 `onFailure` for SDK callbacks, 2.1.319 informational-message text fix, 2.1.321 `ask`/`defer` and
 mods, 2.1.325 hook-then-check rules and compaction `agent_id`), the SDK `CHANGELOG.md` (0.2.169; 0.2.177 `on_failure`);
 <https://claude.dev/blog/getting-started-with-claude-code-mods/> ("Getting started with Claude Code mods", 2026-10-01, mods as
-hooks shipped in plugins, a guard mod as a safety net); `claude-agent-sdk` 0.2.182 `types.py:286-299` (`HookEvent`, ten
-literals), `:301-511` (hook input types), `:513-727` (`hookSpecificOutput` per event), `:730-817` (`HookJSONOutput`), `:820`
-(`HookContext`), `:830` (`HookCallback`), `:842` (`HookMatcher`), `:866` (`on_failure`), `:2548-2559` (concurrent dispatch),
-`:2571-2577` (`include_hook_events`), `:2203-2292` (`CanUseToolShadowedWarning`), `:616` (`StopHookSpecificOutput`), `:627`
-(`SubagentStopHookSpecificOutput`), `:301` (`HookEffort`). Measured by this plugin: "emits nothing without a registered hook"
-(2026-09-30), both `on_failure` paths on 0.2.178 / 2.1.318 (2026-11-04) and 0.2.179 / 2.1.319 (2026-11-08). Lines renumbered to
-0.2.182 on 2026-11-14 (`client_app` and 21 lines added; no hook type changed). Re-read 2026-11-14 against claude-agent-sdk
-0.2.182 / Claude Code 2.1.325 docs.
+hooks shipped in plugins, a guard mod as a safety net);
+<https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/> ("How the Claude Code team thinks about
+verification", 2026-11-16, a `Stop` hook or `/goal` running the tests as cheap checks first); the hooks page read 2026-11-17
+(`continue` and `PreToolUse`, exit 2 with JSON, `suppressOutput`, `PostToolUseFailure`, `StopFailure`, `TeammateIdle`, HTTP
+allowlists), <https://code.claude.com/docs/en/errors> (4,000,000 characters), the 2.1.326 changelog; `claude-agent-sdk` 0.2.183
+`types.py:286-299` (`HookEvent`, ten literals), `:301-511` (hook input types), `:513-727` (`hookSpecificOutput` per event),
+`:730-817` (`HookJSONOutput`), `:820` (`HookContext`), `:830` (`HookCallback`), `:842` (`HookMatcher`), `:866` (`on_failure`),
+`:2599-2610` (concurrent dispatch), `:2622-2628` (`include_hook_events`), `:2254-2343` (`CanUseToolShadowedWarning`), `:616`
+(`StopHookSpecificOutput`), `:627` (`SubagentStopHookSpecificOutput`), `:301` (`HookEffort`). Measured by this plugin: "emits
+nothing without a registered hook" (2026-09-30), both `on_failure` paths on 0.2.178 / 2.1.318 (2026-11-04) and 0.2.179 / 2.1.319
+(2026-11-08). Lines renumbered to 0.2.182 on 2026-11-14 (`client_app`, 21 lines) and to 0.2.183 on 2026-11-17 (51 lines).
+Re-read 2026-11-14 against claude-agent-sdk 0.2.182 / Claude Code 2.1.325 docs.
+Re-read 2026-11-17 against claude-agent-sdk 0.2.183 / Claude Code 2.1.326 docs.

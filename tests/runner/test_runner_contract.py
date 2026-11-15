@@ -48,7 +48,7 @@ def test_the_runner_version_matches_the_library():
 
 
 def test_the_docs_read_at_version_matches_the_library():
-    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.325"
+    assert runner.DOCS_READ_AT_CLI == plugin.DOCS_READ_AT_CLI == "2.1.326"
 
 
 def test_the_option_list_matches_the_stub():

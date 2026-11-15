@@ -49,7 +49,8 @@ MODEL_ENV_VAR = "CLAUDE_MODEL"
 #: docs re-read 2026-11-05 (lastmod 2026-11-04), no CLI release.
 #: docs re-read 2026-11-08 (lastmod 2026-11-06/07), CLI 2.1.319.
 #: docs re-read 2026-11-14 (lastmod 2026-11-12/13/14), CLI 2.1.325.
-DOCS_READ_AT_CLI = "2.1.325"
+#: docs re-read 2026-11-17 (47 pages changed, 1 new), CLI 2.1.326.
+DOCS_READ_AT_CLI = "2.1.326"
 
 #: The plugin's model policy, copied here so a run can grade a model id without
 #: the plugin's library (a test asserts the four copies are equal). `CURRENT` are
@@ -162,13 +163,15 @@ TERMINAL_REASONS = ("completed", "max_turns", "aborted_streaming", "aborted_tool
 
 #: `stop_reason` values that set `is_error=True` on a `subtype="success"` result
 #: without any API error, mapped to the outcome label the reports use. The Python
-#: SDK docs (read at Claude Code 2.1.319, unchanged at 2.1.325): `is_error` "is `True` in three cases.
+#: SDK docs (read at Claude Code 2.1.319, unchanged at 2.1.326): `is_error` "is `True` in three cases.
 #: Check `stop_reason` to tell them apart" — `"refusal"` (the model declined),
-#: `"tool_deferred_unavailable"` (a deferred tool was not available on resume),
+#: `"tool_deferred_unavailable"` (a deferred tool was not available on resume;
+#: docs re-read 2026-11-17: a resume with a prompt leaves the call pending and the
+#: prompt does not reach Claude, unless the call is dropped as the hooks page shows),
 #: and any other value, which is an error reported in place of a model response.
 #: Read `stop_reason` first, then `terminal_reason`, then `subtype`: a refusal's
 #: `terminal_reason` can still read `"api_error"`. The SDK passes the fields
-#: through from the CLI unchanged (0.2.182 `_internal/message_parser.py`, unchanged since 0.2.178).
+#: through from the CLI unchanged (0.2.183 `_internal/message_parser.py`; these fields unchanged since 0.2.178).
 RESULT_STOP_REASON_OUTCOMES = {"refusal": "refusal", "tool_deferred_unavailable": "tool_deferred"}
 RATE_LIMIT_STATUSES = ("allowed", "allowed_warning", "rejected")
 
